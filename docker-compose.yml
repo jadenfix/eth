@@ -144,3 +144,6 @@ volumes:
   redis_data:
   prometheus_data:
   grafana_data:
+
+# Visualization Layer Services
+# Use: docker-compose -f docker-compose.yml -f docker-compose.visualization.yml up

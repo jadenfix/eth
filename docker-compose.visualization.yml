@@ -1,0 +1,47 @@
+version: '3.8'
+
+services:
+  deckgl-explorer:
+    build: ./services/visualization/deckgl_explorer
+    ports:
+      - "3001:3000"
+    environment:
+      - NODE_ENV=development
+      - NEXT_PUBLIC_MAPBOX_TOKEN=${MAPBOX_TOKEN}
+      - GRAPHQL_ENDPOINT=http://graph-api:4000/graphql
+    depends_on:
+      - graph-api
+
+  timeseries-canvas:
+    build: ./services/visualization/timeseries_canvas
+    ports:
+      - "3002:3000"
+    environment:
+      - NODE_ENV=development
+      - METRICS_API_ENDPOINT=http://api-gateway:8000/api/metrics
+    depends_on:
+      - api-gateway
+
+  compliance-map:
+    build: ./services/visualization/compliance_map
+    ports:
+      - "3003:3000"
+    environment:
+      - NODE_ENV=development
+      - COMPLIANCE_API_ENDPOINT=http://api-gateway:8000/api/compliance
+    depends_on:
+      - api-gateway
+
+  workspace:
+    build: ./services/visualization/workspace
+    ports:
+      - "3004:3000"
+    environment:
+      - NODE_ENV=development
+    volumes:
+      - ./services/visualization/workspace/layout.json:/app/layout.json:ro
+
+networks:
+  default:
+    external:
+      name: onchain-command-center_default

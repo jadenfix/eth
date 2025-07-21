@@ -1,0 +1,298 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: deckgl-explorer
+  labels:
+    app: deckgl-explorer
+    layer: visualization
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: deckgl-explorer
+  template:
+    metadata:
+      labels:
+        app: deckgl-explorer
+    spec:
+      containers:
+      - name: deckgl-explorer
+        image: onchain-command-center/deckgl-explorer:latest
+        ports:
+        - containerPort: 3000
+        env:
+        - name: NODE_ENV
+          value: "production"
+        - name: GRAPHQL_ENDPOINT
+          value: "http://graph-api:4000/graphql"
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "250m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: deckgl-explorer
+spec:
+  selector:
+    app: deckgl-explorer
+  ports:
+  - port: 3000
+    targetPort: 3000
+  type: ClusterIP
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: timeseries-canvas
+  labels:
+    app: timeseries-canvas
+    layer: visualization
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: timeseries-canvas
+  template:
+    metadata:
+      labels:
+        app: timeseries-canvas
+    spec:
+      containers:
+      - name: timeseries-canvas
+        image: onchain-command-center/timeseries-canvas:latest
+        ports:
+        - containerPort: 3000
+        env:
+        - name: NODE_ENV
+          value: "production"
+        - name: METRICS_API_ENDPOINT
+          value: "http://api-gateway:8000/api/metrics"
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "250m"
+          limits:
+            memory: "512Mi" 
+            cpu: "500m"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: timeseries-canvas
+spec:
+  selector:
+    app: timeseries-canvas
+  ports:
+  - port: 3000
+    targetPort: 3000
+  type: ClusterIP
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: compliance-map
+  labels:
+    app: compliance-map
+    layer: visualization
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: compliance-map
+  template:
+    metadata:
+      labels:
+        app: compliance-map
+    spec:
+      containers:
+      - name: compliance-map
+        image: onchain-command-center/compliance-map:latest
+        ports:
+        - containerPort: 3000
+        env:
+        - name: NODE_ENV
+          value: "production"
+        - name: COMPLIANCE_API_ENDPOINT
+          value: "http://api-gateway:8000/api/compliance"
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "250m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: compliance-map
+spec:
+  selector:
+    app: compliance-map
+  ports:
+  - port: 3000
+    targetPort: 3000
+  type: ClusterIP
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: workspace
+  labels:
+    app: workspace
+    layer: visualization
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: workspace
+  template:
+    metadata:
+      labels:
+        app: workspace
+    spec:
+      containers:
+      - name: workspace
+        image: onchain-command-center/workspace:latest
+        ports:
+        - containerPort: 3000
+        env:
+        - name: NODE_ENV
+          value: "production"
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "500m"
+          limits:
+            memory: "1Gi"
+            cpu: "1000m"
+        volumeMounts:
+        - name: workspace-config
+          mountPath: /app/config
+      volumes:
+      - name: workspace-config
+        configMap:
+          name: workspace-layout
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: workspace
+spec:
+  selector:
+    app: workspace
+  ports:
+  - port: 3000
+    targetPort: 3000
+  type: ClusterIP
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: workspace-layout
+data:
+  layout.json: |
+    {
+      "version": "1.0.0",
+      "panels": [
+        {
+          "id": "network-graph",
+          "type": "deckgl_explorer",
+          "title": "Entity Relationship Graph",
+          "position": { "x": 0, "y": 0 },
+          "size": { "width": 8, "height": 6 },
+          "config": {
+            "data_source": "ontology_api",
+            "refresh_interval": 30000,
+            "filters": {
+              "entity_types": ["address", "contract", "token"],
+              "risk_threshold": 0.5
+            }
+          }
+        },
+        {
+          "id": "transaction-volume",
+          "type": "timeseries_canvas",
+          "title": "Transaction Volume",
+          "position": { "x": 8, "y": 0 },
+          "size": { "width": 4, "height": 3 },
+          "config": {
+            "metrics": ["tx_count", "tx_volume_eth"],
+            "time_range": "24h",
+            "realtime": true
+          }
+        },
+        {
+          "id": "gas-metrics",
+          "type": "timeseries_canvas", 
+          "title": "Gas Metrics",
+          "position": { "x": 8, "y": 3 },
+          "size": { "width": 4, "height": 3 },
+          "config": {
+            "metrics": ["gas_price_gwei", "gas_used"],
+            "time_range": "24h",
+            "realtime": true
+          }
+        },
+        {
+          "id": "compliance-map",
+          "type": "compliance_map",
+          "title": "Compliance Overview",
+          "position": { "x": 0, "y": 6 },
+          "size": { "width": 6, "height": 4 },
+          "config": {
+            "map_type": "choropleth",
+            "show_sanctions": true,
+            "risk_threshold": 0.7
+          }
+        },
+        {
+          "id": "mev-flows",
+          "type": "compliance_map",
+          "title": "MEV Transaction Flows",
+          "position": { "x": 6, "y": 6 },
+          "size": { "width": 6, "height": 4 },
+          "config": {
+            "map_type": "sankey",
+            "focus": "mev_transactions",
+            "time_range": "1h"
+          }
+        }
+      ],
+      "grid": {
+        "columns": 12,
+        "rows": 10,
+        "cell_height": 60
+      },
+      "theme": {
+        "background": "#f8fafc",
+        "panel_background": "#ffffff",
+        "border_color": "#e2e8f0",
+        "text_primary": "#1e293b",
+        "text_secondary": "#64748b"
+      },
+      "auto_refresh": true,
+      "refresh_interval": 30000,
+      "data_sources": {
+        "ontology_api": {
+          "type": "graphql",
+          "endpoint": "/api/ontology/graphql",
+          "subscription_endpoint": "/api/ontology/subscriptions"
+        },
+        "metrics_api": {
+          "type": "rest",
+          "endpoint": "/api/metrics",
+          "websocket_endpoint": "/ws/metrics"
+        },
+        "compliance_api": {
+          "type": "rest", 
+          "endpoint": "/api/compliance",
+          "realtime": true
+        }
+      }
+    }

@@ -28,7 +28,10 @@
     "docker:down": "docker-compose down",
     "infra:plan": "cd infra/gcp && terraform plan",
     "infra:apply": "cd infra/gcp && terraform apply",
-    "infra:destroy": "cd infra/gcp && terraform destroy"
+    "infra:destroy": "cd infra/gcp && terraform destroy",
+    "build:visualization": "cd services/visualization && for dir in */; do cd \"$dir\" && npm run build && cd ..; done",
+    "dev:visualization": "docker-compose -f docker-compose.yml -f docker-compose.visualization.yml up",
+    "test:visualization": "cd services/visualization && for dir in */; do cd \"$dir\" && npm test && cd ..; done"
   },
   "devDependencies": {
     "@types/node": "^20.11.0",

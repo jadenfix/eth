@@ -1,0 +1,29 @@
+{
+  "name": "@onchain-command-center/compliance-map",
+  "version": "1.0.0",
+  "description": "Regulatory compliance visualization with choropleth and Sankey diagrams",
+  "main": "map.tsx",
+  "scripts": {
+    "start": "next start",
+    "dev": "next dev", 
+    "build": "next build",
+    "test": "echo 'No tests specified'"
+  },
+  "dependencies": {
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "d3": "^7.8.0",
+    "d3-sankey": "^0.12.0",
+    "d3-geo": "^3.1.0",
+    "topojson-client": "^3.1.0"
+  },
+  "devDependencies": {
+    "@types/react": "^18.2.0",
+    "@types/react-dom": "^18.2.0",
+    "@types/d3": "^7.4.0",
+    "@types/d3-sankey": "^0.12.0",
+    "@types/d3-geo": "^3.1.0",
+    "@types/topojson-client": "^3.1.0",
+    "typescript": "^5.0.0"
+  }
+}

@@ -1,0 +1,29 @@
+{
+  "name": "@onchain-command-center/deckgl-explorer",
+  "version": "1.0.0",
+  "description": "WebGL-based network graph visualization for blockchain entities",
+  "main": "index.tsx",
+  "scripts": {
+    "start": "next start",
+    "dev": "next dev",
+    "build": "next build",
+    "test": "echo 'No tests specified'"
+  },
+  "dependencies": {
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "@deck.gl/react": "^8.9.0",
+    "@deck.gl/graph-layers": "^8.9.0",
+    "@deck.gl/core": "^8.9.0",
+    "react-map-gl": "^7.1.0",
+    "d3-scale": "^4.0.0",
+    "d3-scale-chromatic": "^3.0.0",
+    "mapbox-gl": "^2.15.0"
+  },
+  "devDependencies": {
+    "@types/react": "^18.2.0",
+    "@types/react-dom": "^18.2.0",
+    "@types/d3-scale": "^4.0.0",
+    "typescript": "^5.0.0"
+  }
+}

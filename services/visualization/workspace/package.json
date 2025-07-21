@@ -1,0 +1,25 @@
+{
+  "name": "@onchain-command-center/workspace",
+  "version": "1.0.0",
+  "description": "Foundry-style drag & drop dashboard builder for blockchain intelligence",
+  "main": "panels/workspace.tsx",
+  "scripts": {
+    "start": "next start",
+    "dev": "next dev",
+    "build": "next build",
+    "test": "echo 'No tests specified'"
+  },
+  "dependencies": {
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "react-dnd": "^16.0.0",
+    "react-dnd-html5-backend": "^16.0.0",
+    "next": "^13.5.0"
+  },
+  "devDependencies": {
+    "@types/react": "^18.2.0",
+    "@types/react-dom": "^18.2.0",
+    "@types/react-dnd": "^16.0.0",
+    "typescript": "^5.0.0"
+  }
+}
