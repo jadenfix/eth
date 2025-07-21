@@ -1,0 +1,190 @@
+# Access Control Policies Configuration
+
+roles:
+  # Analyst role - limited access to curated data
+  analyst:
+    permissions:
+      - read
+    resources:
+      - curated_events
+      - ai_signals
+      - high_value_transfers_view
+    conditions:
+      - no_pii_access
+      - business_hours_only
+    redacted_fields:
+      - from_address
+      - to_address
+    max_records_per_query: 10000
+
+  # Administrator role - full access
+  admin:
+    permissions:
+      - read
+      - write
+      - delete
+      - export
+    resources:
+      - "*"
+    conditions: []
+    redacted_fields: []
+    max_records_per_query: 1000000
+
+  # Service role - for automated systems
+  service:
+    permissions:
+      - read
+      - write
+    resources:
+      - raw_events
+      - curated_events
+      - ai_signals
+      - entity_resolutions
+    conditions:
+      - service_account_only
+    redacted_fields: []
+    max_records_per_query: 100000
+
+  # Compliance officer - audit access only
+  compliance:
+    permissions:
+      - read
+      - export
+    resources:
+      - audit_events
+      - entity_resolutions
+      - ai_signals
+    conditions:
+      - audit_justification_required
+    redacted_fields: []
+    max_records_per_query: 50000
+
+  # External partner - very limited access
+  partner:
+    permissions:
+      - read
+    resources:
+      - public_signals_view
+    conditions:
+      - api_key_required
+      - rate_limited
+    redacted_fields:
+      - from_address
+      - to_address
+      - transaction_hash
+    max_records_per_query: 1000
+
+# Data classification levels
+data_classification:
+  raw_events: confidential           # Contains full blockchain data
+  curated_events: internal          # Processed but still sensitive
+  ai_signals: internal              # Analysis results
+  entity_resolutions: restricted    # Identity mapping - most sensitive
+  audit_events: restricted          # Compliance data
+  high_value_transfers_view: confidential
+  public_signals_view: public       # Sanitized public feed
+
+# Resources that contain PII or sensitive data
+sensitive_resources:
+  - raw_events
+  - entity_resolutions
+  - audit_events
+
+# Audit configuration
+audit_rules:
+  # Always audit these data classifications
+  always_audit:
+    - restricted
+    - confidential
+  
+  # Always audit these actions
+  audit_actions:
+    - export
+    - delete
+    - write
+  
+  # Audit retention period (days)
+  retention_days: 2557  # 7 years for SOC-2 compliance
+  
+  # Real-time alerting thresholds
+  alert_thresholds:
+    failed_access_attempts: 5        # Alert after 5 failed attempts
+    bulk_export_threshold: 100000    # Alert on large exports
+    unusual_hours_access: true       # Alert on off-hours access to restricted data
+
+# Rate limiting configuration
+rate_limits:
+  partner:
+    requests_per_minute: 100
+    requests_per_hour: 1000
+    requests_per_day: 10000
+  
+  analyst:
+    requests_per_minute: 1000
+    requests_per_hour: 10000
+    requests_per_day: 100000
+
+# IP whitelist for sensitive operations
+ip_restrictions:
+  restricted_operations:
+    - export
+    - delete
+  
+  allowed_ips:
+    - "10.0.0.0/8"      # Internal network
+    - "172.16.0.0/12"   # VPN range
+    - "192.168.0.0/16"  # Office network
+
+# Column-level security mapping
+column_security:
+  curated_events:
+    from_address:
+      classification: confidential
+      roles_with_access: [admin, service]
+    to_address:
+      classification: confidential
+      roles_with_access: [admin, service]
+    value_usd:
+      classification: internal
+      roles_with_access: [admin, service, analyst]
+    risk_score:
+      classification: internal
+      roles_with_access: [admin, service, analyst]
+  
+  entity_resolutions:
+    input_address:
+      classification: restricted
+      roles_with_access: [admin, compliance]
+    resolved_entity_id:
+      classification: restricted
+      roles_with_access: [admin, compliance]
+
+# Time-based access controls
+time_restrictions:
+  business_hours:
+    start_hour: 9    # 9 AM UTC
+    end_hour: 18     # 6 PM UTC
+    days: [0, 1, 2, 3, 4]  # Monday-Friday
+  
+  maintenance_windows:
+    - start: "02:00"  # 2 AM UTC
+      end: "04:00"    # 4 AM UTC
+      days: [6]       # Sunday
+      restricted_operations: [write, delete]
+
+# Emergency access procedures
+emergency_access:
+  break_glass_roles: [admin]
+  requires_justification: true
+  auto_expire_hours: 4
+  alert_channels: ["security-team@company.com"]
+
+# Integration settings
+integrations:
+  slack:
+    alert_channel: "#security-alerts"
+    audit_channel: "#compliance-audit"
+  
+  email:
+    security_team: "security-team@company.com"
+    compliance_team: "compliance@company.com"

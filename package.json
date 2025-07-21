@@ -1,0 +1,42 @@
+{
+  "name": "onchain-command-center",
+  "version": "1.0.0",
+  "description": "Palantir-grade blockchain intelligence platform",
+  "private": true,
+  "workspaces": [
+    "services/ui/nextjs-app",
+    "sdk/js"
+  ],
+  "scripts": {
+    "dev": "concurrently \"npm run dev:ui\" \"npm run dev:api\"",
+    "dev:ui": "cd services/ui/nextjs-app && npm run dev",
+    "dev:api": "cd services/api_gateway && npm run dev",
+    "build": "npm run build:ui && npm run build:api",
+    "build:ui": "cd services/ui/nextjs-app && npm run build",
+    "build:api": "cd services/api_gateway && npm run build",
+    "test": "npm run test:ui && npm run test:api",
+    "test:ui": "cd services/ui/nextjs-app && npm test",
+    "test:api": "cd services/api_gateway && npm test",
+    "lint": "npm run lint:ui && npm run lint:api",
+    "lint:ui": "cd services/ui/nextjs-app && npm run lint",
+    "lint:api": "cd services/api_gateway && npm run lint",
+    "type-check": "npm run type-check:ui && npm run type-check:api",
+    "type-check:ui": "cd services/ui/nextjs-app && npm run type-check",
+    "type-check:api": "cd services/api_gateway && npm run type-check",
+    "docker:build": "docker-compose build",
+    "docker:up": "docker-compose up -d",
+    "docker:down": "docker-compose down",
+    "infra:plan": "cd infra/gcp && terraform plan",
+    "infra:apply": "cd infra/gcp && terraform apply",
+    "infra:destroy": "cd infra/gcp && terraform destroy"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.0",
+    "concurrently": "^8.2.2",
+    "typescript": "^5.3.0"
+  },
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=9.0.0"
+  }
+}

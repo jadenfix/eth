@@ -1,0 +1,243 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+
+env:
+  GOOGLE_CLOUD_PROJECT: ${{ secrets.GCP_PROJECT_ID }}
+  GCP_SA_KEY: ${{ secrets.GCP_SA_KEY }}
+  NODE_VERSION: '18'
+  PYTHON_VERSION: '3.11'
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    
+    strategy:
+      matrix:
+        service: [ingestion, ontology, agents/mev_watch]
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ env.PYTHON_VERSION }}
+    
+    - name: Cache Python dependencies
+      uses: actions/cache@v3
+      with:
+        path: ~/.cache/pip
+        key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
+        restore-keys: |
+          ${{ runner.os }}-pip-
+    
+    - name: Install Python dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install pytest pytest-cov pytest-asyncio
+    
+    - name: Lint Python code
+      run: |
+        flake8 services/${{ matrix.service }} --count --select=E9,F63,F7,F82 --show-source --statistics
+        flake8 services/${{ matrix.service }} --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
+    
+    - name: Format check with black
+      run: black --check services/${{ matrix.service }}
+    
+    - name: Type check with mypy
+      run: mypy services/${{ matrix.service }} --ignore-missing-imports
+    
+    - name: Run tests
+      run: pytest tests/ -v --cov=services/${{ matrix.service }} --cov-report=xml
+    
+    - name: Upload coverage to Codecov
+      uses: codecov/codecov-action@v3
+      with:
+        file: ./coverage.xml
+        flags: ${{ matrix.service }}
+
+  test-ui:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ env.NODE_VERSION }}
+        cache: 'npm'
+        cache-dependency-path: services/ui/nextjs-app/package-lock.json
+    
+    - name: Install UI dependencies
+      run: |
+        cd services/ui/nextjs-app
+        npm ci
+    
+    - name: Lint UI code
+      run: |
+        cd services/ui/nextjs-app
+        npm run lint
+    
+    - name: Type check UI
+      run: |
+        cd services/ui/nextjs-app
+        npm run type-check
+    
+    - name: Run UI tests
+      run: |
+        cd services/ui/nextjs-app
+        npm test -- --coverage --watchAll=false
+    
+    - name: Build UI
+      run: |
+        cd services/ui/nextjs-app
+        npm run build
+
+  build-docker:
+    runs-on: ubuntu-latest
+    needs: [test, test-ui]
+    if: github.event_name == 'pull_request'
+    
+    strategy:
+      matrix:
+        service: [ingestion, ontology, agents-mev-watch, ui]
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+    
+    - name: Build Docker image
+      uses: docker/build-push-action@v5
+      with:
+        context: .
+        file: services/${{ matrix.service }}/Dockerfile
+        push: false
+        tags: onchain-command-center-${{ matrix.service }}:${{ github.sha }}
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+
+  terraform-plan:
+    runs-on: ubuntu-latest
+    needs: [test, test-ui]
+    if: github.event_name == 'pull_request'
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Terraform
+      uses: hashicorp/setup-terraform@v3
+      with:
+        terraform_version: 1.6.0
+    
+    - name: Authenticate to Google Cloud
+      uses: google-github-actions/auth@v2
+      with:
+        credentials_json: ${{ secrets.GCP_SA_KEY }}
+    
+    - name: Set up Cloud SDK
+      uses: google-github-actions/setup-gcloud@v2
+    
+    - name: Terraform Init
+      run: |
+        cd infra/gcp
+        terraform init
+    
+    - name: Terraform Format
+      run: |
+        cd infra/gcp
+        terraform fmt -check
+    
+    - name: Terraform Validate
+      run: |
+        cd infra/gcp
+        terraform validate
+    
+    - name: Terraform Plan
+      run: |
+        cd infra/gcp
+        terraform plan -var="project_id=${{ env.GOOGLE_CLOUD_PROJECT }}" -no-color
+      env:
+        TF_VAR_project_id: ${{ env.GOOGLE_CLOUD_PROJECT }}
+
+  security-scan:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Run Trivy vulnerability scanner
+      uses: aquasecurity/trivy-action@master
+      with:
+        scan-type: 'fs'
+        scan-ref: '.'
+        format: 'sarif'
+        output: 'trivy-results.sarif'
+    
+    - name: Upload Trivy scan results to GitHub Security tab
+      uses: github/codeql-action/upload-sarif@v3
+      if: always()
+      with:
+        sarif_file: 'trivy-results.sarif'
+
+  deploy-staging:
+    runs-on: ubuntu-latest
+    needs: [test, test-ui, terraform-plan]
+    if: github.ref == 'refs/heads/develop'
+    environment: staging
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Authenticate to Google Cloud
+      uses: google-github-actions/auth@v2
+      with:
+        credentials_json: ${{ secrets.GCP_SA_KEY }}
+    
+    - name: Set up Cloud SDK
+      uses: google-github-actions/setup-gcloud@v2
+    
+    - name: Deploy to staging
+      run: |
+        echo "Deploying to staging environment..."
+        # Add actual deployment commands here
+    
+    - name: Run smoke tests
+      run: |
+        echo "Running smoke tests..."
+        # Add smoke test commands here
+
+  deploy-production:
+    runs-on: ubuntu-latest
+    needs: [test, test-ui]
+    if: github.ref == 'refs/heads/main'
+    environment: production
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Authenticate to Google Cloud
+      uses: google-github-actions/auth@v2
+      with:
+        credentials_json: ${{ secrets.GCP_SA_KEY }}
+    
+    - name: Set up Cloud SDK
+      uses: google-github-actions/setup-gcloud@v2
+    
+    - name: Deploy to production
+      run: |
+        echo "Deploying to production environment..."
+        # Add actual deployment commands here
+    
+    - name: Run production smoke tests
+      run: |
+        echo "Running production smoke tests..."
+        # Add production smoke test commands here

@@ -1,0 +1,236 @@
+syntax = "proto3";
+
+package onchain.api.v1;
+
+import "google/api/annotations.proto";
+import "google/protobuf/timestamp.proto";
+import "google/protobuf/struct.proto";
+
+option go_package = "github.com/onchain-command-center/api/v1";
+
+// Onchain Command Center API
+service OnchainAPI {
+  // Get real-time blockchain events
+  rpc GetEvents(GetEventsRequest) returns (GetEventsResponse) {
+    option (google.api.http) = {
+      get: "/v1/events"
+    };
+  }
+
+  // Get AI-generated signals
+  rpc GetSignals(GetSignalsRequest) returns (GetSignalsResponse) {
+    option (google.api.http) = {
+      get: "/v1/signals"
+    };
+  }
+
+  // Submit feedback on AI signal
+  rpc SubmitFeedback(SubmitFeedbackRequest) returns (SubmitFeedbackResponse) {
+    option (google.api.http) = {
+      post: "/v1/feedback"
+      body: "*"
+    };
+  }
+
+  // Get entity information
+  rpc GetEntity(GetEntityRequest) returns (GetEntityResponse) {
+    option (google.api.http) = {
+      get: "/v1/entities/{entity_id}"
+    };
+  }
+
+  // Search entities
+  rpc SearchEntities(SearchEntitiesRequest) returns (SearchEntitiesResponse) {
+    option (google.api.http) = {
+      get: "/v1/entities/search"
+    };
+  }
+
+  // Get system health metrics
+  rpc GetHealthMetrics(GetHealthMetricsRequest) returns (GetHealthMetricsResponse) {
+    option (google.api.http) = {
+      get: "/v1/health"
+    };
+  }
+
+  // WebSocket streaming endpoint (HTTP/2 stream)
+  rpc StreamEvents(StreamEventsRequest) returns (stream StreamEventsResponse);
+}
+
+// Event-related messages
+message ChainEvent {
+  int64 block_number = 1;
+  string transaction_hash = 2;
+  optional int32 log_index = 3;
+  optional string contract_address = 4;
+  string event_name = 5;
+  google.protobuf.Struct event_data = 6;
+  google.protobuf.Timestamp timestamp = 7;
+  int32 chain_id = 8;
+  google.protobuf.Timestamp ingestion_timestamp = 9;
+}
+
+message GetEventsRequest {
+  int32 limit = 1;
+  int32 offset = 2;
+  optional string event_type = 3;
+  optional string contract_address = 4;
+  optional int64 block_number_from = 5;
+  optional int64 block_number_to = 6;
+  optional google.protobuf.Timestamp timestamp_from = 7;
+  optional google.protobuf.Timestamp timestamp_to = 8;
+}
+
+message GetEventsResponse {
+  repeated ChainEvent events = 1;
+  int32 total_count = 2;
+  bool has_more = 3;
+}
+
+// Signal-related messages
+message AISignal {
+  string signal_id = 1;
+  string agent_name = 2;
+  string signal_type = 3;
+  double confidence_score = 4;
+  repeated string related_addresses = 5;
+  repeated string related_transactions = 6;
+  string description = 7;
+  Severity severity = 8;
+  google.protobuf.Struct metadata = 9;
+  google.protobuf.Timestamp timestamp = 10;
+  optional int32 feedback_rating = 11;
+}
+
+enum Severity {
+  SEVERITY_UNSPECIFIED = 0;
+  SEVERITY_LOW = 1;
+  SEVERITY_MEDIUM = 2;
+  SEVERITY_HIGH = 3;
+  SEVERITY_CRITICAL = 4;
+}
+
+message GetSignalsRequest {
+  int32 limit = 1;
+  int32 offset = 2;
+  optional string agent_name = 3;
+  optional string signal_type = 4;
+  optional Severity min_severity = 5;
+  optional google.protobuf.Timestamp timestamp_from = 6;
+  optional google.protobuf.Timestamp timestamp_to = 7;
+}
+
+message GetSignalsResponse {
+  repeated AISignal signals = 1;
+  int32 total_count = 2;
+  bool has_more = 3;
+}
+
+message SubmitFeedbackRequest {
+  string signal_id = 1;
+  int32 rating = 2; // -1 for thumbs down, 1 for thumbs up
+  optional string comment = 3;
+  string user_id = 4;
+}
+
+message SubmitFeedbackResponse {
+  bool success = 1;
+  string message = 2;
+}
+
+// Entity-related messages
+message Entity {
+  string entity_id = 1;
+  EntityType type = 2;
+  optional string address = 3;
+  optional string name = 4;
+  repeated string labels = 5;
+  google.protobuf.Struct properties = 6;
+  double risk_score = 7;
+  google.protobuf.Timestamp created_at = 8;
+  google.protobuf.Timestamp updated_at = 9;
+}
+
+enum EntityType {
+  ENTITY_TYPE_UNSPECIFIED = 0;
+  ENTITY_TYPE_ADDRESS = 1;
+  ENTITY_TYPE_CONTRACT = 2;
+  ENTITY_TYPE_TOKEN = 3;
+  ENTITY_TYPE_EXCHANGE = 4;
+  ENTITY_TYPE_POOL = 5;
+  ENTITY_TYPE_BRIDGE = 6;
+  ENTITY_TYPE_ORGANIZATION = 7;
+  ENTITY_TYPE_PERSON = 8;
+}
+
+message GetEntityRequest {
+  string entity_id = 1;
+}
+
+message GetEntityResponse {
+  Entity entity = 1;
+}
+
+message SearchEntitiesRequest {
+  string query = 1;
+  int32 limit = 2;
+  int32 offset = 3;
+  repeated EntityType types = 4;
+  optional double min_risk_score = 5;
+  optional double max_risk_score = 6;
+}
+
+message SearchEntitiesResponse {
+  repeated Entity entities = 1;
+  int32 total_count = 2;
+  bool has_more = 3;
+}
+
+// Health and metrics messages
+message HealthMetrics {
+  double ingestion_rate = 1;       // Events per second
+  double processing_latency = 2;   // Milliseconds
+  int32 active_agents = 3;         // Number of active AI agents
+  double signal_accuracy = 4;      // Model accuracy percentage (0-1)
+  SystemStatus status = 5;
+  google.protobuf.Timestamp last_updated = 6;
+}
+
+enum SystemStatus {
+  SYSTEM_STATUS_UNSPECIFIED = 0;
+  SYSTEM_STATUS_HEALTHY = 1;
+  SYSTEM_STATUS_DEGRADED = 2;
+  SYSTEM_STATUS_UNHEALTHY = 3;
+  SYSTEM_STATUS_MAINTENANCE = 4;
+}
+
+message GetHealthMetricsRequest {
+  // Empty for now
+}
+
+message GetHealthMetricsResponse {
+  HealthMetrics metrics = 1;
+}
+
+// Streaming messages
+message StreamEventsRequest {
+  repeated string event_types = 1;  // Filter by event types
+  repeated Severity min_severity = 2; // Minimum severity for signals
+  bool include_events = 3;          // Include blockchain events
+  bool include_signals = 4;         // Include AI signals
+}
+
+message StreamEventsResponse {
+  oneof data {
+    ChainEvent event = 1;
+    AISignal signal = 2;
+    HealthMetrics health_update = 3;
+  }
+}
+
+// Error handling
+message Error {
+  string code = 1;
+  string message = 2;
+  repeated string details = 3;
+}

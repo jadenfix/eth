@@ -1,0 +1,45 @@
+{
+  "name": "onchain-war-room",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint",
+    "type-check": "tsc --noEmit"
+  },
+  "dependencies": {
+    "next": "14.0.4",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "@chakra-ui/react": "^2.8.2",
+    "@emotion/react": "^11.11.1",
+    "@emotion/styled": "^11.11.0",
+    "framer-motion": "^10.16.16",
+    "@chakra-ui/icons": "^2.1.1",
+    "recharts": "^2.8.0",
+    "socket.io-client": "^4.7.4",
+    "react-query": "^3.39.3",
+    "axios": "^1.6.2",
+    "date-fns": "^2.30.0",
+    "react-virtualized": "^9.22.5",
+    "@types/react-virtualized": "^9.21.29",
+    "react-table": "^7.8.0",
+    "@types/react-table": "^7.7.18"
+  },
+  "devDependencies": {
+    "typescript": "^5.3.3",
+    "@types/node": "^20.10.5",
+    "@types/react": "^18.2.45",
+    "@types/react-dom": "^18.2.18",
+    "eslint": "^8.56.0",
+    "eslint-config-next": "14.0.4",
+    "@typescript-eslint/eslint-plugin": "^6.14.0",
+    "@typescript-eslint/parser": "^6.14.0",
+    "prettier": "^3.1.1"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
