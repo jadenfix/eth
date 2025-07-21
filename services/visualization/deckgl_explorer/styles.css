@@ -1,0 +1,132 @@
+.deckgl-explorer {
+  position: relative;
+  overflow: hidden;
+}
+
+.graph-controls {
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+  background: white;
+  padding: 1rem;
+  border-radius: 0.5rem;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+  z-index: 10;
+}
+
+.graph-controls h3 {
+  font-size: 1.125rem;
+  font-weight: bold;
+  margin-bottom: 0.5rem;
+}
+
+.graph-controls button {
+  width: 100%;
+  padding: 0.25rem 0.75rem;
+  background-color: #3b82f6;
+  color: white;
+  border-radius: 0.25rem;
+  border: none;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.graph-controls button:hover {
+  background-color: #2563eb;
+}
+
+.node-panel {
+  position: absolute;
+  bottom: 1rem;
+  left: 1rem;
+  background: white;
+  padding: 1rem;
+  border-radius: 0.5rem;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+  max-width: 24rem;
+  z-index: 10;
+}
+
+.node-panel h3 {
+  font-size: 1.125rem;
+  font-weight: bold;
+  margin-bottom: 0.5rem;
+}
+
+.node-panel .details {
+  font-size: 0.875rem;
+  margin-bottom: 0.25rem;
+}
+
+.node-panel .close-btn {
+  margin-top: 0.5rem;
+  padding: 0.25rem 0.75rem;
+  background-color: #6b7280;
+  color: white;
+  border-radius: 0.25rem;
+  border: none;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.node-panel .close-btn:hover {
+  background-color: #4b5563;
+}
+
+.loading-spinner {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+}
+
+.spinner {
+  width: 8rem;
+  height: 8rem;
+  border: 2px solid transparent;
+  border-bottom: 2px solid #3b82f6;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* Node and edge styling */
+.graph-node {
+  stroke: #fff;
+  stroke-width: 2px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.graph-node:hover {
+  stroke-width: 3px;
+  opacity: 0.8;
+}
+
+.graph-edge {
+  stroke: #666;
+  stroke-opacity: 0.6;
+  cursor: pointer;
+  transition: stroke-opacity 0.2s;
+}
+
+.graph-edge:hover {
+  stroke-opacity: 0.9;
+}
+
+/* Entity type colors */
+.node-address { fill: #3b82f6; }
+.node-contract { fill: #10b981; }
+.node-token { fill: #f59e0b; }
+.node-transaction { fill: #ef4444; }
+.node-block { fill: #8b5cf6; }
+
+/* Risk score indicators */
+.risk-low { border-left: 4px solid #10b981; }
+.risk-medium { border-left: 4px solid #f59e0b; }
+.risk-high { border-left: 4px solid #ef4444; }
+.risk-critical { border-left: 4px solid #dc2626; }
