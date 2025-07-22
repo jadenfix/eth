@@ -30,6 +30,7 @@ import {
   GraphExplorer,
   GraphData,
   PanelConfig,
+  ResponsiveLayout,
 } from '../src/components';
 
 // Mock data for the graph explorer
@@ -335,6 +336,14 @@ const Home: NextPage = () => {
 
   const quickActions = [
     {
+      title: 'System Architecture',
+      description: '7-layer Palantir-grade platform overview',
+      route: '/architecture',
+      icon: '�️',
+      color: 'purple',
+      status: 'active'
+    },
+    {
       title: 'Explore Graph Network',
       description: 'Interactive blockchain network visualization',
       route: '/explorer',
@@ -346,16 +355,8 @@ const Home: NextPage = () => {
       title: 'Time Series Analysis',
       description: 'Real-time charts and analytics',
       route: '/canvas',
-      icon: '📈',
+      icon: '�',
       color: 'green',
-      status: 'active'
-    },
-    {
-      title: 'Compliance Dashboard',
-      description: 'Regulatory compliance and risk mapping',
-      route: '/compliance',
-      icon: '🗺️',
-      color: 'red',
       status: 'active'
     },
     {
@@ -378,11 +379,15 @@ const Home: NextPage = () => {
   return (
     <ThemeProvider>
       <LayoutProvider>
-        <Head>
-          <title>Onchain Command Center | Blockchain Intelligence Platform</title>
-          <meta name="description" content="Palantir-grade blockchain intelligence and analytics platform" />
-          <link rel="icon" href="/favicon.ico" />
-        </Head>
+        <ResponsiveLayout 
+          title="Onchain Command Center | Blockchain Intelligence Platform"
+          description="Palantir-grade blockchain intelligence and analytics platform"
+        >
+          <Head>
+            <title>Onchain Command Center | Blockchain Intelligence Platform</title>
+            <meta name="description" content="Palantir-grade blockchain intelligence and analytics platform" />
+            <link rel="icon" href="/favicon.ico" />
+          </Head>
 
         <Box minHeight="100vh" bg={bgColor}>
           {/* Header */}
@@ -574,6 +579,7 @@ const Home: NextPage = () => {
             </VStack>
           </Container>
         </Box>
+        </ResponsiveLayout>
       </LayoutProvider>
     </ThemeProvider>
   );

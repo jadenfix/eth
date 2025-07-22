@@ -35,6 +35,7 @@ import {
   TabPanels,
   TabPanel,
 } from '@chakra-ui/react';
+import { ResponsiveLayout } from '../src/components';
 
 interface EntityStats {
   totalEntities: number;

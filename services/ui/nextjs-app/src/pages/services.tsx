@@ -18,7 +18,7 @@ import {
   Divider,
   useColorModeValue,
 } from '@chakra-ui/react';
-import { ThemeProvider } from '../components';
+import { ThemeProvider, ResponsiveLayout } from '../components';
 import Link from 'next/link';
 
 interface ServiceCard {
@@ -230,14 +230,18 @@ const ServicesPage: NextPage = () => {
 
   return (
     <ThemeProvider>
-      <Box bg={bgColor} minH="100vh">
+      <ResponsiveLayout 
+        title="Services Overview | Onchain Command Center"
+        description="Comprehensive overview of all available services in the Onchain Command Center platform"
+      >
         <Head>
           <title>Services Overview | Onchain Command Center</title>
           <meta name="description" content="Comprehensive overview of all available services in the Onchain Command Center platform" />
         </Head>
 
-        <Container maxW="7xl" py={8}>
-          <VStack spacing={8} align="stretch">
+        <Box bg={bgColor} minH="100vh">
+          <Container maxW="7xl" py={8}>
+            <VStack spacing={8} align="stretch">
             {/* Header */}
             <Box textAlign="center" py={8}>
               <Heading size="2xl" mb={4}>
@@ -371,6 +375,7 @@ const ServicesPage: NextPage = () => {
           </VStack>
         </Container>
       </Box>
+      </ResponsiveLayout>
     </ThemeProvider>
   );
 };

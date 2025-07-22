@@ -27,20 +27,35 @@
       "static/chunks/main.js",
       "static/chunks/pages/_error.js"
     ],
-    "/mev": [
+    "/intelligence/entities": [
       "static/chunks/webpack.js",
       "static/chunks/main.js",
-      "static/chunks/pages/mev.js"
+      "static/chunks/pages/intelligence/entities.js"
+    ],
+    "/monitoring": [
+      "static/chunks/webpack.js",
+      "static/chunks/main.js",
+      "static/chunks/pages/monitoring.js"
+    ],
+    "/security/access": [
+      "static/chunks/webpack.js",
+      "static/chunks/main.js",
+      "static/chunks/pages/security/access.js"
     ],
     "/services": [
       "static/chunks/webpack.js",
       "static/chunks/main.js",
       "static/chunks/pages/services.js"
     ],
-    "/status": [
+    "/voice": [
       "static/chunks/webpack.js",
       "static/chunks/main.js",
-      "static/chunks/pages/status.js"
+      "static/chunks/pages/voice.js"
+    ],
+    "/workflows/dagster": [
+      "static/chunks/webpack.js",
+      "static/chunks/main.js",
+      "static/chunks/pages/workflows/dagster.js"
     ]
   },
   "ampFirstPages": []

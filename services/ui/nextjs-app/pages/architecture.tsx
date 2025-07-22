@@ -23,6 +23,7 @@ import {
   Stack,
 } from '@chakra-ui/react';
 import { ChevronRightIcon } from '@chakra-ui/icons';
+import { ResponsiveLayout } from '../src/components';
 
 interface ArchitectureLayer {
   id: string;
@@ -121,11 +122,16 @@ const ArchitecturePage: NextPage = () => {
   const cardBg = useColorModeValue('white', 'gray.800');
 
   return (
-    <Box bg={bgColor} minH="100vh">
+    <ResponsiveLayout 
+      title="System Architecture | Blockchain Intelligence Platform"
+      description="7-layer Palantir-grade blockchain intelligence architecture"
+    >
       <Head>
         <title>System Architecture | Blockchain Intelligence Platform</title>
         <meta name="description" content="7-layer Palantir-grade blockchain intelligence architecture" />
       </Head>
+
+      <Box bg={bgColor} minH="100vh">
 
       {/* Header */}
       <Box bg={cardBg} borderBottom="1px solid" borderColor="gray.200" py={6} shadow="sm">
@@ -361,6 +367,7 @@ const ArchitecturePage: NextPage = () => {
         </VStack>
       </Container>
     </Box>
+    </ResponsiveLayout>
   );
 };
 

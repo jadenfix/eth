@@ -36,6 +36,7 @@ import {
   CircularProgressLabel,
 } from '@chakra-ui/react';
 import { CheckCircleIcon, WarningIcon, TimeIcon } from '@chakra-ui/icons';
+import { ResponsiveLayout } from '../src/components';
 
 interface ServiceHealth {
   id: string;
@@ -163,11 +164,16 @@ const StatusDashboardPage: NextPage = () => {
   const overallHealth = services.filter(s => s.status === 'healthy').length / services.length * 100;
 
   return (
-    <Box bg={bgColor} minH="100vh">
+    <ResponsiveLayout 
+      title="Status Dashboard | System Health"
+      description="Real-time system health and operational metrics"
+    >
       <Head>
         <title>Status Dashboard | System Health</title>
         <meta name="description" content="Real-time system health and operational metrics" />
       </Head>
+
+      <Box bg={bgColor} minH="100vh">
 
       {/* Header */}
       <Box bg={cardBg} borderBottom="1px solid" borderColor="gray.200" py={4} shadow="sm">
@@ -559,6 +565,7 @@ const StatusDashboardPage: NextPage = () => {
         </VStack>
       </Container>
     </Box>
+    </ResponsiveLayout>
   );
 };
 

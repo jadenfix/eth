@@ -34,7 +34,7 @@ import {
   Alert,
   AlertIcon,
 } from '@chakra-ui/react';
-import { ThemeProvider } from '../src/components';
+import { ThemeProvider, ResponsiveLayout } from '../src/components';
 
 const IngestionPage: NextPage = () => {
   const [realTimeData, setRealTimeData] = useState({
@@ -79,11 +79,16 @@ const IngestionPage: NextPage = () => {
 
   return (
     <ThemeProvider>
-      <Box bg={bgColor} minH="100vh">
+      <ResponsiveLayout 
+        title="Data Ingestion | Onchain Command Center"
+        description="Real-time blockchain data ingestion and processing"
+      >
         <Head>
           <title>Data Ingestion | Onchain Command Center</title>
           <meta name="description" content="Real-time blockchain data ingestion and processing" />
         </Head>
+
+        <Box bg={bgColor} minH="100vh">
 
         {/* Header */}
         <Box bg={cardBg} borderBottom="1px solid" borderColor="gray.200" py={4} shadow="sm">
@@ -324,6 +329,7 @@ const IngestionPage: NextPage = () => {
           </VStack>
         </Container>
       </Box>
+      </ResponsiveLayout>
     </ThemeProvider>
   );
 };

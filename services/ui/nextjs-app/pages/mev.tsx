@@ -38,6 +38,7 @@ import {
   AlertIcon,
   Code,
 } from '@chakra-ui/react';
+import { ResponsiveLayout } from '../src/components';
 
 interface MEVMetrics {
   totalDetected: number;
@@ -138,11 +139,16 @@ const MEVPage: NextPage = () => {
   };
 
   return (
-    <Box bg={bgColor} minH="100vh">
+    <ResponsiveLayout 
+      title="MEV Watch Agent | Blockchain Intelligence"
+      description="Real-time MEV detection and monitoring system"
+    >
       <Head>
         <title>MEV Watch Agent | Blockchain Intelligence</title>
         <meta name="description" content="Real-time MEV detection and monitoring system" />
       </Head>
+
+      <Box bg={bgColor} minH="100vh">
 
       {/* Header */}
       <Box bg={cardBg} borderBottom="1px solid" borderColor="gray.200" py={4} shadow="sm">
@@ -508,6 +514,7 @@ const MEVPage: NextPage = () => {
         </VStack>
       </Container>
     </Box>
+    </ResponsiveLayout>
   );
 };
 
