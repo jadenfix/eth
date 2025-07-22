@@ -1,7 +1,7 @@
 import React from 'react';
 import { Spinner as ChakraSpinner, SpinnerProps as ChakraSpinnerProps, Box } from '@chakra-ui/react';
 import { colors } from '../../theme/colors';
-import { keyframes } from '../../theme/motion';
+import { transitionPresets } from '../../theme/motion';
 
 interface SpinnerProps extends Omit<ChakraSpinnerProps, 'size'> {
   size?: 'xs' | 'sm' | 'md' | 'lg' | 'xl' | number;
@@ -37,7 +37,7 @@ const DefaultSpinner: React.FC<SpinnerProps> = ({ size = 'md', color = colors.pr
   />
 );
 
-// Custom dot spinner
+// Custom dot spinner using CSS-in-JS
 const DotSpinner: React.FC<SpinnerProps> = ({ size = 'md', color = colors.primary[600] }) => {
   const sizeValue = getSizeValue(size);
   
@@ -48,41 +48,55 @@ const DotSpinner: React.FC<SpinnerProps> = ({ size = 'md', color = colors.primar
       justifyContent="center"
       width={sizeValue}
       height={sizeValue}
+      sx={{
+        '@keyframes dot-pulse': {
+          '0%, 80%, 100%': {
+            transform: 'scale(0)',
+            opacity: 0.5,
+          },
+          '40%': {
+            transform: 'scale(1)',
+            opacity: 1,
+          },
+        },
+      }}
     >
-      <style>
-        {`
-          @keyframes dot-pulse {
-            0%, 80%, 100% {
-              transform: scale(0);
-              opacity: 0.5;
-            }
-            40% {
-              transform: scale(1);
-              opacity: 1;
-            }
-          }
-          .dot-spinner {
-            display: flex;
-            justify-content: space-between;
-            width: 100%;
-          }
-          .dot-spinner > div {
-            width: 20%;
-            height: 20%;
-            background-color: ${color};
-            border-radius: 50%;
-            animation: dot-pulse 1.4s ease-in-out infinite both;
-          }
-          .dot-spinner > div:nth-child(1) { animation-delay: -0.32s; }
-          .dot-spinner > div:nth-child(2) { animation-delay: -0.16s; }
-          .dot-spinner > div:nth-child(3) { animation-delay: 0s; }
-        `}
-      </style>
-      <div className="dot-spinner">
-        <div></div>
-        <div></div>
-        <div></div>
-      </div>
+      <Box
+        display="flex"
+        justifyContent="space-between"
+        width="100%"
+      >
+        <Box
+          width="20%"
+          height="20%"
+          backgroundColor={color}
+          borderRadius="50%"
+          sx={{
+            animation: 'dot-pulse 1.4s ease-in-out infinite both',
+            animationDelay: '-0.32s',
+          }}
+        />
+        <Box
+          width="20%"
+          height="20%"
+          backgroundColor={color}
+          borderRadius="50%"
+          sx={{
+            animation: 'dot-pulse 1.4s ease-in-out infinite both',
+            animationDelay: '-0.16s',
+          }}
+        />
+        <Box
+          width="20%"
+          height="20%"
+          backgroundColor={color}
+          borderRadius="50%"
+          sx={{
+            animation: 'dot-pulse 1.4s ease-in-out infinite both',
+            animationDelay: '0s',
+          }}
+        />
+      </Box>
     </Box>
   );
 };
@@ -97,13 +111,19 @@ const PulseSpinner: React.FC<SpinnerProps> = ({ size = 'md', color = colors.prim
       height={sizeValue}
       borderRadius="50%"
       bg={color}
-      animation={`${keyframes.pulse} 1.5s ease-in-out infinite`}
       opacity={0.6}
+      sx={{
+        '@keyframes pulse': {
+          '0%, 100%': { opacity: 1 },
+          '50%': { opacity: 0.5 },
+        },
+        animation: 'pulse 1.5s ease-in-out infinite',
+      }}
     />
   );
 };
 
-// Bar spinner
+// Bar spinner using CSS-in-JS
 const BarSpinner: React.FC<SpinnerProps> = ({ size = 'md', color = colors.primary[600] }) => {
   const sizeValue = getSizeValue(size);
   
@@ -114,45 +134,75 @@ const BarSpinner: React.FC<SpinnerProps> = ({ size = 'md', color = colors.primar
       justifyContent="center"
       width={sizeValue}
       height={sizeValue}
+      sx={{
+        '@keyframes bar-scale': {
+          '0%, 40%, 100%': {
+            transform: 'scaleY(0.4)',
+          },
+          '20%': {
+            transform: 'scaleY(1)',
+          },
+        },
+      }}
     >
-      <style>
-        {`
-          @keyframes bar-scale {
-            0%, 40%, 100% {
-              transform: scaleY(0.4);
-            }
-            20% {
-              transform: scaleY(1);
-            }
-          }
-          .bar-spinner {
-            display: flex;
-            justify-content: space-between;
-            align-items: flex-end;
-            width: 100%;
-            height: 100%;
-          }
-          .bar-spinner > div {
-            width: 15%;
-            height: 100%;
-            background-color: ${color};
-            border-radius: 1px;
-            animation: bar-scale 1s ease-in-out infinite;
-          }
-          .bar-spinner > div:nth-child(1) { animation-delay: -0.4s; }
-          .bar-spinner > div:nth-child(2) { animation-delay: -0.3s; }
-          .bar-spinner > div:nth-child(3) { animation-delay: -0.2s; }
-          .bar-spinner > div:nth-child(4) { animation-delay: -0.1s; }
-          .bar-spinner > div:nth-child(5) { animation-delay: 0s; }
-        `}
-      </style>
-      <div className="bar-spinner">
-        <div></div>
-        <div></div>
-        <div></div>
-        <div></div>
-        <div></div>
-      </div>
+      <Box
+        display="flex"
+        justifyContent="space-between"
+        alignItems="flex-end"
+        width="100%"
+        height="100%"
+      >
+        <Box
+          width="15%"
+          height="100%"
+          backgroundColor={color}
+          borderRadius="1px"
+          sx={{
+            animation: 'bar-scale 1s ease-in-out infinite',
+            animationDelay: '-0.4s',
+          }}
+        />
+        <Box
+          width="15%"
+          height="100%"
+          backgroundColor={color}
+          borderRadius="1px"
+          sx={{
+            animation: 'bar-scale 1s ease-in-out infinite',
+            animationDelay: '-0.3s',
+          }}
+        />
+        <Box
+          width="15%"
+          height="100%"
+          backgroundColor={color}
+          borderRadius="1px"
+          sx={{
+            animation: 'bar-scale 1s ease-in-out infinite',
+            animationDelay: '-0.2s',
+          }}
+        />
+        <Box
+          width="15%"
+          height="100%"
+          backgroundColor={color}
+          borderRadius="1px"
+          sx={{
+            animation: 'bar-scale 1s ease-in-out infinite',
+            animationDelay: '-0.1s',
+          }}
+        />
+        <Box
+          width="15%"
+          height="100%"
+          backgroundColor={color}
+          borderRadius="1px"
+          sx={{
+            animation: 'bar-scale 1s ease-in-out infinite',
+            animationDelay: '0s',
+          }}
+        />
+      </Box>
     </Box>
   );
 };
@@ -169,7 +219,13 @@ const RingSpinner: React.FC<SpinnerProps> = ({ size = 'md', color = colors.prima
       borderColor="gray.200"
       borderTopColor={color}
       borderRadius="50%"
-      animation={`${keyframes.spin} 0.8s linear infinite`}
+      sx={{
+        '@keyframes spin': {
+          '0%': { transform: 'rotate(0deg)' },
+          '100%': { transform: 'rotate(360deg)' },
+        },
+        animation: 'spin 0.8s linear infinite',
+      }}
     />
   );
 };

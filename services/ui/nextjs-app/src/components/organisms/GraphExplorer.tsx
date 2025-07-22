@@ -393,6 +393,9 @@ export const GraphExplorer: React.FC<GraphExplorerProps> = ({
 
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  
+  // Get the label color for the current color mode
+  const labelColor = useColorModeValue('black', 'white');
 
   // Mock graph rendering - In a real implementation, this would use D3.js or similar
   const renderGraph = useCallback(() => {
@@ -441,13 +444,13 @@ export const GraphExplorer: React.FC<GraphExplorerProps> = ({
 
       // Draw labels if enabled
       if (showNodeLabels && node.label) {
-        ctx.fillStyle = useColorModeValue('black', 'white');
+        ctx.fillStyle = labelColor;
         ctx.font = '12px Inter';
         ctx.textAlign = 'center';
         ctx.fillText(node.label, node.x || 0, (node.y || 0) + radius + 15);
       }
     });
-  }, [data, width, height, nodeScale, edgeWidth, showNodeLabels, useColorModeValue]);
+  }, [data, width, height, nodeScale, edgeWidth, showNodeLabels, labelColor]);
 
   useEffect(() => {
     renderGraph();
