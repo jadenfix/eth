@@ -4,10 +4,20 @@
   "/_document": "pages/_document.js",
   "/": "pages/index.js",
   "/services": "pages/services.js",
+  "/architecture": "pages/architecture.js",
   "/workspace": "pages/workspace.js",
-  "/security/access": "pages/security/access.js",
+  "/mev": "pages/mev.js",
+  "/ingestion": "pages/ingestion.js",
+  "/ontology": "pages/ontology.js",
+  "/analytics": "pages/analytics.js",
+  "/compliance": "pages/compliance.js",
+  "/canvas": "pages/canvas.js",
+  "/explorer": "pages/explorer.js",
   "/intelligence/entities": "pages/intelligence/entities.js",
   "/voice": "pages/voice.js",
   "/workflows/dagster": "pages/workflows/dagster.js",
-  "/monitoring": "pages/monitoring.js"
+  "/workflows/signals": "pages/workflows/signals.js",
+  "/monitoring": "pages/monitoring.js",
+  "/security/access": "pages/security/access.js",
+  "/api/gateway": "pages/api/gateway.js"
 }
