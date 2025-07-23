@@ -1,0 +1,20 @@
+{
+  "name": "zk-signal-prover",
+  "version": "1.0.0",
+  "description": "Zero-knowledge proof generator for trading signals",
+  "main": "generate_proof.js",
+  "type": "module",
+  "scripts": {
+    "build": "node compile_circuits.js",
+    "prove": "node generate_proof.js",
+    "verify": "node verify_proof.js"
+  },
+  "dependencies": {
+    "snarkjs": "^0.7.3",
+    "circomlib": "^2.0.5",
+    "ffjavascript": "^0.2.60"
+  },
+  "devDependencies": {
+    "circom_tester": "^0.0.19"
+  }
+}
