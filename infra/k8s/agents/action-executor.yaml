@@ -1,0 +1,247 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: action-executor
+  namespace: onchain-agents
+  labels:
+    app: action-executor
+    version: v3
+    tier: agent
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: action-executor
+  template:
+    metadata:
+      labels:
+        app: action-executor
+        version: v3
+    spec:
+      serviceAccountName: action-executor-sa
+      containers:
+      - name: action-executor
+        image: gcr.io/PROJECT_ID/action-executor:latest
+        ports:
+        - containerPort: 8002
+          name: http
+        env:
+        - name: GOOGLE_CLOUD_PROJECT
+          value: "PROJECT_ID"
+        - name: PUBSUB_TOPIC_SIGNALS
+          value: "ai-signals"
+        - name: REDIS_URL
+          value: "redis://redis-service:6379"
+        - name: DRY_RUN_MODE
+          value: "false"
+        - name: LOG_LEVEL
+          value: "INFO"
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "250m"
+          limits:
+            memory: "2Gi"
+            cpu: "1000m"
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8002
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 8002
+          initialDelaySeconds: 15
+          periodSeconds: 5
+        volumeMounts:
+        - name: playbooks
+          mountPath: /app/action_executor/playbooks
+          readOnly: true
+        - name: google-cloud-key
+          mountPath: /var/secrets/google
+          readOnly: true
+      volumes:
+      - name: playbooks
+        configMap:
+          name: action-executor-playbooks
+      - name: google-cloud-key
+        secret:
+          secretName: google-cloud-key
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: action-executor-service
+  namespace: onchain-agents
+  labels:
+    app: action-executor
+spec:
+  selector:
+    app: action-executor
+  ports:
+  - port: 80
+    targetPort: 8002
+    name: http
+  type: ClusterIP
+
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: action-executor-sa
+  namespace: onchain-agents
+  annotations:
+    iam.gke.io/gcp-service-account: action-executor@PROJECT_ID.iam.gserviceaccount.com
+
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: action-executor-hpa
+  namespace: onchain-agents
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: action-executor
+  minReplicas: 2
+  maxReplicas: 10
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 70
+  - type: Resource
+    resource:
+      name: memory
+      target:
+        type: Utilization
+        averageUtilization: 80
+  - type: External
+    external:
+      metric:
+        name: pubsub.googleapis.com|subscription|num_undelivered_messages
+        selector:
+          matchLabels:
+            resource.labels.subscription_id: "agents-sub"
+      target:
+        type: AverageValue
+        averageValue: "30"
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: action-executor-playbooks
+  namespace: onchain-agents
+data:
+  freeze_position.yaml: |
+    name: "Freeze Position"
+    description: "Temporarily disable trading for a specific position due to high risk"
+    version: "1.0"
+    risk_level: "low"
+    required_parameters:
+      - position_id
+      - freeze_duration_hours
+    execution_steps:
+      - "Validate position exists and is active"
+      - "Calculate current position value and exposure"
+      - "Disable trading API access for position"
+      - "Send notification to position owner"
+      - "Log freeze event with timestamp"
+    safety_constraints:
+      max_position_value: 1000000
+      max_freeze_duration: 168
+      require_approval_if_value_over: 100000
+
+  hedge_liquidity.yaml: |
+    name: "Hedge Liquidity"
+    description: "Execute hedging transactions to protect against liquidity risks"
+    version: "1.0"
+    risk_level: "medium"
+    required_parameters:
+      - hedge_amount
+      - hedge_asset
+      - target_pools
+    execution_steps:
+      - "Validate hedge parameters and pool availability"
+      - "Calculate optimal execution path across pools"
+      - "Execute hedging transactions"
+      - "Monitor execution and adjust if needed"
+    safety_constraints:
+      max_single_hedge_amount: 5000000
+      max_slippage: 0.05
+      max_gas_price: 100
+
+  dex_arb.yaml: |
+    name: "DEX Arbitrage"
+    description: "Execute arbitrage opportunities between decentralized exchanges"
+    version: "1.0"
+    risk_level: "high"
+    required_parameters:
+      - source_dex
+      - target_dex
+      - token_pair
+      - arb_amount
+    execution_steps:
+      - "Validate arbitrage opportunity exists"
+      - "Calculate profit after gas and fees"
+      - "Execute buy on source DEX"
+      - "Execute sell on target DEX"
+      - "Calculate and record actual profit"
+    safety_constraints:
+      max_arb_amount: 2000000
+      min_profit_usd: 50
+      max_gas_price: 150
+
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: action-executor-netpol
+  namespace: onchain-agents
+spec:
+  podSelector:
+    matchLabels:
+      app: action-executor
+  policyTypes:
+  - Ingress
+  - Egress
+  ingress:
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          name: onchain-agents
+    - namespaceSelector:
+        matchLabels:
+          name: istio-system
+    ports:
+    - protocol: TCP
+      port: 8002
+  egress:
+  - to: []
+    ports:
+    - protocol: TCP
+      port: 443  # HTTPS
+    - protocol: TCP
+      port: 6379 # Redis
+    - protocol: UDP
+      port: 53   # DNS
+
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: action-executor-secrets
+  namespace: onchain-agents
+type: Opaque
+data:
+  # Base64 encoded values - replace with actual secrets
+  REDIS_PASSWORD: ""
+  API_SECRET_KEY: ""
+  WEBHOOK_SECRET: ""

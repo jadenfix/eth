@@ -1,0 +1,52 @@
+name: "Freeze Position"
+description: "Temporarily disable trading for a specific position due to high risk"
+version: "1.0"
+risk_level: "low"
+
+required_parameters:
+  - position_id
+  - freeze_duration_hours
+
+optional_parameters:
+  - reason
+  - notify_user
+  - emergency_contact
+
+execution_steps:
+  - "Validate position exists and is active"
+  - "Calculate current position value and exposure"
+  - "Disable trading API access for position"
+  - "Send notification to position owner"
+  - "Log freeze event with timestamp"
+  - "Schedule automatic unfreeze (if specified)"
+
+risk_checks:
+  - name: "Position Value Check"
+    condition: "position_value < portfolio_max_single_position"
+    error_message: "Position too large for freeze action"
+  
+  - name: "Freeze Duration Check"
+    condition: "freeze_duration_hours <= 168"  # Max 1 week
+    error_message: "Freeze duration exceeds maximum allowed (1 week)"
+
+safety_constraints:
+  max_position_value: 1000000  # USD
+  max_freeze_duration: 168     # hours
+  require_approval_if_value_over: 100000
+
+monitoring:
+  alert_on_execution: true
+  log_level: "INFO"
+  metrics:
+    - execution_count
+    - average_freeze_duration
+    - position_values_frozen
+
+rollback_procedure:
+  - "Re-enable trading API access"
+  - "Send unfreeze notification"
+  - "Log unfreeze event"
+
+emergency_contacts:
+  - "risk-team@company.com"
+  - "trading-desk@company.com"

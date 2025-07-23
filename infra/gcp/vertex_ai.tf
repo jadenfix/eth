@@ -149,3 +149,180 @@ resource "google_storage_bucket" "dataflow_temp" {
     }
   }
 }
+
+# ========================================
+# Gemini 2-Pro Explainability Service
+# ========================================
+
+# Vertex AI Endpoint for Gemini Explainer
+resource "google_vertex_ai_endpoint" "gemini_explainer" {
+  name         = "gemini-explainer-endpoint"
+  display_name = "Gemini 2-Pro Explainability Service"
+  region       = var.region
+
+  labels = {
+    environment = var.environment
+    service     = "gemini-explainer"
+    version     = "v3"
+  }
+}
+
+# Service account for Gemini explainer
+resource "google_service_account" "gemini_explainer_sa" {
+  account_id   = "gemini-explainer"
+  display_name = "Gemini Explainer Service Account"
+  description  = "Service account for Gemini explainer service"
+}
+
+# IAM bindings for Gemini service account
+resource "google_project_iam_member" "gemini_explainer_aiplatform" {
+  project = var.project_id
+  role    = "roles/aiplatform.user"
+  member  = "serviceAccount:${google_service_account.gemini_explainer_sa.email}"
+}
+
+resource "google_project_iam_member" "gemini_explainer_storage" {
+  project = var.project_id
+  role    = "roles/storage.objectViewer"
+  member  = "serviceAccount:${google_service_account.gemini_explainer_sa.email}"
+}
+
+# Secret for Gemini API key
+resource "google_secret_manager_secret" "gemini_api_key" {
+  secret_id = "gemini-api-key"
+
+  replication {
+    user_managed {
+      replicas {
+        location = var.region
+      }
+    }
+  }
+
+  labels = {
+    environment = var.environment
+    service     = "gemini-explainer"
+  }
+}
+
+# IAM for secret access
+resource "google_secret_manager_secret_iam_member" "gemini_api_key_access" {
+  secret_id = google_secret_manager_secret.gemini_api_key.secret_id
+  role      = "roles/secretmanager.secretAccessor"
+  member    = "serviceAccount:${google_service_account.gemini_explainer_sa.email}"
+}
+
+# Cloud Run service for Gemini explainer API
+resource "google_cloud_run_service" "gemini_explainer_api" {
+  name     = "gemini-explainer-api"
+  location = var.region
+
+  template {
+    spec {
+      service_account_name = google_service_account.gemini_explainer_sa.email
+      
+      containers {
+        image = "gcr.io/${var.project_id}/gemini-explainer:latest"
+        
+        env {
+          name  = "GOOGLE_CLOUD_PROJECT"
+          value = var.project_id
+        }
+        
+        env {
+          name  = "VERTEX_AI_REGION"
+          value = var.region
+        }
+        
+        env {
+          name = "GEMINI_API_KEY"
+          value_from {
+            secret_key_ref {
+              name = google_secret_manager_secret.gemini_api_key.secret_id
+              key  = "latest"
+            }
+          }
+        }
+        
+        resources {
+          limits = {
+            cpu    = "2"
+            memory = "4Gi"
+          }
+          requests = {
+            cpu    = "1"
+            memory = "2Gi"
+          }
+        }
+        
+        ports {
+          container_port = 8001
+        }
+      }
+    }
+    
+    metadata {
+      annotations = {
+        "autoscaling.knative.dev/minScale" = "1"
+        "autoscaling.knative.dev/maxScale" = "10"
+        "run.googleapis.com/cpu-throttling" = "false"
+      }
+      
+      labels = {
+        environment = var.environment
+        service     = "gemini-explainer"
+        version     = "v3"
+      }
+    }
+  }
+
+  traffic {
+    percent         = 100
+    latest_revision = true
+  }
+}
+
+# IAM to allow public access to Cloud Run
+resource "google_cloud_run_service_iam_member" "gemini_explainer_public" {
+  location = google_cloud_run_service.gemini_explainer_api.location
+  project  = google_cloud_run_service.gemini_explainer_api.project
+  service  = google_cloud_run_service.gemini_explainer_api.name
+  role     = "roles/run.invoker"
+  member   = "allUsers"
+}
+
+# Monitoring for Gemini explainer service
+resource "google_monitoring_alert_policy" "gemini_explainer_errors" {
+  display_name = "Gemini Explainer Error Rate"
+  
+  conditions {
+    display_name = "High error rate"
+    
+    condition_threshold {
+      filter          = "resource.type=\"cloud_run_revision\" AND resource.labels.service_name=\"${google_cloud_run_service.gemini_explainer_api.name}\""
+      duration        = "300s"
+      comparison      = "COMPARISON_GT"
+      threshold_value = 0.05
+      
+      aggregations {
+        alignment_period   = "60s"
+        per_series_aligner = "ALIGN_RATE"
+      }
+    }
+  }
+  
+  alert_strategy {
+    auto_close = "1800s"
+  }
+}
+
+# Output the Cloud Run URL
+output "gemini_explainer_url" {
+  description = "URL of the Gemini explainer Cloud Run service"
+  value       = google_cloud_run_service.gemini_explainer_api.status[0].url
+}
+
+output "gemini_explainer_endpoint_id" {
+  description = "The ID of the Gemini explainer Vertex AI endpoint"
+  value       = google_vertex_ai_endpoint.gemini_explainer.id
+}

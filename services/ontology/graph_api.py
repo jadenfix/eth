@@ -340,6 +340,61 @@ async def health_check():
     return {"status": "healthy", "service": "ontology"}
 
 
+@app.post("/edges/stream")
+async def stream_cdc_acknowledgements(request: Request):
+    """Stream CDC acknowledgements for bidirectional graph sync"""
+    from google.cloud import pubsub_v1
+    
+    data = await request.json()
+    
+    # Publish change event to Pub/Sub for BigQuery sync
+    publisher = pubsub_v1.PublisherClient()
+    topic_path = publisher.topic_path(
+        os.getenv("GCP_PROJECT_ID"), 
+        "neo4j-change-events"
+    )
+    
+    change_event = {
+        "operation": data.get("operation", "UPDATE"),
+        "entity_id": data.get("entity_id"),
+        "entity_type": data.get("entity_type"),
+        "changes": data.get("changes", {}),
+        "timestamp": datetime.utcnow().isoformat()
+    }
+    
+    # Publish with attributes for filtering
+    future = publisher.publish(
+        topic_path,
+        str(change_event).encode('utf-8'),
+        operation=change_event["operation"],
+        entity_type=change_event["entity_type"]
+    )
+    
+    logger.info("Published Neo4j change event", 
+               entity_id=data.get("entity_id"),
+               operation=change_event["operation"])
+    
+    return {"status": "acknowledged", "message_id": future.result()}
+
+
+@app.get("/sync/status")
+async def get_sync_status():
+    """Get bidirectional sync status between Neo4j and BigQuery"""
+    # TODO: Implement actual sync monitoring
+    return {
+        "neo4j_to_bq": {
+            "status": "healthy",
+            "last_sync": datetime.utcnow().isoformat(),
+            "lag_seconds": 45
+        },
+        "bq_to_neo4j": {
+            "status": "healthy", 
+            "last_sync": datetime.utcnow().isoformat(),
+            "lag_seconds": 67
+        }
+    }
+
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8000)

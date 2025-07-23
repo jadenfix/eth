@@ -1,0 +1,82 @@
+name: "Hedge Liquidity"
+description: "Execute hedging transactions to protect against liquidity risks"
+version: "1.0"
+risk_level: "medium"
+
+required_parameters:
+  - hedge_amount
+  - hedge_asset
+  - target_pools
+
+optional_parameters:
+  - max_slippage
+  - gas_price_limit
+  - execution_deadline
+  - split_execution
+
+execution_steps:
+  - "Validate hedge parameters and pool availability"
+  - "Calculate optimal execution path across pools"
+  - "Check gas price and network conditions"
+  - "Execute pre-trade risk assessment"
+  - "Split large orders if specified"
+  - "Execute hedging transactions"
+  - "Monitor execution and adjust if needed"
+  - "Confirm hedge positions"
+  - "Update portfolio risk metrics"
+
+risk_checks:
+  - name: "Slippage Check"
+    condition: "max_slippage <= 0.05"  # Max 5% slippage
+    error_message: "Slippage tolerance too high"
+  
+  - name: "Pool Liquidity Check"
+    condition: "total_pool_liquidity >= hedge_amount * 2"
+    error_message: "Insufficient pool liquidity for hedge"
+  
+  - name: "Gas Price Check"
+    condition: "current_gas_price <= gas_price_limit"
+    error_message: "Gas price exceeds limit"
+
+safety_constraints:
+  max_single_hedge_amount: 5000000  # USD
+  max_slippage: 0.05               # 5%
+  max_gas_price: 100               # Gwei
+  min_pool_liquidity_ratio: 2.0    # Pool must have 2x hedge amount
+
+pre_execution_checks:
+  - "Verify wallet has sufficient balance"
+  - "Check DEX contract approval status"
+  - "Validate pool addresses and routing"
+  - "Confirm network is not congested"
+
+execution_strategy:
+  default_split_threshold: 1000000  # USD - split orders above this
+  max_splits: 5
+  split_delay: 30  # seconds between split executions
+  
+monitoring:
+  alert_on_execution: true
+  alert_on_high_slippage: true
+  log_level: "INFO"
+  metrics:
+    - total_hedge_volume
+    - average_slippage
+    - gas_costs
+    - execution_time
+
+rollback_procedure:
+  - "Identify positions to unwind"
+  - "Calculate unwind costs"
+  - "Execute reverse transactions if profitable"
+  - "Update risk metrics"
+
+target_dexes:
+  - "Uniswap V3"
+  - "Sushiswap"
+  - "Balancer"
+  - "Curve"
+
+emergency_contacts:
+  - "liquidity-team@company.com"
+  - "risk-management@company.com"

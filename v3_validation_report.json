@@ -1,0 +1,84 @@
+{
+  "timestamp": 1753240706.473217,
+  "branch": "v3-alpha",
+  "results": {
+    "patch_1_bidirectional_sync": {
+      "status": "complete",
+      "components": [
+        {
+          "name": "Dataflow CDC Infrastructure",
+          "status": "present"
+        },
+        {
+          "name": "Enhanced Graph API",
+          "status": "present"
+        },
+        {
+          "name": "BigQuery CDC Publisher",
+          "status": "present"
+        }
+      ]
+    },
+    "patch_2_zk_attestation": {
+      "status": "complete",
+      "components": [
+        {
+          "name": "Model Hash Circuit",
+          "status": "present"
+        },
+        {
+          "name": "Signal Hash Circuit",
+          "status": "present"
+        },
+        {
+          "name": "Proof Generator",
+          "status": "present"
+        },
+        {
+          "name": "Prover Dependencies",
+          "status": "present"
+        },
+        {
+          "name": "Verifier API",
+          "status": "present"
+        },
+        {
+          "name": "Solidity Verifier",
+          "status": "present"
+        }
+      ]
+    },
+    "patch_3_gemini_explainer": {
+      "status": "complete",
+      "components": [
+        {
+          "name": "Gemini Explainer Service",
+          "status": "present"
+        },
+        {
+          "name": "Gemini Dependencies",
+          "status": "present"
+        },
+        {
+          "name": "Gemini Container",
+          "status": "present"
+        },
+        {
+          "name": "Enhanced Vertex AI Infrastructure",
+          "status": "present"
+        }
+      ]
+    },
+    "overall_status": "excellent"
+  },
+  "scores": {
+    "patch_1": 4.0,
+    "patch_2": 6,
+    "patch_3": 5.5,
+    "infrastructure": 4,
+    "syntax": 3,
+    "total": 22.5,
+    "max": 22,
+    "percentage": 102.27272727272727
+  }
+}

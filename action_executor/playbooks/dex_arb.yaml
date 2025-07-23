@@ -1,0 +1,115 @@
+name: "DEX Arbitrage"
+description: "Execute arbitrage opportunities between decentralized exchanges"
+version: "1.0"
+risk_level: "high"
+
+required_parameters:
+  - source_dex
+  - target_dex
+  - token_pair
+  - arb_amount
+
+optional_parameters:
+  - max_gas_price
+  - min_profit_threshold
+  - execution_deadline
+  - flashloan_provider
+
+execution_steps:
+  - "Validate arbitrage opportunity exists"
+  - "Calculate profit after gas and fees"
+  - "Check if flashloan is needed"
+  - "Verify DEX liquidity on both sides"
+  - "Execute pre-flight transaction simulation"
+  - "Acquire flashloan if required"
+  - "Execute buy on source DEX"
+  - "Execute sell on target DEX"
+  - "Repay flashloan if used"
+  - "Calculate and record actual profit"
+
+risk_checks:
+  - name: "Minimum Profit Check"
+    condition: "estimated_profit >= min_profit_threshold"
+    error_message: "Arbitrage profit below minimum threshold"
+  
+  - name: "Gas Cost Check"
+    condition: "estimated_gas_cost < estimated_profit * 0.5"
+    error_message: "Gas costs too high relative to profit"
+  
+  - name: "Liquidity Depth Check"
+    condition: "both_dex_liquidity >= arb_amount * 1.5"
+    error_message: "Insufficient liquidity depth"
+  
+  - name: "Price Impact Check"
+    condition: "total_price_impact <= 0.03"  # Max 3% total impact
+    error_message: "Price impact too high"
+
+safety_constraints:
+  max_arb_amount: 2000000        # USD
+  min_profit_usd: 50            # Minimum profit in USD
+  max_gas_price: 150            # Gwei
+  max_total_price_impact: 0.03  # 3%
+  execution_timeout: 300        # 5 minutes
+
+pre_execution_checks:
+  - "Verify price differential still exists"
+  - "Check both DEX contracts are operational"
+  - "Validate token addresses and decimals"
+  - "Confirm network conditions"
+  - "Test transaction simulation"
+
+execution_strategy:
+  use_flashloans: true
+  preferred_flashloan_providers:
+    - "Aave"
+    - "dYdX"
+    - "Balancer"
+  
+  fallback_strategy: "split_capital"
+  max_retry_attempts: 3
+  retry_delay: 10  # seconds
+
+monitoring:
+  alert_on_execution: true
+  alert_on_failure: true
+  alert_on_low_profit: true
+  log_level: "INFO"
+  metrics:
+    - arbitrage_count
+    - total_profit
+    - success_rate
+    - average_profit_margin
+    - gas_efficiency
+
+risk_management:
+  stop_loss_on_failure_rate: 0.3  # Stop if 30% of recent arbs fail
+  max_concurrent_arbs: 3
+  cooldown_after_failure: 300     # 5 minutes
+  
+supported_dexes:
+  - name: "Uniswap V2"
+    router: "0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D"
+    fee: 0.003
+  
+  - name: "Uniswap V3"
+    router: "0xE592427A0AEce92De3Edee1F18E0157C05861564"
+    fee: "variable"
+  
+  - name: "Sushiswap"
+    router: "0xd9e1cE17f2641f24aE83637ab66a2cca9C378B9F"
+    fee: 0.003
+  
+  - name: "Balancer"
+    vault: "0xBA12222222228d8Ba445958a75a0704d566BF2C8"
+    fee: "variable"
+
+profit_calculation:
+  include_gas_costs: true
+  include_dex_fees: true
+  include_flashloan_fees: true
+  tax_consideration: false
+
+emergency_contacts:
+  - "arbitrage-team@company.com"
+  - "risk-management@company.com"
+  - "technical-lead@company.com"

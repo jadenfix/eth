@@ -13,13 +13,10 @@ import {
   StatLabel,
   StatNumber,
   StatHelpText,
-  List,
-  ListItem,
-  ListIcon,
   Button,
   Divider,
 } from '@chakra-ui/react';
-import { ExternalLinkIcon, CheckCircleIcon } from '@chakra-ui/icons';
+import { ExternalLinkIcon } from '@chakra-ui/icons';
 
 const APIGatewayPage: React.FC = () => {
   return (

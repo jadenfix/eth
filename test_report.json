@@ -1,14 +1,14 @@
 {
-  "timestamp": 1753138505.908434,
+  "timestamp": 1753231437.6603599,
   "environment": "mock_testing",
   "architecture": {
     "valid": true,
     "status": "PASS"
   },
   "code_quality": {
-    "python_files": 17,
-    "typescript_files": 1,
-    "terraform_files": 8,
+    "python_files": 22,
+    "typescript_files": 7895,
+    "terraform_files": 9,
     "issues_count": 0,
     "issues": []
   },
@@ -33,5 +33,5 @@
     "status": "PASS",
     "completeness": 100.0
   },
-  "duration": 0.016224145889282227
+  "duration": 1.198836088180542
 }

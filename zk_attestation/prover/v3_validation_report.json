@@ -1,0 +1,24 @@
+{
+  "timestamp": 1753231937.3177001,
+  "branch": "v3-alpha",
+  "results": {
+    "patch_1_bidirectional_sync": {
+      "status": "partial",
+      "components": []
+    },
+    "patch_2_zk_attestation": {
+      "status": "partial",
+      "components": []
+    },
+    "overall_status": "needs_work"
+  },
+  "scores": {
+    "patch_1": 0,
+    "patch_2": 0,
+    "infrastructure": 0,
+    "syntax": 0,
+    "total": 0,
+    "max": 17,
+    "percentage": 0.0
+  }
+}
