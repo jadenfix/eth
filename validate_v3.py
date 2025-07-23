@@ -277,6 +277,7 @@ def validate_v3_features():
                 "patch_1": patch1_score,
                 "patch_2": patch2_score,
                 "patch_3": patch3_score,
+                "patch_4": patch4_score,
                 "infrastructure": infra_score,
                 "syntax": syntax_score,
                 "total": total_score,

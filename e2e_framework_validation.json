@@ -1,0 +1,29 @@
+{
+  "framework_validation": {
+    "files_present": 12,
+    "total_files": 12,
+    "missing_files": []
+  },
+  "test_coverage": {
+    "tier0": 5,
+    "tier0_methods": 26,
+    "tier1": 2,
+    "tier1_methods": 10
+  },
+  "infrastructure_tests": {
+    "status": "failed",
+    "error": "/Users/jadenfix/.local/lib/python3.11/site-packages/_pytest/config/__init__.py:331: PluggyTeardownRaisedWarning: A plugin raised an exception during an old-style hookwrapper teardown.\nPlugin: helpconfig, Hook: pytest_cmdline_parse\nUsageError: usage: __main__.py [options] [file_or_dir] [file_or_dir] [...]\n__main__.py: error: unrecognized arguments: --json-report --json-report-file=infra_test_results.json\n  inifile: /Users/jadenfix/eth/pyproject.toml\n  rootdir: /Users/jadenfix/eth\nFor more information see https://pluggy.readthedocs.io/en/stable/api_reference.html#pluggy.PluggyTeardownRaisedWarning\n  config = pluginmanager.hook.pytest_cmdline_parse(\nERROR: usage: __main__.py [options] [file_or_dir] [file_or_dir] [...]\n__main__.py: error: unrecognized arguments: --json-report --json-report-file=infra_test_results.json\n  inifile: /Users/jadenfix/eth/pyproject.toml\n  rootdir: /Users/jadenfix/eth\n\n"
+  },
+  "production_readiness": {
+    "score": 8,
+    "max_score": 10,
+    "percentage": 80.0,
+    "level": "Production Ready"
+  },
+  "recommendations": [
+    "Fix infrastructure test failures before deployment",
+    "Framework ready for production deployment validation",
+    "Configure service authentication for full E2E testing",
+    "Deploy services and run complete test suite"
+  ]
+}

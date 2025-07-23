@@ -1,0 +1,93 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites><testsuite name="pytest" errors="2" failures="9" skipped="4" tests="26" time="26.035" timestamp="2025-07-22T23:23:21.046407" hostname="Makenas-MacBook-Air-8.local"><testcase classname="tests.e2e.tier0.test_t0_a_basic_ingestion.TestIngestToBigQuery" name="test_ingest_synthetic_transaction" time="5.007"><error message="failed on setup with &quot;Failed: Timeout (&gt;5.0s) from pytest-timeout.&quot;">tests/e2e/conftest.py:94: in bigquery_client
+    client = bigquery.Client()
+../.pyenv/versions/3.11.3/lib/python3.11/site-packages/google/cloud/bigquery/client.py:259: in __init__
+    super(Client, self).__init__(
+../.pyenv/versions/3.11.3/lib/python3.11/site-packages/google/cloud/client/__init__.py:338: in __init__
+    _ClientProjectMixin.__init__(self, project=project, credentials=credentials)
+../.pyenv/versions/3.11.3/lib/python3.11/site-packages/google/cloud/client/__init__.py:286: in __init__
+    project = self._determine_default(project)
+../.pyenv/versions/3.11.3/lib/python3.11/site-packages/google/cloud/client/__init__.py:305: in _determine_default
+    return _determine_default_project(project)
+../.pyenv/versions/3.11.3/lib/python3.11/site-packages/google/cloud/_helpers/__init__.py:152: in _determine_default_project
+    _, project = google.auth.default()
+../.pyenv/versions/3.11.3/lib/python3.11/site-packages/google/auth/_default.py:651: in default
+    credentials, project_id = checker()
+../.pyenv/versions/3.11.3/lib/python3.11/site-packages/google/auth/_default.py:647: in &lt;lambda&gt;
+    lambda: _get_gce_credentials(request, quota_project_id=quota_project_id),
+../.pyenv/versions/3.11.3/lib/python3.11/site-packages/google/auth/_default.py:350: in _get_gce_credentials
+    if _metadata.is_on_gce(request=request):
+../.pyenv/versions/3.11.3/lib/python3.11/site-packages/google/auth/compute_engine/_metadata.py:78: in is_on_gce
+    if ping(request):
+../.pyenv/versions/3.11.3/lib/python3.11/site-packages/google/auth/compute_engine/_metadata.py:131: in ping
+    response = request(
+../.pyenv/versions/3.11.3/lib/python3.11/site-packages/google/auth/transport/_http_client.py:105: in __call__
+    connection.request(method, path, body=body, headers=headers, **kwargs)
+../.pyenv/versions/3.11.3/lib/python3.11/http/client.py:1283: in request
+    self._send_request(method, url, body, headers, encode_chunked)
+../.pyenv/versions/3.11.3/lib/python3.11/http/client.py:1329: in _send_request
+    self.endheaders(body, encode_chunked=encode_chunked)
+../.pyenv/versions/3.11.3/lib/python3.11/http/client.py:1278: in endheaders
+    self._send_output(message_body, encode_chunked=encode_chunked)
+../.pyenv/versions/3.11.3/lib/python3.11/http/client.py:1038: in _send_output
+    self.send(msg)
+../.pyenv/versions/3.11.3/lib/python3.11/http/client.py:976: in send
+    self.connect()
+../.pyenv/versions/3.11.3/lib/python3.11/http/client.py:942: in connect
+    self.sock = self._create_connection(
+../.pyenv/versions/3.11.3/lib/python3.11/socket.py:836: in create_connection
+    sock.connect(sa)
+E   Failed: Timeout (&gt;5.0s) from pytest-timeout.</error></testcase><testcase classname="tests.e2e.tier0.test_t0_a_basic_ingestion.TestIngestToBigQuery" name="test_ingest_multiple_transactions" time="5.003"><error message="failed on setup with &quot;Failed: Timeout (&gt;5.0s) from pytest-timeout.&quot;">tests/e2e/conftest.py:94: in bigquery_client
+    client = bigquery.Client()
+../.pyenv/versions/3.11.3/lib/python3.11/site-packages/google/cloud/bigquery/client.py:259: in __init__
+    super(Client, self).__init__(
+../.pyenv/versions/3.11.3/lib/python3.11/site-packages/google/cloud/client/__init__.py:338: in __init__
+    _ClientProjectMixin.__init__(self, project=project, credentials=credentials)
+../.pyenv/versions/3.11.3/lib/python3.11/site-packages/google/cloud/client/__init__.py:286: in __init__
+    project = self._determine_default(project)
+../.pyenv/versions/3.11.3/lib/python3.11/site-packages/google/cloud/client/__init__.py:305: in _determine_default
+    return _determine_default_project(project)
+../.pyenv/versions/3.11.3/lib/python3.11/site-packages/google/cloud/_helpers/__init__.py:152: in _determine_default_project
+    _, project = google.auth.default()
+../.pyenv/versions/3.11.3/lib/python3.11/site-packages/google/auth/_default.py:651: in default
+    credentials, project_id = checker()
+../.pyenv/versions/3.11.3/lib/python3.11/site-packages/google/auth/_default.py:647: in &lt;lambda&gt;
+    lambda: _get_gce_credentials(request, quota_project_id=quota_project_id),
+../.pyenv/versions/3.11.3/lib/python3.11/site-packages/google/auth/_default.py:350: in _get_gce_credentials
+    if _metadata.is_on_gce(request=request):
+../.pyenv/versions/3.11.3/lib/python3.11/site-packages/google/auth/compute_engine/_metadata.py:78: in is_on_gce
+    if ping(request):
+../.pyenv/versions/3.11.3/lib/python3.11/site-packages/google/auth/compute_engine/_metadata.py:129: in ping
+    for attempt in backoff:
+../.pyenv/versions/3.11.3/lib/python3.11/site-packages/google/auth/_exponential_backoff.py:133: in __next__
+    time.sleep(jitter)
+E   Failed: Timeout (&gt;5.0s) from pytest-timeout.</error></testcase><testcase classname="tests.e2e.tier0.test_t0_a_basic_ingestion.TestIngestToBigQuery" name="test_ingest_with_pubsub_simulation" time="2.989"><skipped type="pytest.skip" message="Pub/Sub client creation failed: Your default credentials were not found. To set up Application Default Credentials, see https://cloud.google.com/docs/authentication/external/set-up-adc for more information.">/Users/jadenfix/eth/tests/e2e/tier0/test_t0_a_basic_ingestion.py:104: Pub/Sub client creation failed: Your default credentials were not found. To set up Application Default Credentials, see https://cloud.google.com/docs/authentication/external/set-up-adc for more information.</skipped></testcase><testcase classname="tests.e2e.tier0.test_t0_b_basic_queries.TestBigQueryQueries" name="test_simple_bigquery_query" time="2.997"><skipped type="pytest.skip" message="BigQuery client creation failed: Your default credentials were not found. To set up Application Default Credentials, see https://cloud.google.com/docs/authentication/external/set-up-adc for more information.">/Users/jadenfix/eth/tests/e2e/tier0/test_t0_b_basic_queries.py:15: BigQuery client creation failed: Your default credentials were not found. To set up Application Default Credentials, see https://cloud.google.com/docs/authentication/external/set-up-adc for more information.</skipped></testcase><testcase classname="tests.e2e.tier0.test_t0_b_basic_queries.TestBigQueryQueries" name="test_aggregated_query" time="3.114"><skipped type="pytest.skip" message="BigQuery client creation failed: Your default credentials were not found. To set up Application Default Credentials, see https://cloud.google.com/docs/authentication/external/set-up-adc for more information.">/Users/jadenfix/eth/tests/e2e/tier0/test_t0_b_basic_queries.py:80: BigQuery client creation failed: Your default credentials were not found. To set up Application Default Credentials, see https://cloud.google.com/docs/authentication/external/set-up-adc for more information.</skipped></testcase><testcase classname="tests.e2e.tier0.test_t0_b_basic_queries.TestBigQueryQueries" name="test_query_with_filters" time="3.219"><skipped type="pytest.skip" message="BigQuery client creation failed: Your default credentials were not found. To set up Application Default Credentials, see https://cloud.google.com/docs/authentication/external/set-up-adc for more information.">/Users/jadenfix/eth/tests/e2e/tier0/test_t0_b_basic_queries.py:139: BigQuery client creation failed: Your default credentials were not found. To set up Application Default Credentials, see https://cloud.google.com/docs/authentication/external/set-up-adc for more information.</skipped></testcase><testcase classname="tests.e2e.tier0.test_t0_c_graph_queries.TestNeo4jGraphQueries" name="test_simple_graph_query" time="0.095"><failure message="AttributeError: 'Neo4jTestUtils' object has no attribute 'load_entities'">tests/e2e/tier0/test_t0_c_graph_queries.py:70: in test_simple_graph_query
+    neo4j_utils.load_entities(test_entities)
+E   AttributeError: 'Neo4jTestUtils' object has no attribute 'load_entities'</failure></testcase><testcase classname="tests.e2e.tier0.test_t0_c_graph_queries.TestNeo4jGraphQueries" name="test_graph_path_query" time="0.000"><failure message="AttributeError: 'Neo4jTestUtils' object has no attribute 'load_entities'">tests/e2e/tier0/test_t0_c_graph_queries.py:137: in test_graph_path_query
+    neo4j_utils.load_entities(entities)
+E   AttributeError: 'Neo4jTestUtils' object has no attribute 'load_entities'</failure></testcase><testcase classname="tests.e2e.tier0.test_t0_c_graph_queries.TestNeo4jGraphQueries" name="test_graph_aggregation_query" time="0.000"><failure message="AttributeError: 'Neo4jTestUtils' object has no attribute 'load_entities'">tests/e2e/tier0/test_t0_c_graph_queries.py:190: in test_graph_aggregation_query
+    neo4j_utils.load_entities([hub_entity] + spoke_entities)
+E   AttributeError: 'Neo4jTestUtils' object has no attribute 'load_entities'</failure></testcase><testcase classname="tests.e2e.tier0.test_t0_c_graph_queries.TestNeo4jGraphQueries" name="test_graph_export_format" time="0.000"><failure message="AttributeError: 'Neo4jTestUtils' object has no attribute 'load_entities'">tests/e2e/tier0/test_t0_c_graph_queries.py:234: in test_graph_export_format
+    neo4j_utils.load_entities(entities)
+E   AttributeError: 'Neo4jTestUtils' object has no attribute 'load_entities'</failure></testcase><testcase classname="tests.e2e.tier0.test_t0_d_ui_rendering.TestUIRendering" name="test_dashboard_loads_without_crash" time="3.163"><failure message="google.auth.exceptions.DefaultCredentialsError: Your default credentials were not found. To set up Application Default Credentials, see https://cloud.google.com/docs/authentication/external/set-up-adc for more information.">tests/e2e/tier0/test_t0_d_ui_rendering.py:33: in test_dashboard_loads_without_crash
+    gcp_utils.bq_create_dataset(test_dataset)
+tests/e2e/helpers/gcp.py:55: in bq_create_dataset
+    client = self._get_bq_client()
+tests/e2e/helpers/gcp.py:44: in _get_bq_client
+    self.bq_client = bigquery.Client(project=self.project_id)
+../.pyenv/versions/3.11.3/lib/python3.11/site-packages/google/cloud/bigquery/client.py:259: in __init__
+    super(Client, self).__init__(
+../.pyenv/versions/3.11.3/lib/python3.11/site-packages/google/cloud/client/__init__.py:339: in __init__
+    Client.__init__(
+../.pyenv/versions/3.11.3/lib/python3.11/site-packages/google/cloud/client/__init__.py:196: in __init__
+    credentials, _ = google.auth.default(scopes=scopes)
+../.pyenv/versions/3.11.3/lib/python3.11/site-packages/google/auth/_default.py:685: in default
+    raise exceptions.DefaultCredentialsError(_CLOUD_SDK_MISSING_CREDENTIALS)
+E   google.auth.exceptions.DefaultCredentialsError: Your default credentials were not found. To set up Application Default Credentials, see https://cloud.google.com/docs/authentication/external/set-up-adc for more information.</failure></testcase><testcase classname="tests.e2e.tier0.test_t0_d_ui_rendering.TestUIRendering" name="test_graph_visualization_endpoint" time="0.001"><failure message="AttributeError: 'async_generator' object has no attribute 'get'">tests/e2e/tier0/test_t0_d_ui_rendering.py:83: in test_graph_visualization_endpoint
+    response = await async_http_client.get("/api/graph/visualization", params={
+E   AttributeError: 'async_generator' object has no attribute 'get'</failure></testcase><testcase classname="tests.e2e.tier0.test_t0_d_ui_rendering.TestUIRendering" name="test_health_check_endpoint" time="0.000"><failure message="AttributeError: 'async_generator' object has no attribute 'get'">tests/e2e/tier0/test_t0_d_ui_rendering.py:100: in test_health_check_endpoint
+    response = await async_http_client.get("/health")
+E   AttributeError: 'async_generator' object has no attribute 'get'</failure></testcase><testcase classname="tests.e2e.tier0.test_t0_d_ui_rendering.TestUIRendering" name="test_api_error_handling" time="0.000"><failure message="AttributeError: 'async_generator' object has no attribute 'get'">tests/e2e/tier0/test_t0_d_ui_rendering.py:135: in test_api_error_handling
+    response = await async_http_client.get(endpoint)
+E   AttributeError: 'async_generator' object has no attribute 'get'</failure></testcase><testcase classname="tests.e2e.tier0.test_t0_d_ui_rendering.TestUIRendering" name="test_static_assets_loading" time="0.000"><failure message="AttributeError: 'async_generator' object has no attribute 'get'">tests/e2e/tier0/test_t0_d_ui_rendering.py:166: in test_static_assets_loading
+    response = await async_http_client.get(path)
+E   AttributeError: 'async_generator' object has no attribute 'get'</failure></testcase><testcase classname="tests.e2e.tier0.test_t0_d_ui_rendering.TestUIRendering" name="test_websocket_connection" time="0.046" /><testcase classname="tests.e2e.tier0.test_t0_d_ui_rendering.TestUIRendering" name="test_ui_configuration_valid" time="0.001" /><testcase classname="tests.e2e.tier0.test_t0_simple_infrastructure.TestBasicInfrastructure" name="test_python_environment" time="0.000" /><testcase classname="tests.e2e.tier0.test_t0_simple_infrastructure.TestBasicInfrastructure" name="test_pytest_markers" time="0.000" /><testcase classname="tests.e2e.tier0.test_t0_simple_infrastructure.TestBasicInfrastructure" name="test_test_data_fixtures" time="0.000" /><testcase classname="tests.e2e.tier0.test_t0_simple_infrastructure.TestBasicInfrastructure" name="test_time_based_operations" time="0.000" /><testcase classname="tests.e2e.tier0.test_t0_simple_infrastructure.TestBasicInfrastructure" name="test_data_structures" time="0.000" /><testcase classname="tests.e2e.tier0.test_t0_simple_infrastructure.TestBasicInfrastructure" name="test_error_handling" time="0.000" /><testcase classname="tests.e2e.tier0.test_t0_simple_infrastructure.TestBasicInfrastructure" name="test_list_operations" time="0.000" /><testcase classname="tests.e2e.tier0.test_t0_simple_infrastructure.TestBasicInfrastructure" name="test_configuration_loading" time="0.000" /><testcase classname="tests.e2e.tier0.test_t0_simple_infrastructure.TestBasicInfrastructure" name="test_async_compatibility" time="0.011" /></testsuite></testsuites>
