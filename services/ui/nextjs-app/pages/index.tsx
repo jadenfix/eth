@@ -32,6 +32,7 @@ import {
   PanelConfig,
   ResponsiveLayout,
 } from '../src/components';
+import ClientTime from '../src/components/atoms/ClientTime';
 
 // Mock data for the graph explorer
 const mockGraphData: GraphData = {
@@ -405,7 +406,7 @@ const Home: NextPage = () => {
                     OPERATIONAL
                   </Badge>
                   <Text fontSize="sm" color="gray.500">
-                    Last updated: {new Date().toLocaleTimeString()}
+                    Last updated: <ClientTime fallback="Loading..." />
                   </Text>
                 </HStack>
               </HStack>

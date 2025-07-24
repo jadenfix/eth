@@ -1,5 +1,5 @@
 import React from 'react';
-import { ResponsiveLayout } from '../src/components/molecules';
+import { ResponsiveLayout } from '../src/components/organisms';
 import {
   Box,
   VStack,

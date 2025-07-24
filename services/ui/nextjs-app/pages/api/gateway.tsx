@@ -15,8 +15,11 @@ import {
   StatHelpText,
   Button,
   Divider,
+  List,
+  ListItem,
+  ListIcon,
 } from '@chakra-ui/react';
-import { ExternalLinkIcon } from '@chakra-ui/icons';
+import { ExternalLinkIcon, CheckCircleIcon } from '@chakra-ui/icons';
 
 const APIGatewayPage: React.FC = () => {
   return (

@@ -3,11 +3,11 @@
  * Palantir Foundry-style graph visualization for entity relationships
  */
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import DeckGL from '@deck.gl/react';
-import { ForceDirectedGraph } from '@deck.gl/graph-layers';
+import { ScatterplotLayer, LineLayer } from '@deck.gl/layers';
 import { StaticMap } from 'react-map-gl';
-import { scaleOrdinal } from 'd3-scale';
+import { scaleOrdinal, scaleLinear } from 'd3-scale';
 import { schemeCategory10 } from 'd3-scale-chromatic';
 
 interface Node {

@@ -145,11 +145,11 @@ const Dashboard: React.FC = () => {
 
   const getSeverityIcon = (severity: string) => {
     switch (severity) {
-      case 'CRITICAL': return <WarningIcon color="red.500" />;
-      case 'HIGH': return <WarningIcon color="orange.500" />;
-      case 'MEDIUM': return <InfoIcon color="yellow.500" />;
-      case 'LOW': return <CheckCircleIcon color="green.500" />;
-      default: return <InfoIcon color="gray.500" />;
+      case 'CRITICAL': return WarningIcon;
+      case 'HIGH': return WarningIcon;
+      case 'MEDIUM': return InfoIcon;
+      case 'LOW': return CheckCircleIcon;
+      default: return InfoIcon;
     }
   };
 

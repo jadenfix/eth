@@ -367,3 +367,49 @@ Set the following environment variables:
 - `NEXT_PUBLIC_WEBSOCKET_ENDPOINT`: Real-time data updates
 - `NEXT_PUBLIC_GRAPHQL_ENDPOINT`: Ontology and entity data
 
+
+## Visualization Layer Deployment
+
+The visualization layer provides Palantir Foundry-style interactive dashboards.
+
+### Local Development
+
+```bash
+# Start visualization services
+npm run dev:visualization
+
+# Or individual services
+cd services/visualization/deckgl_explorer && npm run dev
+cd services/visualization/timeseries_canvas && npm run dev
+cd services/visualization/compliance_map && npm run dev
+cd services/visualization/workspace && npm run dev
+```
+
+### Production Deployment
+
+```bash
+# Build all visualization services
+npm run build:visualization
+
+# Deploy to Kubernetes
+kubectl apply -f infra/k8s/visualization/
+
+# Verify deployment
+kubectl get pods -l layer=visualization
+```
+
+### Service Endpoints
+
+- **Network Explorer**: http://localhost:3001 (DeckGL graph visualization)
+- **Time Series Canvas**: http://localhost:3002 (Metrics and analytics)
+- **Compliance Map**: http://localhost:3003 (Regulatory compliance)
+- **Workspace Builder**: http://localhost:3004 (Dashboard builder)
+
+### Configuration
+
+Set the following environment variables:
+
+- `MAPBOX_TOKEN`: For geographic map backgrounds
+- `NEXT_PUBLIC_WEBSOCKET_ENDPOINT`: Real-time data updates
+- `NEXT_PUBLIC_GRAPHQL_ENDPOINT`: Ontology and entity data
+

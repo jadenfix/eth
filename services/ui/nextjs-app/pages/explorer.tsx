@@ -1,5 +1,6 @@
-import React from 'react';
-import { ResponsiveLayout } from '../src/components/molecules';
+import React, { useState, useEffect } from 'react';
+import { ResponsiveLayout } from '../src/components/organisms';
+import PalantirNetworkGraph from '../src/components/molecules/PalantirNetworkGraph';
 import {
   Box,
   VStack,
@@ -22,10 +23,18 @@ import {
   Switch,
   FormControl,
   FormLabel,
+  Tabs,
+  TabList,
+  TabPanels,
+  Tab,
+  TabPanel,
 } from '@chakra-ui/react';
-import { CheckCircleIcon, SearchIcon, ViewIcon } from '@chakra-ui/icons';
+import { CheckCircleIcon, SearchIcon, ViewIcon, TimeIcon } from '@chakra-ui/icons';
 
 const ExplorerPage: React.FC = () => {
+  const [isLiveMode, setIsLiveMode] = useState(false);
+  const [selectedEntity, setSelectedEntity] = useState<any>(null);
+
   return (
     <ResponsiveLayout
       title="Entity Explorer | Onchain Command Center"
@@ -35,19 +44,39 @@ const ExplorerPage: React.FC = () => {
         {/* Header */}
         <Box textAlign="center" py={8}>
           <HStack justify="center" spacing={4} mb={4}>
-            <Text fontSize="4xl">🔍</Text>
+            <Text fontSize="4xl">�️</Text>
             <Text fontSize="3xl" fontWeight="bold">
               Entity Explorer
             </Text>
-            <Badge colorScheme="green" size="lg">Active</Badge>
+            <Badge colorScheme="green" size="lg">Palantir-style</Badge>
           </HStack>
           <Text fontSize="lg" color="gray.600" maxW="3xl" mx="auto">
-            Interactive blockchain entity relationship explorer with network graphs, search capabilities, and real-time visualization
+            Real-time blockchain entity relationship explorer with force-directed network graphs and live data streaming
           </Text>
         </Box>
 
-        {/* Search & Filter Controls */}
-        <SimpleGrid columns={{ base: 1, md: 2, lg: 4 }} spacing={6}>
+        {/* Main Graph Visualization */}
+        <Box height="600px" bg="gray.900" borderRadius="lg" border="1px solid" borderColor="gray.600">
+          <PalantirNetworkGraph
+            height={600}
+            enablePhysics={true}
+            showLabels={true}
+            onNodeClick={(node) => setSelectedEntity(node)}
+          />
+        </Box>
+
+        {/* Control Panel & Analytics */}
+        <Tabs variant="enclosed" colorScheme="blue">
+          <TabList>
+            <Tab>🎛️ Controls</Tab>
+            <Tab>📊 Analytics</Tab>
+            <Tab>🚨 Risk Alerts</Tab>
+            <Tab>📋 Entity Details</Tab>
+          </TabList>
+
+          <TabPanels>
+            <TabPanel>
+              <SimpleGrid columns={{ base: 1, md: 2, lg: 4 }} spacing={6}>
           <Card>
             <CardBody>
               <Stat>
@@ -287,9 +316,12 @@ const ExplorerPage: React.FC = () => {
             </VStack>
           </CardBody>
         </Card>
-      </VStack>
-    </ResponsiveLayout>
-  );
-};
+              </TabPanel>
+            </TabPanels>
+          </Tabs>
+        </VStack>
+      </ResponsiveLayout>
+    );
+  };
 
-export default ExplorerPage;
+  export default ExplorerPage;
