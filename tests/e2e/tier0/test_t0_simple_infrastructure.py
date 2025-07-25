@@ -138,7 +138,7 @@ class TestBasicInfrastructure:
         
         # Test configuration dict
         config = {
-            "project_id": "test-project",
+            "project_id": "ethhackathon",
             "timeout": 30,
             "retry_count": 3,
             "features": {

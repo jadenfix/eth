@@ -355,15 +355,13 @@ class TestBidirectionalSync:
         
         # Create test entity that will be synced both ways
         test_entity = {
-            "address": "0xCONSISTENCY001",
+            "entity_id": "CONSISTENCY001",
             "entity_type": "wallet",
+            "addresses": ["0xCONSISTENCY001"],
+            "institution": None,
+            "labels": ["test", "consistency"],
             "risk_score": 0.5,
-            "total_volume": 1000000.0,
-            "transaction_count": 10,
-            "first_seen": 1690000000,
-            "last_seen": 1698000000,
-            "labels": json.dumps(["test", "consistency"]),
-            "fixture_id": "T1_B_consistency"
+            "created_at": time.strftime('%Y-%m-%dT%H:%M:%S', time.gmtime(1690000000)),
         }
         
         # 1. Insert to BigQuery first
@@ -482,15 +480,13 @@ class TestBidirectionalSync:
             # 1. Insert to BigQuery with timestamp
             insert_time = time.time()
             entity = {
-                "address": f"0xLATENCY{i:03d}",
+                "entity_id": f"LATENCY{i:03d}",
                 "entity_type": "wallet",
+                "addresses": [f"0xLATENCY{i:03d}"],
+                "institution": None,
+                "labels": [f"test_{i}"],
                 "risk_score": 0.1 * i,
-                "total_volume": 1000000.0 * i,
-                "transaction_count": 10 * i,
-                "first_seen": int(insert_time),
-                "last_seen": int(insert_time),
-                "labels": json.dumps([f"test_{i}"]),
-                "fixture_id": "T1_B_latency"
+                "created_at": time.strftime('%Y-%m-%dT%H:%M:%S', time.gmtime(insert_time)),
             }
             
             gcp_utils.bq_insert_rows(test_dataset, entities_table, [entity])

@@ -31,6 +31,10 @@ import {
   HamburgerIcon,
 } from '@chakra-ui/icons';
 import { motion } from 'framer-motion';
+import * as Cmdk from 'cmdk';
+import { useHotkeys } from 'react-hotkeys-hook';
+import { useRouter } from 'next/router';
+import { AnimatePresence } from 'framer-motion';
 
 const MotionBox = motion(Box);
 const MotionHStack = motion(HStack);
@@ -43,6 +47,38 @@ interface TopNavProps {
 const TopNav: React.FC<TopNavProps> = ({ onSidebarToggle, isSidebarOpen }) => {
   const { colorMode, toggleColorMode } = useColorMode();
   const [searchFocused, setSearchFocused] = useState(false);
+  const [omniboxOpen, setOmniboxOpen] = useState(false);
+  const [omniboxQuery, setOmniboxQuery] = useState('');
+  const router = useRouter();
+
+  useHotkeys('meta+k,ctrl+k', () => setOmniboxOpen(true), []);
+
+  const NAV_ITEMS = [
+    { label: 'Dashboard', path: '/' },
+    { label: 'Services', path: '/services' },
+    { label: 'Graph API', path: '/services/graph' },
+    { label: 'Voice Ops', path: '/voice' },
+    { label: 'Ingestion', path: '/ingestion' },
+    { label: 'Architecture', path: '/architecture' },
+    { label: 'Graph Explorer', path: '/explorer' },
+    { label: 'Time Canvas', path: '/canvas' },
+    { label: 'Compliance', path: '/compliance' },
+    { label: 'Workspace', path: '/workspace' },
+    { label: 'Monitoring', path: '/monitoring' },
+    { label: 'Analytics', path: '/analytics' },
+    { label: 'Ontology', path: '/ontology' },
+    { label: 'MEV', path: '/mev' },
+    { label: 'Status', path: '/status' },
+    { label: 'Signals', path: '/workflows/signals' },
+    { label: 'Dagster', path: '/workflows/dagster' },
+    { label: 'Entities', path: '/intelligence/entities' },
+    { label: 'Access', path: '/security/access' },
+    { label: 'API Gateway', path: '/api/gateway' },
+  ];
+
+  const filteredItems = NAV_ITEMS.filter(item =>
+    item.label.toLowerCase().includes(omniboxQuery.toLowerCase())
+  );
 
   return (
     <MotionBox
@@ -248,6 +284,64 @@ const TopNav: React.FC<TopNavProps> = ({ onSidebarToggle, isSidebarOpen }) => {
           </Menu>
         </HStack>
       </HStack>
+      <AnimatePresence>
+        {omniboxOpen && (
+          <MotionBox
+            position="fixed"
+            top={0}
+            left={0}
+            w="100vw"
+            h="100vh"
+            bg="rgba(0,0,0,0.3)"
+            zIndex={2000}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={() => setOmniboxOpen(false)}
+          >
+            <MotionBox
+              as={Cmdk.Command}
+              position="absolute"
+              top="20vh"
+              left="50%"
+              transform="translateX(-50%)"
+              w="400px"
+              bg={colorMode === 'dark' ? 'gray.800' : 'white'}
+              borderRadius="xl"
+              boxShadow="2xl"
+              p={4}
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              onClick={e => e.stopPropagation()}
+            >
+              <Cmdk.CommandInput
+                autoFocus
+                placeholder="Jump to..."
+                value={omniboxQuery}
+                onValueChange={setOmniboxQuery}
+                style={{ width: '100%', padding: '8px', borderRadius: '8px', fontSize: '1rem', marginBottom: '8px' }}
+              />
+              <Cmdk.CommandList>
+                {filteredItems.length === 0 && <Cmdk.CommandEmpty>No results found.</Cmdk.CommandEmpty>}
+                {filteredItems.map(item => (
+                  <Cmdk.CommandItem
+                    key={item.path}
+                    onSelect={() => {
+                      setOmniboxOpen(false);
+                      setOmniboxQuery('');
+                      router.push(item.path);
+                    }}
+                    style={{ padding: '8px', borderRadius: '6px', cursor: 'pointer' }}
+                  >
+                    {item.label}
+                  </Cmdk.CommandItem>
+                ))}
+              </Cmdk.CommandList>
+            </MotionBox>
+          </MotionBox>
+        )}
+      </AnimatePresence>
     </MotionBox>
   );
 };

@@ -1,0 +1,3581 @@
+...F...F....FF..FFF.FF.FFF...........FFFFFFFFFFFFFFF...........FFFFFFFFF [ 54%]
+F..........Fs....F..FF.F..FFFFFFFF
+=================================== FAILURES ===================================
+_____________ TestLayer1Ingestion.test_ethereum_ingestion_pipeline _____________
+
+self = <tests.e2e.test_comprehensive.TestLayer1Ingestion object at 0x157f0ec10>
+mock_blockchain_data = {'block_number': 18500000, 'timestamp': 1753475857, 'transactions': [{'from': '0xabc1230000000000000000000000000000000...'from': '0xmev_bot000000000000000000000000000000', 'gas': 500000, 'gasPrice': '200000000000', 'gasUsed': 450000, ...}]}
+
+    @pytest.mark.asyncio
+    async def test_ethereum_ingestion_pipeline(self, mock_blockchain_data):
+        """Test complete Ethereum ingestion pipeline."""
+        # Mock Web3 and Pub/Sub
+        with patch('services.ethereum_ingester.ethereum_ingester.Web3') as mock_web3, \
+             patch('google.cloud.pubsub_v1.PublisherClient') as mock_publisher:
+    
+            from services.ethereum_ingester.ethereum_ingester import EthereumIngester
+    
+            # Setup mocks
+            mock_web3_instance = Mock()
+            mock_web3_instance.eth.block_number = mock_blockchain_data['block_number']
+            mock_web3_instance.eth.get_block.return_value = Mock(
+                number=mock_blockchain_data['block_number'],
+                timestamp=mock_blockchain_data['timestamp'],
+                transactions=[Mock(**tx) for tx in mock_blockchain_data['transactions']]
+            )
+            mock_web3.return_value = mock_web3_instance
+    
+            mock_pub_client = Mock()
+            mock_pub_client.publish.return_value = Mock()
+            mock_publisher.return_value = mock_pub_client
+    
+            # Test ingester
+            ingester = EthereumIngester()
+            await ingester._process_block(mock_blockchain_data['block_number'])
+    
+            # Verify events were published
+>           assert mock_pub_client.publish.called
+E           AssertionError: assert False
+E            +  where False = <Mock name='PublisherClient().publish' id='5822111312'>.called
+E            +    where <Mock name='PublisherClient().publish' id='5822111312'> = <Mock name='PublisherClient()' id='5816720208'>.publish
+
+tests/e2e/test_comprehensive.py:200: AssertionError
+------------------------------ Captured log call -------------------------------
+ERROR    services.ethereum_ingester.ethereum_ingester:ethereum_ingester.py:206 {"service": "ethereum-ingester", "error": "Object of type Mock is not JSON serializable", "event": "Error publishing event", "logger": "services.ethereum_ingester.ethereum_ingester", "level": "error", "timestamp": "2025-07-25T20:37:37.306908Z"}
+ERROR    services.ethereum_ingester.ethereum_ingester:ethereum_ingester.py:149 {"service": "ethereum-ingester", "tx_hash": "0x1234567890abcdef000000000000000000000000000000000000000000000000", "error": "'Mock' object is not iterable", "event": "Error processing transaction", "logger": "services.ethereum_ingester.ethereum_ingester", "level": "error", "timestamp": "2025-07-25T20:37:37.307059Z"}
+ERROR    services.ethereum_ingester.ethereum_ingester:ethereum_ingester.py:206 {"service": "ethereum-ingester", "error": "Object of type Mock is not JSON serializable", "event": "Error publishing event", "logger": "services.ethereum_ingester.ethereum_ingester", "level": "error", "timestamp": "2025-07-25T20:37:37.307137Z"}
+ERROR    services.ethereum_ingester.ethereum_ingester:ethereum_ingester.py:149 {"service": "ethereum-ingester", "tx_hash": "0xfedcba0987654321000000000000000000000000000000000000000000000000", "error": "'Mock' object is not iterable", "event": "Error processing transaction", "logger": "services.ethereum_ingester.ethereum_ingester", "level": "error", "timestamp": "2025-07-25T20:37:37.307177Z"}
+______________ TestLayer2SemanticFusion.test_ontology_graphql_api ______________
+
+self = <tests.e2e.test_comprehensive.TestLayer2SemanticFusion object at 0x157f1c850>
+
+    def test_ontology_graphql_api(self):
+        """Test ontology GraphQL API."""
+        from services.graph_api.graph_api import app
+    
+        client = TestClient(app)
+    
+        # Test basic schema query
+        query = """
+        query {
+            __schema {
+                types {
+                    name
+                }
+            }
+        }
+        """
+    
+        response = client.post("/graphql", json={"query": query})
+        assert response.status_code == 200
+    
+        data = response.json()
+        type_names = [t['name'] for t in data['data']['__schema']['types']]
+    
+        # Verify core types exist
+        assert 'Entity' in type_names
+>       assert 'Address' in type_names
+E       AssertionError: assert 'Address' in ['Query', 'String', 'Int', 'Mutation', 'Entity', 'Float', ...]
+
+tests/e2e/test_comprehensive.py:302: AssertionError
+_________ TestLayer3IntelligenceAgentMesh.test_vertex_ai_pipeline_mock _________
+
+self = <tests.e2e.test_comprehensive.TestLayer3IntelligenceAgentMesh object at 0x157f1ead0>
+
+    @pytest.mark.asyncio
+    async def test_vertex_ai_pipeline_mock(self):
+        """Test Vertex AI pipeline integration (mocked)."""
+        from services.entity_resolution.pipeline import VertexAIPipeline
+    
+        with patch('google.cloud.aiplatform.PipelineJob') as mock_pipeline:
+            pipeline = VertexAIPipeline()
+    
+            # Test pipeline execution
+>           result = await pipeline.run_entity_resolution_job({
+                'input_addresses': ['0xabc123' + '0' * 34],
+                'confidence_threshold': 0.8
+            })
+
+tests/e2e/test_comprehensive.py:412: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+services/entity_resolution/pipeline.py:304: in run_entity_resolution_job
+    PipelineJob('test-job', '/tmp/test-template.yaml')
+../.pyenv/versions/3.11.3/lib/python3.11/site-packages/google/cloud/aiplatform/pipeline_jobs.py:226: in __init__
+    pipeline_json = yaml_utils.load_yaml(
+../.pyenv/versions/3.11.3/lib/python3.11/site-packages/google/cloud/aiplatform/utils/yaml_utils.py:65: in load_yaml
+    return _load_yaml_from_local_file(path)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+file_path = '/tmp/test-template.yaml'
+
+    def _load_yaml_from_local_file(file_path: str) -> Dict[str, Any]:
+        """Loads data from a YAML local file.
+    
+        Args:
+          file_path (str):
+              Required. The local file path of the YAML document.
+    
+        Returns:
+          A Dict object representing the YAML document.
+        """
+        yaml = _maybe_import_yaml()
+>       with open(file_path) as f:
+E       FileNotFoundError: [Errno 2] No such file or directory: '/tmp/test-template.yaml'
+
+../.pyenv/versions/3.11.3/lib/python3.11/site-packages/google/cloud/aiplatform/utils/yaml_utils.py:116: FileNotFoundError
+----------------------------- Captured stderr call -----------------------------
+Failed to convert project number to project ID.
+Traceback (most recent call last):
+  File "/Users/jadenfix/.pyenv/versions/3.11.3/lib/python3.11/site-packages/google/cloud/aiplatform/initializer.py", line 103, in _set_project_as_env_var_or_google_auth_default
+    project_id = resource_manager_utils.get_project_id(
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/jadenfix/.pyenv/versions/3.11.3/lib/python3.11/site-packages/google/cloud/aiplatform/utils/resource_manager_utils.py", line 48, in get_project_id
+    project = projects_client.get_project(name=f"projects/{project_number}")
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/jadenfix/.pyenv/versions/3.11.3/lib/python3.11/site-packages/google/cloud/resourcemanager_v3/services/projects/client.py", line 813, in get_project
+    response = rpc(
+               ^^^^
+  File "/Users/jadenfix/.pyenv/versions/3.11.3/lib/python3.11/site-packages/google/api_core/gapic_v1/method.py", line 131, in __call__
+    return wrapped_func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/jadenfix/.pyenv/versions/3.11.3/lib/python3.11/site-packages/google/api_core/retry/retry_unary.py", line 294, in retry_wrapped_func
+    return retry_target(
+           ^^^^^^^^^^^^^
+  File "/Users/jadenfix/.pyenv/versions/3.11.3/lib/python3.11/site-packages/google/api_core/retry/retry_unary.py", line 156, in retry_target
+    next_sleep = _retry_error_helper(
+                 ^^^^^^^^^^^^^^^^^^^^
+  File "/Users/jadenfix/.pyenv/versions/3.11.3/lib/python3.11/site-packages/google/api_core/retry/retry_base.py", line 214, in _retry_error_helper
+    raise final_exc from source_exc
+  File "/Users/jadenfix/.pyenv/versions/3.11.3/lib/python3.11/site-packages/google/api_core/retry/retry_unary.py", line 147, in retry_target
+    result = target()
+             ^^^^^^^^
+  File "/Users/jadenfix/.pyenv/versions/3.11.3/lib/python3.11/site-packages/google/api_core/timeout.py", line 130, in func_with_timeout
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/jadenfix/.pyenv/versions/3.11.3/lib/python3.11/site-packages/google/api_core/grpc_helpers.py", line 78, in error_remapped_callable
+    raise exceptions.from_grpc_error(exc) from exc
+google.api_core.exceptions.PermissionDenied: 403 Permission 'resourcemanager.projects.get' denied on resource '//cloudresourcemanager.googleapis.com/projects/test-project' (or it may not exist). [reason: "IAM_PERMISSION_DENIED"
+domain: "cloudresourcemanager.googleapis.com"
+metadata {
+  key: "resource"
+  value: "projects/test-project"
+}
+metadata {
+  key: "permission"
+  value: "resourcemanager.projects.get"
+}
+]
+_______________ TestLayer4APIVoiceOps.test_graphql_api_endpoints _______________
+
+self = <tests.e2e.test_comprehensive.TestLayer4APIVoiceOps object at 0x157f1f290>
+
+    def test_graphql_api_endpoints(self):
+        """Test GraphQL API functionality."""
+        from services.graph_api.graph_api import app
+    
+        client = TestClient(app)
+    
+        # Test entity query
+        query = """
+        query GetEntities($limit: Int) {
+            entities(limit: $limit) {
+                id
+                type
+                addresses
+                confidence
+            }
+        }
+        """
+    
+        response = client.post("/graphql", json={
+            "query": query,
+            "variables": {"limit": 10}
+        })
+    
+        assert response.status_code == 200
+        data = response.json()
+>       assert 'data' in data
+E       assert 'data' in {'errors': [{'locations': [{'column': 22, 'line': 3}], 'message': "Unknown argument 'limit' on field 'Query.entities'....dress'?"}, {'locations': [{'column': 17, 'line': 7}], 'message': "Cannot query field 'confidence' on type 'Entity'."}]}
+
+tests/e2e/test_comprehensive.py:450: AssertionError
+------------------------------ Captured log call -------------------------------
+ERROR    ariadne:logger.py:21 Unknown argument 'limit' on field 'Query.entities'.
+
+GraphQL request:3:22
+2 |         query GetEntities($limit: Int) {
+3 |             entities(limit: $limit) {
+  |                      ^
+4 |                 id
+graphql.error.graphql_error.GraphQLError: Unknown argument 'limit' on field 'Query.entities'.
+
+GraphQL request:3:22
+2 |         query GetEntities($limit: Int) {
+3 |             entities(limit: $limit) {
+  |                      ^
+4 |                 id
+ERROR    ariadne:logger.py:21 Cannot query field 'addresses' on type 'Entity'. Did you mean 'address'?
+
+GraphQL request:6:17
+5 |                 type
+6 |                 addresses
+  |                 ^
+7 |                 confidence
+graphql.error.graphql_error.GraphQLError: Cannot query field 'addresses' on type 'Entity'. Did you mean 'address'?
+
+GraphQL request:6:17
+5 |                 type
+6 |                 addresses
+  |                 ^
+7 |                 confidence
+ERROR    ariadne:logger.py:21 Cannot query field 'confidence' on type 'Entity'.
+
+GraphQL request:7:17
+6 |                 addresses
+7 |                 confidence
+  |                 ^
+8 |             }
+graphql.error.graphql_error.GraphQLError: Cannot query field 'confidence' on type 'Entity'.
+
+GraphQL request:7:17
+6 |                 addresses
+7 |                 confidence
+  |                 ^
+8 |             }
+_______________ TestLayer4APIVoiceOps.test_voice_ops_integration _______________
+
+self = <tests.e2e.test_comprehensive.TestLayer4APIVoiceOps object at 0x157f1fc90>
+
+    @pytest.mark.asyncio
+    async def test_voice_ops_integration(self):
+        """Test voice operations (TTS/STT) with mocks."""
+>       with patch('elevenlabs.generate') as mock_tts, \
+             patch('speech_recognition.Recognizer') as mock_stt:
+
+tests/e2e/test_comprehensive.py:504: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+../.pyenv/versions/3.11.3/lib/python3.11/unittest/mock.py:1437: in __enter__
+    original, local = self.get_original()
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <unittest.mock._patch object at 0x169fc4410>
+
+    def get_original(self):
+        target = self.getter()
+        name = self.attribute
+    
+        original = DEFAULT
+        local = False
+    
+        try:
+            original = target.__dict__[name]
+        except (AttributeError, KeyError):
+            original = getattr(target, name, DEFAULT)
+        else:
+            local = True
+    
+        if name in _builtins and isinstance(target, ModuleType):
+            self.create = True
+    
+        if not self.create and original is DEFAULT:
+>           raise AttributeError(
+                "%s does not have the attribute %r" % (target, name)
+            )
+E           AttributeError: <module 'elevenlabs' from '/Users/jadenfix/.pyenv/versions/3.11.3/lib/python3.11/site-packages/elevenlabs/__init__.py'> does not have the attribute 'generate'
+
+../.pyenv/versions/3.11.3/lib/python3.11/unittest/mock.py:1410: AttributeError
+_________ TestLayer5UXWorkflowBuilder.test_dagster_workflow_execution __________
+
+self = <tests.e2e.test_comprehensive.TestLayer5UXWorkflowBuilder object at 0x157f1ef50>
+
+    def test_dagster_workflow_execution(self):
+        """Test Dagster workflow execution."""
+>       from services.workflow_builder.sample_signal import high_value_transfer_monitor
+
+tests/e2e/test_comprehensive.py:532: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+    """
+    Workflow Builder Service - Dagster job definitions for low-code signal building.
+    
+    Provides visual workflow composition for non-technical users to create
+    custom blockchain monitoring and alerting workflows.
+    """
+    
+    import os
+    from typing import Dict, List, Any, Optional
+    from datetime import datetime, timedelta
+    
+    from dagster import (
+        job, op, Config, In, Out, DynamicOut, DynamicPartitionsDefinition,
+        resource, sensor, schedule, asset, AssetMaterialization,
+        get_dagster_logger, OpExecutionContext, JobDefinition
+    )
+>   from dagster_gcp import BigQueryResource, gcp_gcs_resource
+E   ImportError: cannot import name 'gcp_gcs_resource' from 'dagster_gcp' (/Users/jadenfix/.pyenv/versions/3.11.3/lib/python3.11/site-packages/dagster_gcp/__init__.py)
+
+services/workflow_builder/sample_signal.py:17: ImportError
+___________ TestLayer5UXWorkflowBuilder.test_custom_workflow_builder ___________
+
+self = <tests.e2e.test_comprehensive.TestLayer5UXWorkflowBuilder object at 0x157f0ff50>
+
+    def test_custom_workflow_builder(self):
+        """Test dynamic workflow creation."""
+>       from services.workflow_builder.sample_signal import build_custom_workflow
+
+tests/e2e/test_comprehensive.py:545: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+    """
+    Workflow Builder Service - Dagster job definitions for low-code signal building.
+    
+    Provides visual workflow composition for non-technical users to create
+    custom blockchain monitoring and alerting workflows.
+    """
+    
+    import os
+    from typing import Dict, List, Any, Optional
+    from datetime import datetime, timedelta
+    
+    from dagster import (
+        job, op, Config, In, Out, DynamicOut, DynamicPartitionsDefinition,
+        resource, sensor, schedule, asset, AssetMaterialization,
+        get_dagster_logger, OpExecutionContext, JobDefinition
+    )
+>   from dagster_gcp import BigQueryResource, gcp_gcs_resource
+E   ImportError: cannot import name 'gcp_gcs_resource' from 'dagster_gcp' (/Users/jadenfix/.pyenv/versions/3.11.3/lib/python3.11/site-packages/dagster_gcp/__init__.py)
+
+services/workflow_builder/sample_signal.py:17: ImportError
+__________ TestLayer6SystemIntegration.test_full_pipeline_integration __________
+
+self = <tests.e2e.test_comprehensive.TestLayer6SystemIntegration object at 0x157f28790>
+mock_blockchain_data = {'block_number': 18500000, 'timestamp': 1753475860, 'transactions': [{'from': '0xabc1230000000000000000000000000000000...'from': '0xmev_bot000000000000000000000000000000', 'gas': 500000, 'gasPrice': '200000000000', 'gasUsed': 450000, ...}]}
+mock_entity_resolution_data = {'entities': [{'addresses': ['0xabc1230000000000000000000000000000000000', '0xdef4560000000000000000000000000000000000...0xmev_bot000000000000000000000000000000'], 'confidence': 0.87, 'entity_id': 'ENT_002', 'entity_type': 'MEV_BOT', ...}]}
+
+    @pytest.mark.asyncio
+    async def test_full_pipeline_integration(self, mock_blockchain_data, mock_entity_resolution_data):
+        """Test complete end-to-end pipeline."""
+        published_signals = []
+    
+        # Mock all external dependencies
+        with patch('services.ethereum_ingester.ethereum_ingester.Web3') as mock_web3, \
+             patch('google.cloud.pubsub_v1.PublisherClient') as mock_publisher, \
+             patch('neo4j.GraphDatabase.driver') as mock_neo4j, \
+             patch('services.entity_resolution.pipeline.joblib.load') as mock_ml:
+    
+            # Setup mocks
+            mock_web3_instance = Mock()
+            mock_web3_instance.eth.block_number = mock_blockchain_data['block_number']
+            mock_web3_instance.eth.get_block.return_value = Mock(
+                number=mock_blockchain_data['block_number'],
+                timestamp=mock_blockchain_data['timestamp'],
+                transactions=[Mock(**tx) for tx in mock_blockchain_data['transactions']]
+            )
+            mock_web3.return_value = mock_web3_instance
+    
+            mock_pub_client = Mock()
+            mock_publisher.return_value = mock_pub_client
+    
+            # Capture published messages
+            published_messages = []
+            def capture_publish(topic, message):
+                published_messages.append(json.loads(message.decode('utf-8')))
+                return Mock()
+            mock_pub_client.publish.side_effect = capture_publish
+    
+            # Run ingestion
+            from services.ethereum_ingester.ethereum_ingester import EthereumIngester
+            ingester = EthereumIngester()
+            await ingester._process_block(mock_blockchain_data['block_number'])
+    
+            # Verify ingestion published events
+>           assert len(published_messages) > 0
+E           assert 0 > 0
+E            +  where 0 = len([])
+
+tests/e2e/test_comprehensive.py:625: AssertionError
+------------------------------ Captured log call -------------------------------
+ERROR    services.ethereum_ingester.ethereum_ingester:ethereum_ingester.py:206 {"service": "ethereum-ingester", "error": "Object of type Mock is not JSON serializable", "event": "Error publishing event", "logger": "services.ethereum_ingester.ethereum_ingester", "level": "error", "timestamp": "2025-07-25T20:37:40.738607Z"}
+ERROR    services.ethereum_ingester.ethereum_ingester:ethereum_ingester.py:149 {"service": "ethereum-ingester", "tx_hash": "0x1234567890abcdef000000000000000000000000000000000000000000000000", "error": "'Mock' object is not iterable", "event": "Error processing transaction", "logger": "services.ethereum_ingester.ethereum_ingester", "level": "error", "timestamp": "2025-07-25T20:37:40.738726Z"}
+ERROR    services.ethereum_ingester.ethereum_ingester:ethereum_ingester.py:206 {"service": "ethereum-ingester", "error": "Object of type Mock is not JSON serializable", "event": "Error publishing event", "logger": "services.ethereum_ingester.ethereum_ingester", "level": "error", "timestamp": "2025-07-25T20:37:40.738791Z"}
+ERROR    services.ethereum_ingester.ethereum_ingester:ethereum_ingester.py:149 {"service": "ethereum-ingester", "tx_hash": "0xfedcba0987654321000000000000000000000000000000000000000000000000", "error": "'Mock' object is not iterable", "event": "Error processing transaction", "logger": "services.ethereum_ingester.ethereum_ingester", "level": "error", "timestamp": "2025-07-25T20:37:40.738824Z"}
+________ TestLayer6SystemIntegration.test_health_monitoring_integration ________
+
+self = <tests.e2e.test_comprehensive.TestLayer6SystemIntegration object at 0x157f28a90>
+
+    def test_health_monitoring_integration(self):
+        """Test system health monitoring."""
+>       from services.monitoring.health_service import HealthMonitoringService
+
+tests/e2e/test_comprehensive.py:649: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+    """
+    System Health and Monitoring Service.
+    
+    Provides comprehensive health checks, performance metrics, and
+    operational insights for the blockchain intelligence platform.
+    """
+    
+    import os
+    import asyncio
+    import json
+    import time
+    import logging
+    import psutil
+    from typing import Dict, List, Optional, Any, Tuple
+    from dataclasses import dataclass, asdict
+    from datetime import datetime, timedelta
+    from enum import Enum
+    
+    import structlog
+    import aiohttp
+>   import aioredis
+E   ModuleNotFoundError: No module named 'aioredis'
+
+services/monitoring/health_service.py:21: ModuleNotFoundError
+________________ TestSecurityCompliance.test_encryption_at_rest ________________
+
+self = <tests.e2e.test_comprehensive.TestSecurityCompliance object at 0x157f29910>
+
+    def test_encryption_at_rest(self):
+        """Test data encryption capabilities."""
+>       from services.access_control.audit_sink import DataEncryption
+E       ImportError: cannot import name 'DataEncryption' from 'services.access_control.audit_sink' (/Users/jadenfix/eth/services/access_control/audit_sink.py)
+
+tests/e2e/test_comprehensive.py:687: ImportError
+_________________ TestSecurityCompliance.test_gdpr_compliance __________________
+
+self = <tests.e2e.test_comprehensive.TestSecurityCompliance object at 0x157f29f90>
+
+    def test_gdpr_compliance(self):
+        """Test GDPR data handling compliance."""
+>       from services.access_control.audit_sink import GDPRCompliance
+E       ImportError: cannot import name 'GDPRCompliance' from 'services.access_control.audit_sink' (/Users/jadenfix/eth/services/access_control/audit_sink.py)
+
+tests/e2e/test_comprehensive.py:701: ImportError
+_________________ TestSecurityCompliance.test_soc2_audit_trail _________________
+
+self = <tests.e2e.test_comprehensive.TestSecurityCompliance object at 0x157f2a610>
+
+    def test_soc2_audit_trail(self):
+        """Test SOC 2 Type II audit trail generation."""
+        from services.access_control.audit_sink import AuditLogger
+    
+        logger = AuditLogger()
+    
+        # Generate audit entries
+        entries = [
+            logger.log_access('user1@company.com', 'sensitive_table', 'SELECT', 'SUCCESS'),
+            logger.log_access('user2@company.com', 'sensitive_table', 'UPDATE', 'DENIED'),
+            logger.log_access('admin@company.com', 'system_config', 'MODIFY', 'SUCCESS')
+        ]
+    
+        # Test audit trail completeness
+        for entry in entries:
+            assert 'user' in entry
+            assert 'resource' in entry
+            assert 'action' in entry
+            assert 'result' in entry
+            assert 'timestamp' in entry
+>           assert 'ip_address' in entry
+E           AssertionError: assert 'ip_address' in {'action': 'SELECT', 'metadata': {}, 'resource': 'sensitive_table', 'result': 'SUCCESS', ...}
+
+tests/e2e/test_comprehensive.py:735: AssertionError
+____________ TestIngestToBigQuery.test_ingest_synthetic_transaction ____________
+
+self = <tests.e2e.tier0.test_t0_a_basic_ingestion.TestIngestToBigQuery object at 0x15aa07a10>
+gcp_env = GCPTestEnvironment(project_id='test-project', dataset_id='test_onchain_data', region='us-central1', test_prefix='test_1753475869')
+bigquery_client = <google.cloud.bigquery.client.Client object at 0x16f231cd0>
+sample_chain_event = {'block_number': 18500000, 'event_type': 'transfer', 'fixture_id': 'test_sample_event', 'from_address': '0xA0b86a33E6441e8C73C3238E5A3F0B2E1f1D8E3F', ...}
+clean_test_data = None
+
+    def test_ingest_synthetic_transaction(self, gcp_env, bigquery_client, sample_chain_event, clean_test_data):
+        """
+        T0-A: Basic ingestion test
+    
+        Flow:
+        1. Create test dataset and table
+        2. Insert synthetic transaction
+        3. Verify it appears in BigQuery
+        4. Validate data structure and content
+        """
+        gcp_utils = GCPTestUtils(gcp_env.project_id)
+    
+        # 1. Setup test infrastructure
+        test_dataset = f"{gcp_env.test_prefix}_ingestion"
+        test_table = "chain_events"
+    
+        gcp_utils.bq_create_dataset(test_dataset)
+        gcp_utils.bq_create_table(test_dataset, test_table, CHAIN_EVENTS_SCHEMA)
+    
+        # 2. Insert synthetic transaction
+        test_event = sample_chain_event.copy()
+        test_event["fixture_id"] = "T0_A_basic_ingest"
+    
+>       gcp_utils.bq_insert_rows(test_dataset, test_table, [test_event])
+
+tests/e2e/tier0/test_t0_a_basic_ingestion.py:39: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/e2e/helpers/gcp.py:104: in bq_insert_rows
+    table = self.bq_client.get_table(table_ref)
+../.pyenv/versions/3.11.3/lib/python3.11/site-packages/google/cloud/bigquery/client.py:1208: in get_table
+    api_response = self._call_api(
+../.pyenv/versions/3.11.3/lib/python3.11/site-packages/google/cloud/bigquery/client.py:859: in _call_api
+    return call()
+../.pyenv/versions/3.11.3/lib/python3.11/site-packages/google/api_core/retry/retry_unary.py:294: in retry_wrapped_func
+    return retry_target(
+../.pyenv/versions/3.11.3/lib/python3.11/site-packages/google/api_core/retry/retry_unary.py:156: in retry_target
+    next_sleep = _retry_error_helper(
+../.pyenv/versions/3.11.3/lib/python3.11/site-packages/google/api_core/retry/retry_base.py:214: in _retry_error_helper
+    raise final_exc from source_exc
+../.pyenv/versions/3.11.3/lib/python3.11/site-packages/google/api_core/retry/retry_unary.py:147: in retry_target
+    result = target()
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <google.cloud.bigquery._http.Connection object at 0x16f2321d0>
+method = 'GET'
+path = '/projects/test-project/datasets/test_1753475869_ingestion/tables/chain_events'
+query_params = None, data = None, content_type = None, headers = None
+api_base_url = None, api_version = None, expect_json = True
+_target_object = None, timeout = None, extra_api_info = None
+
+    def api_request(
+        self,
+        method,
+        path,
+        query_params=None,
+        data=None,
+        content_type=None,
+        headers=None,
+        api_base_url=None,
+        api_version=None,
+        expect_json=True,
+        _target_object=None,
+        timeout=_DEFAULT_TIMEOUT,
+        extra_api_info=None,
+    ):
+        """Make a request over the HTTP transport to the API.
+    
+        You shouldn't need to use this method, but if you plan to
+        interact with the API using these primitives, this is the
+        correct one to use.
+    
+        :type method: str
+        :param method: The HTTP method name (ie, ``GET``, ``POST``, etc).
+                       Required.
+    
+        :type path: str
+        :param path: The path to the resource (ie, ``'/b/bucket-name'``).
+                     Required.
+    
+        :type query_params: dict or list
+        :param query_params: A dictionary of keys and values (or list of
+                             key-value pairs) to insert into the query
+                             string of the URL.
+    
+        :type data: str
+        :param data: The data to send as the body of the request. Default is
+                     the empty string.
+    
+        :type content_type: str
+        :param content_type: The proper MIME type of the data provided. Default
+                             is None.
+    
+        :type headers: dict
+        :param headers: extra HTTP headers to be sent with the request.
+    
+        :type api_base_url: str
+        :param api_base_url: The base URL for the API endpoint.
+                             Typically you won't have to provide this.
+                             Default is the standard API base URL.
+    
+        :type api_version: str
+        :param api_version: The version of the API to call.  Typically
+                            you shouldn't provide this and instead use
+                            the default for the library.  Default is the
+                            latest API version supported by
+                            google-cloud-python.
+    
+        :type expect_json: bool
+        :param expect_json: If True, this method will try to parse the
+                            response as JSON and raise an exception if
+                            that cannot be done.  Default is True.
+    
+        :type _target_object: :class:`object`
+        :param _target_object:
+            (Optional) Protected argument to be used by library callers. This
+            can allow custom behavior, for example, to defer an HTTP request
+            and complete initialization of the object at a later time.
+    
+        :type timeout: float or tuple
+        :param timeout: (optional) The amount of time, in seconds, to wait
+            for the server response.
+    
+            Can also be passed as a tuple (connect_timeout, read_timeout).
+            See :meth:`requests.Session.request` documentation for details.
+    
+        :type extra_api_info: string
+        :param extra_api_info: (optional) Extra api info to be appended to
+            the X-Goog-API-Client header
+    
+        :raises ~google.cloud.exceptions.GoogleCloudError: if the response code
+            is not 200 OK.
+        :raises ValueError: if the response content type is not JSON.
+        :rtype: dict or str
+        :returns: The API response payload, either as a raw string or
+                  a dictionary if the response is valid JSON.
+        """
+        url = self.build_api_url(
+            path=path,
+            query_params=query_params,
+            api_base_url=api_base_url,
+            api_version=api_version,
+        )
+    
+        # Making the executive decision that any dictionary
+        # data will be sent properly as JSON.
+        if data and isinstance(data, dict):
+            data = json.dumps(data)
+            content_type = "application/json"
+    
+        response = self._make_request(
+            method=method,
+            url=url,
+            data=data,
+            content_type=content_type,
+            headers=headers,
+            target_object=_target_object,
+            timeout=timeout,
+            extra_api_info=extra_api_info,
+        )
+    
+        if not 200 <= response.status_code < 300:
+>           raise exceptions.from_http_response(response)
+E           google.api_core.exceptions.BadRequest: 400 GET https://bigquery.googleapis.com/bigquery/v2/projects/test-project/datasets/test_1753475869_ingestion/tables/chain_events?prettyPrint=false: The project test-project has not enabled BigQuery.
+
+../.pyenv/versions/3.11.3/lib/python3.11/site-packages/google/cloud/_http/__init__.py:494: BadRequest
+------------------------------ Captured log call -------------------------------
+WARNING  tests.e2e.helpers.gcp:gcp.py:64 Failed to create dataset test_1753475869_ingestion: 400 POST https://bigquery.googleapis.com/bigquery/v2/projects/test-project/datasets?prettyPrint=false: The project test-project has not enabled BigQuery.
+WARNING  tests.e2e.helpers.gcp:gcp.py:99 Failed to create table test_1753475869_ingestion.chain_events: 400 POST https://bigquery.googleapis.com/bigquery/v2/projects/test-project/datasets/test_1753475869_ingestion/tables?prettyPrint=false: The project test-project has not enabled BigQuery.
+____________ TestIngestToBigQuery.test_ingest_multiple_transactions ____________
+
+self = <tests.e2e.tier0.test_t0_a_basic_ingestion.TestIngestToBigQuery object at 0x15aa28f10>
+gcp_env = GCPTestEnvironment(project_id='test-project', dataset_id='test_onchain_data', region='us-central1', test_prefix='test_1753475870')
+bigquery_client = <google.cloud.bigquery.client.Client object at 0x16f75c5d0>
+clean_test_data = None
+
+    def test_ingest_multiple_transactions(self, gcp_env, bigquery_client, clean_test_data):
+        """Test ingesting multiple transactions"""
+        gcp_utils = GCPTestUtils(gcp_env.project_id)
+    
+        test_dataset = f"{gcp_env.test_prefix}_ingestion"
+        test_table = "chain_events"
+    
+        gcp_utils.bq_create_dataset(test_dataset)
+        gcp_utils.bq_create_table(test_dataset, test_table, CHAIN_EVENTS_SCHEMA)
+    
+        # Create multiple test events
+        test_events = []
+        for i in range(5):
+            event = {
+                "block_number": 18500000 + i,
+                "transaction_hash": f"0x{i:064x}",
+                "from_address": f"0x{i:040x}",
+                "to_address": f"0x{(i+1):040x}",
+                "value": str(1000000000000000000 * (i + 1)),  # 1-5 ETH
+                "gas_used": 21000,
+                "timestamp": 1698000000 + i,
+                "event_type": "transfer",
+                "fixture_id": "T0_A_multiple_ingest"
+            }
+            test_events.append(event)
+    
+        # Insert all events
+>       gcp_utils.bq_insert_rows(test_dataset, test_table, test_events)
+
+tests/e2e/tier0/test_t0_a_basic_ingestion.py:90: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/e2e/helpers/gcp.py:104: in bq_insert_rows
+    table = self.bq_client.get_table(table_ref)
+../.pyenv/versions/3.11.3/lib/python3.11/site-packages/google/cloud/bigquery/client.py:1208: in get_table
+    api_response = self._call_api(
+../.pyenv/versions/3.11.3/lib/python3.11/site-packages/google/cloud/bigquery/client.py:859: in _call_api
+    return call()
+../.pyenv/versions/3.11.3/lib/python3.11/site-packages/google/api_core/retry/retry_unary.py:294: in retry_wrapped_func
+    return retry_target(
+../.pyenv/versions/3.11.3/lib/python3.11/site-packages/google/api_core/retry/retry_unary.py:156: in retry_target
+    next_sleep = _retry_error_helper(
+../.pyenv/versions/3.11.3/lib/python3.11/site-packages/google/api_core/retry/retry_base.py:214: in _retry_error_helper
+    raise final_exc from source_exc
+../.pyenv/versions/3.11.3/lib/python3.11/site-packages/google/api_core/retry/retry_unary.py:147: in retry_target
+    result = target()
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <google.cloud.bigquery._http.Connection object at 0x16f75c890>
+method = 'GET'
+path = '/projects/test-project/datasets/test_1753475870_ingestion/tables/chain_events'
+query_params = None, data = None, content_type = None, headers = None
+api_base_url = None, api_version = None, expect_json = True
+_target_object = None, timeout = None, extra_api_info = None
+
+    def api_request(
+        self,
+        method,
+        path,
+        query_params=None,
+        data=None,
+        content_type=None,
+        headers=None,
+        api_base_url=None,
+        api_version=None,
+        expect_json=True,
+        _target_object=None,
+        timeout=_DEFAULT_TIMEOUT,
+        extra_api_info=None,
+    ):
+        """Make a request over the HTTP transport to the API.
+    
+        You shouldn't need to use this method, but if you plan to
+        interact with the API using these primitives, this is the
+        correct one to use.
+    
+        :type method: str
+        :param method: The HTTP method name (ie, ``GET``, ``POST``, etc).
+                       Required.
+    
+        :type path: str
+        :param path: The path to the resource (ie, ``'/b/bucket-name'``).
+                     Required.
+    
+        :type query_params: dict or list
+        :param query_params: A dictionary of keys and values (or list of
+                             key-value pairs) to insert into the query
+                             string of the URL.
+    
+        :type data: str
+        :param data: The data to send as the body of the request. Default is
+                     the empty string.
+    
+        :type content_type: str
+        :param content_type: The proper MIME type of the data provided. Default
+                             is None.
+    
+        :type headers: dict
+        :param headers: extra HTTP headers to be sent with the request.
+    
+        :type api_base_url: str
+        :param api_base_url: The base URL for the API endpoint.
+                             Typically you won't have to provide this.
+                             Default is the standard API base URL.
+    
+        :type api_version: str
+        :param api_version: The version of the API to call.  Typically
+                            you shouldn't provide this and instead use
+                            the default for the library.  Default is the
+                            latest API version supported by
+                            google-cloud-python.
+    
+        :type expect_json: bool
+        :param expect_json: If True, this method will try to parse the
+                            response as JSON and raise an exception if
+                            that cannot be done.  Default is True.
+    
+        :type _target_object: :class:`object`
+        :param _target_object:
+            (Optional) Protected argument to be used by library callers. This
+            can allow custom behavior, for example, to defer an HTTP request
+            and complete initialization of the object at a later time.
+    
+        :type timeout: float or tuple
+        :param timeout: (optional) The amount of time, in seconds, to wait
+            for the server response.
+    
+            Can also be passed as a tuple (connect_timeout, read_timeout).
+            See :meth:`requests.Session.request` documentation for details.
+    
+        :type extra_api_info: string
+        :param extra_api_info: (optional) Extra api info to be appended to
+            the X-Goog-API-Client header
+    
+        :raises ~google.cloud.exceptions.GoogleCloudError: if the response code
+            is not 200 OK.
+        :raises ValueError: if the response content type is not JSON.
+        :rtype: dict or str
+        :returns: The API response payload, either as a raw string or
+                  a dictionary if the response is valid JSON.
+        """
+        url = self.build_api_url(
+            path=path,
+            query_params=query_params,
+            api_base_url=api_base_url,
+            api_version=api_version,
+        )
+    
+        # Making the executive decision that any dictionary
+        # data will be sent properly as JSON.
+        if data and isinstance(data, dict):
+            data = json.dumps(data)
+            content_type = "application/json"
+    
+        response = self._make_request(
+            method=method,
+            url=url,
+            data=data,
+            content_type=content_type,
+            headers=headers,
+            target_object=_target_object,
+            timeout=timeout,
+            extra_api_info=extra_api_info,
+        )
+    
+        if not 200 <= response.status_code < 300:
+>           raise exceptions.from_http_response(response)
+E           google.api_core.exceptions.BadRequest: 400 GET https://bigquery.googleapis.com/bigquery/v2/projects/test-project/datasets/test_1753475870_ingestion/tables/chain_events?prettyPrint=false: The project test-project has not enabled BigQuery.
+
+../.pyenv/versions/3.11.3/lib/python3.11/site-packages/google/cloud/_http/__init__.py:494: BadRequest
+------------------------------ Captured log call -------------------------------
+WARNING  tests.e2e.helpers.gcp:gcp.py:64 Failed to create dataset test_1753475870_ingestion: 400 POST https://bigquery.googleapis.com/bigquery/v2/projects/test-project/datasets?prettyPrint=false: The project test-project has not enabled BigQuery.
+WARNING  tests.e2e.helpers.gcp:gcp.py:99 Failed to create table test_1753475870_ingestion.chain_events: 400 POST https://bigquery.googleapis.com/bigquery/v2/projects/test-project/datasets/test_1753475870_ingestion/tables?prettyPrint=false: The project test-project has not enabled BigQuery.
+___________ TestIngestToBigQuery.test_ingest_with_pubsub_simulation ____________
+
+self = <tests.e2e.tier0.test_t0_a_basic_ingestion.TestIngestToBigQuery object at 0x15aa29290>
+gcp_env = GCPTestEnvironment(project_id='test-project', dataset_id='test_onchain_data', region='us-central1', test_prefix='test_1753475871')
+pubsub_publisher = <google.cloud.pubsub_v1.PublisherClient object at 0x16f66cb90>
+bigquery_client = <google.cloud.bigquery.client.Client object at 0x16f66e810>
+clean_test_data = None
+
+    def test_ingest_with_pubsub_simulation(self, gcp_env, pubsub_publisher, bigquery_client, clean_test_data):
+        """Test ingestion pipeline with Pub/Sub simulation"""
+        gcp_utils = GCPTestUtils(gcp_env.project_id)
+    
+        # Setup
+        test_dataset = f"{gcp_env.test_prefix}_ingestion"
+        test_table = "chain_events"
+        test_topic = f"{gcp_env.test_prefix}_raw_events"
+    
+        gcp_utils.bq_create_dataset(test_dataset)
+        gcp_utils.bq_create_table(test_dataset, test_table, CHAIN_EVENTS_SCHEMA)
+>       gcp_utils.pubsub_create_topic(test_topic)
+
+tests/e2e/tier0/test_t0_a_basic_ingestion.py:115: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <tests.e2e.helpers.gcp.GCPTestUtils object at 0x16f66ef90>
+topic_id = 'test_1753475871_raw_events'
+
+    def pubsub_create_topic(self, topic_id: str) -> None:
+        """Create Pub/Sub topic if it doesn't exist"""
+>       topic_path = self.publisher.topic_path(self.project_id, topic_id)
+E       AttributeError: 'GCPTestUtils' object has no attribute 'publisher'
+
+tests/e2e/helpers/gcp.py:139: AttributeError
+------------------------------ Captured log call -------------------------------
+WARNING  tests.e2e.helpers.gcp:gcp.py:64 Failed to create dataset test_1753475871_ingestion: 400 POST https://bigquery.googleapis.com/bigquery/v2/projects/test-project/datasets?prettyPrint=false: The project test-project has not enabled BigQuery.
+WARNING  tests.e2e.helpers.gcp:gcp.py:99 Failed to create table test_1753475871_ingestion.chain_events: 400 POST https://bigquery.googleapis.com/bigquery/v2/projects/test-project/datasets/test_1753475871_ingestion/tables?prettyPrint=false: The project test-project has not enabled BigQuery.
+________________ TestBigQueryQueries.test_simple_bigquery_query ________________
+
+self = <tests.e2e.tier0.test_t0_b_basic_queries.TestBigQueryQueries object at 0x15aa2e990>
+gcp_env = GCPTestEnvironment(project_id='test-project', dataset_id='test_onchain_data', region='us-central1', test_prefix='test_1753475871')
+bigquery_client = <google.cloud.bigquery.client.Client object at 0x16f248950>
+clean_test_data = None
+
+    def test_simple_bigquery_query(self, gcp_env, bigquery_client, clean_test_data):
+        """
+        T0-B: Basic BigQuery query test
+    
+        Flow:
+        1. Insert known test data
+        2. Query for that data
+        3. Verify JSON structure and content
+        4. Validate response format
+        """
+        gcp_utils = GCPTestUtils(gcp_env.project_id)
+    
+        # 1. Setup test data
+        test_dataset = f"{gcp_env.test_prefix}_query_test"
+        test_table = "chain_events"
+    
+        gcp_utils.bq_create_dataset(test_dataset)
+        gcp_utils.bq_create_table(test_dataset, test_table, {
+            "fields": [
+                {"name": "id", "type": "STRING"},
+                {"name": "value", "type": "INTEGER"},
+                {"name": "metadata", "type": "STRING"},
+                {"name": "fixture_id", "type": "STRING"}
+            ]
+        })
+    
+        test_data = [
+            {"id": "test_1", "value": 100, "metadata": '{"type": "test"}', "fixture_id": "T0_B_query"},
+            {"id": "test_2", "value": 200, "metadata": '{"type": "test"}', "fixture_id": "T0_B_query"},
+            {"id": "test_3", "value": 300, "metadata": '{"type": "other"}', "fixture_id": "T0_B_query"}
+        ]
+    
+>       gcp_utils.bq_insert_rows(test_dataset, test_table, test_data)
+
+tests/e2e/tier0/test_t0_b_basic_queries.py:47: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/e2e/helpers/gcp.py:104: in bq_insert_rows
+    table = self.bq_client.get_table(table_ref)
+../.pyenv/versions/3.11.3/lib/python3.11/site-packages/google/cloud/bigquery/client.py:1208: in get_table
+    api_response = self._call_api(
+../.pyenv/versions/3.11.3/lib/python3.11/site-packages/google/cloud/bigquery/client.py:859: in _call_api
+    return call()
+../.pyenv/versions/3.11.3/lib/python3.11/site-packages/google/api_core/retry/retry_unary.py:294: in retry_wrapped_func
+    return retry_target(
+../.pyenv/versions/3.11.3/lib/python3.11/site-packages/google/api_core/retry/retry_unary.py:156: in retry_target
+    next_sleep = _retry_error_helper(
+../.pyenv/versions/3.11.3/lib/python3.11/site-packages/google/api_core/retry/retry_base.py:214: in _retry_error_helper
+    raise final_exc from source_exc
+../.pyenv/versions/3.11.3/lib/python3.11/site-packages/google/api_core/retry/retry_unary.py:147: in retry_target
+    result = target()
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <google.cloud.bigquery._http.Connection object at 0x16f248490>
+method = 'GET'
+path = '/projects/test-project/datasets/test_1753475871_query_test/tables/chain_events'
+query_params = None, data = None, content_type = None, headers = None
+api_base_url = None, api_version = None, expect_json = True
+_target_object = None, timeout = None, extra_api_info = None
+
+    def api_request(
+        self,
+        method,
+        path,
+        query_params=None,
+        data=None,
+        content_type=None,
+        headers=None,
+        api_base_url=None,
+        api_version=None,
+        expect_json=True,
+        _target_object=None,
+        timeout=_DEFAULT_TIMEOUT,
+        extra_api_info=None,
+    ):
+        """Make a request over the HTTP transport to the API.
+    
+        You shouldn't need to use this method, but if you plan to
+        interact with the API using these primitives, this is the
+        correct one to use.
+    
+        :type method: str
+        :param method: The HTTP method name (ie, ``GET``, ``POST``, etc).
+                       Required.
+    
+        :type path: str
+        :param path: The path to the resource (ie, ``'/b/bucket-name'``).
+                     Required.
+    
+        :type query_params: dict or list
+        :param query_params: A dictionary of keys and values (or list of
+                             key-value pairs) to insert into the query
+                             string of the URL.
+    
+        :type data: str
+        :param data: The data to send as the body of the request. Default is
+                     the empty string.
+    
+        :type content_type: str
+        :param content_type: The proper MIME type of the data provided. Default
+                             is None.
+    
+        :type headers: dict
+        :param headers: extra HTTP headers to be sent with the request.
+    
+        :type api_base_url: str
+        :param api_base_url: The base URL for the API endpoint.
+                             Typically you won't have to provide this.
+                             Default is the standard API base URL.
+    
+        :type api_version: str
+        :param api_version: The version of the API to call.  Typically
+                            you shouldn't provide this and instead use
+                            the default for the library.  Default is the
+                            latest API version supported by
+                            google-cloud-python.
+    
+        :type expect_json: bool
+        :param expect_json: If True, this method will try to parse the
+                            response as JSON and raise an exception if
+                            that cannot be done.  Default is True.
+    
+        :type _target_object: :class:`object`
+        :param _target_object:
+            (Optional) Protected argument to be used by library callers. This
+            can allow custom behavior, for example, to defer an HTTP request
+            and complete initialization of the object at a later time.
+    
+        :type timeout: float or tuple
+        :param timeout: (optional) The amount of time, in seconds, to wait
+            for the server response.
+    
+            Can also be passed as a tuple (connect_timeout, read_timeout).
+            See :meth:`requests.Session.request` documentation for details.
+    
+        :type extra_api_info: string
+        :param extra_api_info: (optional) Extra api info to be appended to
+            the X-Goog-API-Client header
+    
+        :raises ~google.cloud.exceptions.GoogleCloudError: if the response code
+            is not 200 OK.
+        :raises ValueError: if the response content type is not JSON.
+        :rtype: dict or str
+        :returns: The API response payload, either as a raw string or
+                  a dictionary if the response is valid JSON.
+        """
+        url = self.build_api_url(
+            path=path,
+            query_params=query_params,
+            api_base_url=api_base_url,
+            api_version=api_version,
+        )
+    
+        # Making the executive decision that any dictionary
+        # data will be sent properly as JSON.
+        if data and isinstance(data, dict):
+            data = json.dumps(data)
+            content_type = "application/json"
+    
+        response = self._make_request(
+            method=method,
+            url=url,
+            data=data,
+            content_type=content_type,
+            headers=headers,
+            target_object=_target_object,
+            timeout=timeout,
+            extra_api_info=extra_api_info,
+        )
+    
+        if not 200 <= response.status_code < 300:
+>           raise exceptions.from_http_response(response)
+E           google.api_core.exceptions.BadRequest: 400 GET https://bigquery.googleapis.com/bigquery/v2/projects/test-project/datasets/test_1753475871_query_test/tables/chain_events?prettyPrint=false: The project test-project has not enabled BigQuery.
+
+../.pyenv/versions/3.11.3/lib/python3.11/site-packages/google/cloud/_http/__init__.py:494: BadRequest
+------------------------------ Captured log call -------------------------------
+WARNING  tests.e2e.helpers.gcp:gcp.py:64 Failed to create dataset test_1753475871_query_test: 400 POST https://bigquery.googleapis.com/bigquery/v2/projects/test-project/datasets?prettyPrint=false: The project test-project has not enabled BigQuery.
+WARNING  tests.e2e.helpers.gcp:gcp.py:99 Failed to create table test_1753475871_query_test.chain_events: 400 POST https://bigquery.googleapis.com/bigquery/v2/projects/test-project/datasets/test_1753475871_query_test/tables?prettyPrint=false: The project test-project has not enabled BigQuery.
+__________________ TestBigQueryQueries.test_aggregated_query ___________________
+
+self = <tests.e2e.tier0.test_t0_b_basic_queries.TestBigQueryQueries object at 0x15aa2f090>
+gcp_env = GCPTestEnvironment(project_id='test-project', dataset_id='test_onchain_data', region='us-central1', test_prefix='test_1753475872')
+bigquery_client = <google.cloud.bigquery.client.Client object at 0x16f42d410>
+clean_test_data = None
+
+    def test_aggregated_query(self, gcp_env, bigquery_client, clean_test_data):
+        """Test aggregated BigQuery queries"""
+        gcp_utils = GCPTestUtils(gcp_env.project_id)
+    
+        test_dataset = f"{gcp_env.test_prefix}_query_test"
+        test_table = "transactions"
+    
+        gcp_utils.bq_create_dataset(test_dataset)
+        gcp_utils.bq_create_table(test_dataset, test_table, {
+            "fields": [
+                {"name": "address", "type": "STRING"},
+                {"name": "amount", "type": "FLOAT"},
+                {"name": "category", "type": "STRING"},
+                {"name": "fixture_id", "type": "STRING"}
+            ]
+        })
+    
+        # Insert test data
+        test_data = [
+            {"address": "0xA", "amount": 1.5, "category": "DeFi", "fixture_id": "T0_B_agg"},
+            {"address": "0xA", "amount": 2.5, "category": "DeFi", "fixture_id": "T0_B_agg"},
+            {"address": "0xB", "amount": 10.0, "category": "NFT", "fixture_id": "T0_B_agg"},
+            {"address": "0xC", "amount": 0.1, "category": "DeFi", "fixture_id": "T0_B_agg"}
+        ]
+    
+>       gcp_utils.bq_insert_rows(test_dataset, test_table, test_data)
+
+tests/e2e/tier0/test_t0_b_basic_queries.py:105: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/e2e/helpers/gcp.py:104: in bq_insert_rows
+    table = self.bq_client.get_table(table_ref)
+../.pyenv/versions/3.11.3/lib/python3.11/site-packages/google/cloud/bigquery/client.py:1208: in get_table
+    api_response = self._call_api(
+../.pyenv/versions/3.11.3/lib/python3.11/site-packages/google/cloud/bigquery/client.py:859: in _call_api
+    return call()
+../.pyenv/versions/3.11.3/lib/python3.11/site-packages/google/api_core/retry/retry_unary.py:294: in retry_wrapped_func
+    return retry_target(
+../.pyenv/versions/3.11.3/lib/python3.11/site-packages/google/api_core/retry/retry_unary.py:156: in retry_target
+    next_sleep = _retry_error_helper(
+../.pyenv/versions/3.11.3/lib/python3.11/site-packages/google/api_core/retry/retry_base.py:214: in _retry_error_helper
+    raise final_exc from source_exc
+../.pyenv/versions/3.11.3/lib/python3.11/site-packages/google/api_core/retry/retry_unary.py:147: in retry_target
+    result = target()
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <google.cloud.bigquery._http.Connection object at 0x16f42d550>
+method = 'GET'
+path = '/projects/test-project/datasets/test_1753475872_query_test/tables/transactions'
+query_params = None, data = None, content_type = None, headers = None
+api_base_url = None, api_version = None, expect_json = True
+_target_object = None, timeout = None, extra_api_info = None
+
+    def api_request(
+        self,
+        method,
+        path,
+        query_params=None,
+        data=None,
+        content_type=None,
+        headers=None,
+        api_base_url=None,
+        api_version=None,
+        expect_json=True,
+        _target_object=None,
+        timeout=_DEFAULT_TIMEOUT,
+        extra_api_info=None,
+    ):
+        """Make a request over the HTTP transport to the API.
+    
+        You shouldn't need to use this method, but if you plan to
+        interact with the API using these primitives, this is the
+        correct one to use.
+    
+        :type method: str
+        :param method: The HTTP method name (ie, ``GET``, ``POST``, etc).
+                       Required.
+    
+        :type path: str
+        :param path: The path to the resource (ie, ``'/b/bucket-name'``).
+                     Required.
+    
+        :type query_params: dict or list
+        :param query_params: A dictionary of keys and values (or list of
+                             key-value pairs) to insert into the query
+                             string of the URL.
+    
+        :type data: str
+        :param data: The data to send as the body of the request. Default is
+                     the empty string.
+    
+        :type content_type: str
+        :param content_type: The proper MIME type of the data provided. Default
+                             is None.
+    
+        :type headers: dict
+        :param headers: extra HTTP headers to be sent with the request.
+    
+        :type api_base_url: str
+        :param api_base_url: The base URL for the API endpoint.
+                             Typically you won't have to provide this.
+                             Default is the standard API base URL.
+    
+        :type api_version: str
+        :param api_version: The version of the API to call.  Typically
+                            you shouldn't provide this and instead use
+                            the default for the library.  Default is the
+                            latest API version supported by
+                            google-cloud-python.
+    
+        :type expect_json: bool
+        :param expect_json: If True, this method will try to parse the
+                            response as JSON and raise an exception if
+                            that cannot be done.  Default is True.
+    
+        :type _target_object: :class:`object`
+        :param _target_object:
+            (Optional) Protected argument to be used by library callers. This
+            can allow custom behavior, for example, to defer an HTTP request
+            and complete initialization of the object at a later time.
+    
+        :type timeout: float or tuple
+        :param timeout: (optional) The amount of time, in seconds, to wait
+            for the server response.
+    
+            Can also be passed as a tuple (connect_timeout, read_timeout).
+            See :meth:`requests.Session.request` documentation for details.
+    
+        :type extra_api_info: string
+        :param extra_api_info: (optional) Extra api info to be appended to
+            the X-Goog-API-Client header
+    
+        :raises ~google.cloud.exceptions.GoogleCloudError: if the response code
+            is not 200 OK.
+        :raises ValueError: if the response content type is not JSON.
+        :rtype: dict or str
+        :returns: The API response payload, either as a raw string or
+                  a dictionary if the response is valid JSON.
+        """
+        url = self.build_api_url(
+            path=path,
+            query_params=query_params,
+            api_base_url=api_base_url,
+            api_version=api_version,
+        )
+    
+        # Making the executive decision that any dictionary
+        # data will be sent properly as JSON.
+        if data and isinstance(data, dict):
+            data = json.dumps(data)
+            content_type = "application/json"
+    
+        response = self._make_request(
+            method=method,
+            url=url,
+            data=data,
+            content_type=content_type,
+            headers=headers,
+            target_object=_target_object,
+            timeout=timeout,
+            extra_api_info=extra_api_info,
+        )
+    
+        if not 200 <= response.status_code < 300:
+>           raise exceptions.from_http_response(response)
+E           google.api_core.exceptions.BadRequest: 400 GET https://bigquery.googleapis.com/bigquery/v2/projects/test-project/datasets/test_1753475872_query_test/tables/transactions?prettyPrint=false: The project test-project has not enabled BigQuery.
+
+../.pyenv/versions/3.11.3/lib/python3.11/site-packages/google/cloud/_http/__init__.py:494: BadRequest
+------------------------------ Captured log call -------------------------------
+WARNING  tests.e2e.helpers.gcp:gcp.py:64 Failed to create dataset test_1753475872_query_test: 400 POST https://bigquery.googleapis.com/bigquery/v2/projects/test-project/datasets?prettyPrint=false: The project test-project has not enabled BigQuery.
+WARNING  tests.e2e.helpers.gcp:gcp.py:99 Failed to create table test_1753475872_query_test.transactions: 400 POST https://bigquery.googleapis.com/bigquery/v2/projects/test-project/datasets/test_1753475872_query_test/tables?prettyPrint=false: The project test-project has not enabled BigQuery.
+_________________ TestBigQueryQueries.test_query_with_filters __________________
+
+self = <tests.e2e.tier0.test_t0_b_basic_queries.TestBigQueryQueries object at 0x15aa2f790>
+gcp_env = GCPTestEnvironment(project_id='test-project', dataset_id='test_onchain_data', region='us-central1', test_prefix='test_1753475873')
+bigquery_client = <google.cloud.bigquery.client.Client object at 0x16f6bcd50>
+clean_test_data = None
+
+    def test_query_with_filters(self, gcp_env, bigquery_client, clean_test_data):
+        """Test BigQuery queries with complex filters"""
+        gcp_utils = GCPTestUtils(gcp_env.project_id)
+    
+        test_dataset = f"{gcp_env.test_prefix}_query_test"
+        test_table = "filtered_events"
+    
+        gcp_utils.bq_create_dataset(test_dataset)
+        gcp_utils.bq_create_table(test_dataset, test_table, {
+            "fields": [
+                {"name": "timestamp", "type": "INTEGER"},
+                {"name": "event_type", "type": "STRING"},
+                {"name": "risk_score", "type": "FLOAT"},
+                {"name": "amount", "type": "STRING"},
+                {"name": "fixture_id", "type": "STRING"}
+            ]
+        })
+    
+        # Insert test data with various scenarios
+        test_data = [
+            {"timestamp": 1698000000, "event_type": "transfer", "risk_score": 0.1, "amount": "1000000", "fixture_id": "T0_B_filter"},
+            {"timestamp": 1698000100, "event_type": "swap", "risk_score": 0.8, "amount": "5000000", "fixture_id": "T0_B_filter"},
+            {"timestamp": 1698000200, "event_type": "transfer", "risk_score": 0.3, "amount": "500000", "fixture_id": "T0_B_filter"},
+            {"timestamp": 1698000300, "event_type": "mint", "risk_score": 0.9, "amount": "10000000", "fixture_id": "T0_B_filter"}
+        ]
+    
+>       gcp_utils.bq_insert_rows(test_dataset, test_table, test_data)
+
+tests/e2e/tier0/test_t0_b_basic_queries.py:165: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/e2e/helpers/gcp.py:104: in bq_insert_rows
+    table = self.bq_client.get_table(table_ref)
+../.pyenv/versions/3.11.3/lib/python3.11/site-packages/google/cloud/bigquery/client.py:1208: in get_table
+    api_response = self._call_api(
+../.pyenv/versions/3.11.3/lib/python3.11/site-packages/google/cloud/bigquery/client.py:859: in _call_api
+    return call()
+../.pyenv/versions/3.11.3/lib/python3.11/site-packages/google/api_core/retry/retry_unary.py:294: in retry_wrapped_func
+    return retry_target(
+../.pyenv/versions/3.11.3/lib/python3.11/site-packages/google/api_core/retry/retry_unary.py:156: in retry_target
+    next_sleep = _retry_error_helper(
+../.pyenv/versions/3.11.3/lib/python3.11/site-packages/google/api_core/retry/retry_base.py:214: in _retry_error_helper
+    raise final_exc from source_exc
+../.pyenv/versions/3.11.3/lib/python3.11/site-packages/google/api_core/retry/retry_unary.py:147: in retry_target
+    result = target()
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <google.cloud.bigquery._http.Connection object at 0x16f6bce10>
+method = 'GET'
+path = '/projects/test-project/datasets/test_1753475873_query_test/tables/filtered_events'
+query_params = None, data = None, content_type = None, headers = None
+api_base_url = None, api_version = None, expect_json = True
+_target_object = None, timeout = None, extra_api_info = None
+
+    def api_request(
+        self,
+        method,
+        path,
+        query_params=None,
+        data=None,
+        content_type=None,
+        headers=None,
+        api_base_url=None,
+        api_version=None,
+        expect_json=True,
+        _target_object=None,
+        timeout=_DEFAULT_TIMEOUT,
+        extra_api_info=None,
+    ):
+        """Make a request over the HTTP transport to the API.
+    
+        You shouldn't need to use this method, but if you plan to
+        interact with the API using these primitives, this is the
+        correct one to use.
+    
+        :type method: str
+        :param method: The HTTP method name (ie, ``GET``, ``POST``, etc).
+                       Required.
+    
+        :type path: str
+        :param path: The path to the resource (ie, ``'/b/bucket-name'``).
+                     Required.
+    
+        :type query_params: dict or list
+        :param query_params: A dictionary of keys and values (or list of
+                             key-value pairs) to insert into the query
+                             string of the URL.
+    
+        :type data: str
+        :param data: The data to send as the body of the request. Default is
+                     the empty string.
+    
+        :type content_type: str
+        :param content_type: The proper MIME type of the data provided. Default
+                             is None.
+    
+        :type headers: dict
+        :param headers: extra HTTP headers to be sent with the request.
+    
+        :type api_base_url: str
+        :param api_base_url: The base URL for the API endpoint.
+                             Typically you won't have to provide this.
+                             Default is the standard API base URL.
+    
+        :type api_version: str
+        :param api_version: The version of the API to call.  Typically
+                            you shouldn't provide this and instead use
+                            the default for the library.  Default is the
+                            latest API version supported by
+                            google-cloud-python.
+    
+        :type expect_json: bool
+        :param expect_json: If True, this method will try to parse the
+                            response as JSON and raise an exception if
+                            that cannot be done.  Default is True.
+    
+        :type _target_object: :class:`object`
+        :param _target_object:
+            (Optional) Protected argument to be used by library callers. This
+            can allow custom behavior, for example, to defer an HTTP request
+            and complete initialization of the object at a later time.
+    
+        :type timeout: float or tuple
+        :param timeout: (optional) The amount of time, in seconds, to wait
+            for the server response.
+    
+            Can also be passed as a tuple (connect_timeout, read_timeout).
+            See :meth:`requests.Session.request` documentation for details.
+    
+        :type extra_api_info: string
+        :param extra_api_info: (optional) Extra api info to be appended to
+            the X-Goog-API-Client header
+    
+        :raises ~google.cloud.exceptions.GoogleCloudError: if the response code
+            is not 200 OK.
+        :raises ValueError: if the response content type is not JSON.
+        :rtype: dict or str
+        :returns: The API response payload, either as a raw string or
+                  a dictionary if the response is valid JSON.
+        """
+        url = self.build_api_url(
+            path=path,
+            query_params=query_params,
+            api_base_url=api_base_url,
+            api_version=api_version,
+        )
+    
+        # Making the executive decision that any dictionary
+        # data will be sent properly as JSON.
+        if data and isinstance(data, dict):
+            data = json.dumps(data)
+            content_type = "application/json"
+    
+        response = self._make_request(
+            method=method,
+            url=url,
+            data=data,
+            content_type=content_type,
+            headers=headers,
+            target_object=_target_object,
+            timeout=timeout,
+            extra_api_info=extra_api_info,
+        )
+    
+        if not 200 <= response.status_code < 300:
+>           raise exceptions.from_http_response(response)
+E           google.api_core.exceptions.BadRequest: 400 GET https://bigquery.googleapis.com/bigquery/v2/projects/test-project/datasets/test_1753475873_query_test/tables/filtered_events?prettyPrint=false: The project test-project has not enabled BigQuery.
+
+../.pyenv/versions/3.11.3/lib/python3.11/site-packages/google/cloud/_http/__init__.py:494: BadRequest
+------------------------------ Captured log call -------------------------------
+WARNING  tests.e2e.helpers.gcp:gcp.py:64 Failed to create dataset test_1753475873_query_test: 400 POST https://bigquery.googleapis.com/bigquery/v2/projects/test-project/datasets?prettyPrint=false: The project test-project has not enabled BigQuery.
+WARNING  tests.e2e.helpers.gcp:gcp.py:99 Failed to create table test_1753475873_query_test.filtered_events: 400 POST https://bigquery.googleapis.com/bigquery/v2/projects/test-project/datasets/test_1753475873_query_test/tables?prettyPrint=false: The project test-project has not enabled BigQuery.
+________________ TestNeo4jGraphQueries.test_simple_graph_query _________________
+
+self = <tests.e2e.tier0.test_t0_c_graph_queries.TestNeo4jGraphQueries object at 0x15aa25e50>
+gcp_env = GCPTestEnvironment(project_id='test-project', dataset_id='test_onchain_data', region='us-central1', test_prefix='test_1753475874')
+neo4j_utils = <tests.e2e.helpers.neo4j.Neo4jTestUtils object at 0x16f6a8d10>
+clean_test_data = None
+
+    def test_simple_graph_query(self, gcp_env, neo4j_utils, clean_test_data):
+        """
+        T0-C: Basic Neo4j query test
+    
+        Flow:
+        1. Create test entities and relationships
+        2. Query the graph structure
+        3. Verify JSON response format
+        4. Validate graph data integrity
+        """
+        # 1. Setup test graph data
+        test_entities = [
+            {
+                "address": "0xT0C123",
+                "type": "wallet",
+                "risk_score": 0.2,
+                "total_volume": 1000000,
+                "fixture_id": "T0_C_graph"
+            },
+            {
+                "address": "0xT0C456",
+                "type": "contract",
+                "risk_score": 0.1,
+                "total_volume": 5000000,
+                "fixture_id": "T0_C_graph"
+            },
+            {
+                "address": "0xT0C789",
+                "type": "wallet",
+                "risk_score": 0.8,
+                "total_volume": 500000,
+                "fixture_id": "T0_C_graph"
+            }
+        ]
+    
+        test_relationships = [
+            {
+                "from_address": "0xT0C123",
+                "to_address": "0xT0C456",
+                "relationship_type": "INTERACTED_WITH",
+                "transaction_count": 5,
+                "total_value": 2000000,
+                "fixture_id": "T0_C_graph"
+            },
+            {
+                "from_address": "0xT0C456",
+                "to_address": "0xT0C789",
+                "relationship_type": "SENT_TO",
+                "transaction_count": 2,
+                "total_value": 1500000,
+                "fixture_id": "T0_C_graph"
+            }
+        ]
+    
+        # Load test data into Neo4j
+>       neo4j_utils.load_entities(test_entities)
+E       AttributeError: 'Neo4jTestUtils' object has no attribute 'load_entities'
+
+tests/e2e/tier0/test_t0_c_graph_queries.py:70: AttributeError
+_________________ TestNeo4jGraphQueries.test_graph_path_query __________________
+
+self = <tests.e2e.tier0.test_t0_c_graph_queries.TestNeo4jGraphQueries object at 0x15aa26550>
+gcp_env = GCPTestEnvironment(project_id='test-project', dataset_id='test_onchain_data', region='us-central1', test_prefix='test_1753475874')
+neo4j_utils = <tests.e2e.helpers.neo4j.Neo4jTestUtils object at 0x16f22d450>
+clean_test_data = None
+
+    def test_graph_path_query(self, gcp_env, neo4j_utils, clean_test_data):
+        """Test graph path queries"""
+        # Setup a longer path for testing
+        entities = [
+            {"address": f"0xPATH{i:03d}", "type": "wallet", "risk_score": 0.1 * i, "fixture_id": "T0_C_path"}
+            for i in range(4)
+        ]
+    
+        relationships = [
+            {
+                "from_address": f"0xPATH{i:03d}",
+                "to_address": f"0xPATH{i+1:03d}",
+                "relationship_type": "SENT_TO",
+                "transaction_count": 1,
+                "total_value": 1000000,
+                "fixture_id": "T0_C_path"
+            }
+            for i in range(3)
+        ]
+    
+>       neo4j_utils.load_entities(entities)
+E       AttributeError: 'Neo4jTestUtils' object has no attribute 'load_entities'
+
+tests/e2e/tier0/test_t0_c_graph_queries.py:137: AttributeError
+______________ TestNeo4jGraphQueries.test_graph_aggregation_query ______________
+
+self = <tests.e2e.tier0.test_t0_c_graph_queries.TestNeo4jGraphQueries object at 0x15aa26c50>
+gcp_env = GCPTestEnvironment(project_id='test-project', dataset_id='test_onchain_data', region='us-central1', test_prefix='test_1753475874')
+neo4j_utils = <tests.e2e.helpers.neo4j.Neo4jTestUtils object at 0x16f27a590>
+clean_test_data = None
+
+    def test_graph_aggregation_query(self, gcp_env, neo4j_utils, clean_test_data):
+        """Test graph aggregation queries"""
+        # Create a hub node with multiple connections
+        hub_entity = {
+            "address": "0xHUB001",
+            "type": "contract",
+            "risk_score": 0.5,
+            "fixture_id": "T0_C_agg"
+        }
+    
+        spoke_entities = [
+            {
+                "address": f"0xSPOKE{i:02d}",
+                "type": "wallet",
+                "risk_score": 0.1 * i,
+                "fixture_id": "T0_C_agg"
+            }
+            for i in range(5)
+        ]
+    
+        relationships = [
+            {
+                "from_address": f"0xSPOKE{i:02d}",
+                "to_address": "0xHUB001",
+                "relationship_type": "SENT_TO",
+                "transaction_count": i + 1,
+                "total_value": (i + 1) * 1000000,
+                "fixture_id": "T0_C_agg"
+            }
+            for i in range(5)
+        ]
+    
+>       neo4j_utils.load_entities([hub_entity] + spoke_entities)
+E       AttributeError: 'Neo4jTestUtils' object has no attribute 'load_entities'
+
+tests/e2e/tier0/test_t0_c_graph_queries.py:190: AttributeError
+________________ TestNeo4jGraphQueries.test_graph_export_format ________________
+
+self = <tests.e2e.tier0.test_t0_c_graph_queries.TestNeo4jGraphQueries object at 0x15aa27390>
+gcp_env = GCPTestEnvironment(project_id='test-project', dataset_id='test_onchain_data', region='us-central1', test_prefix='test_1753475874')
+neo4j_utils = <tests.e2e.helpers.neo4j.Neo4jTestUtils object at 0x16f22ee10>
+clean_test_data = None
+
+    def test_graph_export_format(self, gcp_env, neo4j_utils, clean_test_data):
+        """Test graph data export in proper JSON format"""
+        # Create simple test graph
+        entities = [
+            {"address": "0xEXPORT1", "type": "wallet", "label": "User Wallet", "fixture_id": "T0_C_export"},
+            {"address": "0xEXPORT2", "type": "contract", "label": "DeFi Protocol", "fixture_id": "T0_C_export"}
+        ]
+    
+        relationships = [
+            {
+                "from_address": "0xEXPORT1",
+                "to_address": "0xEXPORT2",
+                "relationship_type": "INTERACTED_WITH",
+                "weight": 0.8,
+                "fixture_id": "T0_C_export"
+            }
+        ]
+    
+>       neo4j_utils.load_entities(entities)
+E       AttributeError: 'Neo4jTestUtils' object has no attribute 'load_entities'
+
+tests/e2e/tier0/test_t0_c_graph_queries.py:234: AttributeError
+______________ TestUIRendering.test_dashboard_loads_without_crash ______________
+
+self = <tests.e2e.tier0.test_t0_d_ui_rendering.TestUIRendering object at 0x15aa49950>
+gcp_env = GCPTestEnvironment(project_id='test-project', dataset_id='test_onchain_data', region='us-central1', test_prefix='test_1753475874')
+async_http_client = <async_generator object async_http_client at 0x16f1a6ce0>
+clean_test_data = None
+
+    @pytest.mark.asyncio
+    async def test_dashboard_loads_without_crash(self, gcp_env, async_http_client, clean_test_data):
+        """
+        T0-D: Basic UI loading test
+    
+        Flow:
+        1. Setup test data in backend
+        2. Make request to dashboard endpoint
+        3. Verify response is valid HTML/JSON
+        4. Check for critical UI elements
+        """
+        # 1. Setup minimal test data for UI
+        gcp_utils = GCPTestUtils(gcp_env.project_id)
+    
+        test_dataset = f"{gcp_env.test_prefix}_ui_test"
+        test_table = "dashboard_data"
+    
+        gcp_utils.bq_create_dataset(test_dataset)
+        gcp_utils.bq_create_table(test_dataset, test_table, {
+            "fields": [
+                {"name": "metric_name", "type": "STRING"},
+                {"name": "metric_value", "type": "FLOAT"},
+                {"name": "timestamp", "type": "INTEGER"},
+                {"name": "fixture_id", "type": "STRING"}
+            ]
+        })
+    
+        # Insert sample dashboard metrics
+        dashboard_metrics = [
+            {"metric_name": "total_transactions", "metric_value": 12345.0, "timestamp": 1698000000, "fixture_id": "T0_D_ui"},
+            {"metric_name": "total_volume", "metric_value": 9876543.21, "timestamp": 1698000000, "fixture_id": "T0_D_ui"},
+            {"metric_name": "risk_alerts", "metric_value": 23.0, "timestamp": 1698000000, "fixture_id": "T0_D_ui"},
+            {"metric_name": "active_addresses", "metric_value": 4567.0, "timestamp": 1698000000, "fixture_id": "T0_D_ui"}
+        ]
+    
+>       gcp_utils.bq_insert_rows(test_dataset, test_table, dashboard_metrics)
+
+tests/e2e/tier0/test_t0_d_ui_rendering.py:51: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/e2e/helpers/gcp.py:104: in bq_insert_rows
+    table = self.bq_client.get_table(table_ref)
+../.pyenv/versions/3.11.3/lib/python3.11/site-packages/google/cloud/bigquery/client.py:1208: in get_table
+    api_response = self._call_api(
+../.pyenv/versions/3.11.3/lib/python3.11/site-packages/google/cloud/bigquery/client.py:859: in _call_api
+    return call()
+../.pyenv/versions/3.11.3/lib/python3.11/site-packages/google/api_core/retry/retry_unary.py:294: in retry_wrapped_func
+    return retry_target(
+../.pyenv/versions/3.11.3/lib/python3.11/site-packages/google/api_core/retry/retry_unary.py:156: in retry_target
+    next_sleep = _retry_error_helper(
+../.pyenv/versions/3.11.3/lib/python3.11/site-packages/google/api_core/retry/retry_base.py:214: in _retry_error_helper
+    raise final_exc from source_exc
+../.pyenv/versions/3.11.3/lib/python3.11/site-packages/google/api_core/retry/retry_unary.py:147: in retry_target
+    result = target()
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <google.cloud.bigquery._http.Connection object at 0x16f75eed0>
+method = 'GET'
+path = '/projects/test-project/datasets/test_1753475874_ui_test/tables/dashboard_data'
+query_params = None, data = None, content_type = None, headers = None
+api_base_url = None, api_version = None, expect_json = True
+_target_object = None, timeout = None, extra_api_info = None
+
+    def api_request(
+        self,
+        method,
+        path,
+        query_params=None,
+        data=None,
+        content_type=None,
+        headers=None,
+        api_base_url=None,
+        api_version=None,
+        expect_json=True,
+        _target_object=None,
+        timeout=_DEFAULT_TIMEOUT,
+        extra_api_info=None,
+    ):
+        """Make a request over the HTTP transport to the API.
+    
+        You shouldn't need to use this method, but if you plan to
+        interact with the API using these primitives, this is the
+        correct one to use.
+    
+        :type method: str
+        :param method: The HTTP method name (ie, ``GET``, ``POST``, etc).
+                       Required.
+    
+        :type path: str
+        :param path: The path to the resource (ie, ``'/b/bucket-name'``).
+                     Required.
+    
+        :type query_params: dict or list
+        :param query_params: A dictionary of keys and values (or list of
+                             key-value pairs) to insert into the query
+                             string of the URL.
+    
+        :type data: str
+        :param data: The data to send as the body of the request. Default is
+                     the empty string.
+    
+        :type content_type: str
+        :param content_type: The proper MIME type of the data provided. Default
+                             is None.
+    
+        :type headers: dict
+        :param headers: extra HTTP headers to be sent with the request.
+    
+        :type api_base_url: str
+        :param api_base_url: The base URL for the API endpoint.
+                             Typically you won't have to provide this.
+                             Default is the standard API base URL.
+    
+        :type api_version: str
+        :param api_version: The version of the API to call.  Typically
+                            you shouldn't provide this and instead use
+                            the default for the library.  Default is the
+                            latest API version supported by
+                            google-cloud-python.
+    
+        :type expect_json: bool
+        :param expect_json: If True, this method will try to parse the
+                            response as JSON and raise an exception if
+                            that cannot be done.  Default is True.
+    
+        :type _target_object: :class:`object`
+        :param _target_object:
+            (Optional) Protected argument to be used by library callers. This
+            can allow custom behavior, for example, to defer an HTTP request
+            and complete initialization of the object at a later time.
+    
+        :type timeout: float or tuple
+        :param timeout: (optional) The amount of time, in seconds, to wait
+            for the server response.
+    
+            Can also be passed as a tuple (connect_timeout, read_timeout).
+            See :meth:`requests.Session.request` documentation for details.
+    
+        :type extra_api_info: string
+        :param extra_api_info: (optional) Extra api info to be appended to
+            the X-Goog-API-Client header
+    
+        :raises ~google.cloud.exceptions.GoogleCloudError: if the response code
+            is not 200 OK.
+        :raises ValueError: if the response content type is not JSON.
+        :rtype: dict or str
+        :returns: The API response payload, either as a raw string or
+                  a dictionary if the response is valid JSON.
+        """
+        url = self.build_api_url(
+            path=path,
+            query_params=query_params,
+            api_base_url=api_base_url,
+            api_version=api_version,
+        )
+    
+        # Making the executive decision that any dictionary
+        # data will be sent properly as JSON.
+        if data and isinstance(data, dict):
+            data = json.dumps(data)
+            content_type = "application/json"
+    
+        response = self._make_request(
+            method=method,
+            url=url,
+            data=data,
+            content_type=content_type,
+            headers=headers,
+            target_object=_target_object,
+            timeout=timeout,
+            extra_api_info=extra_api_info,
+        )
+    
+        if not 200 <= response.status_code < 300:
+>           raise exceptions.from_http_response(response)
+E           google.api_core.exceptions.BadRequest: 400 GET https://bigquery.googleapis.com/bigquery/v2/projects/test-project/datasets/test_1753475874_ui_test/tables/dashboard_data?prettyPrint=false: The project test-project has not enabled BigQuery.
+
+../.pyenv/versions/3.11.3/lib/python3.11/site-packages/google/cloud/_http/__init__.py:494: BadRequest
+------------------------------ Captured log call -------------------------------
+WARNING  tests.e2e.helpers.gcp:gcp.py:64 Failed to create dataset test_1753475874_ui_test: 400 POST https://bigquery.googleapis.com/bigquery/v2/projects/test-project/datasets?prettyPrint=false: The project test-project has not enabled BigQuery.
+WARNING  tests.e2e.helpers.gcp:gcp.py:99 Failed to create table test_1753475874_ui_test.dashboard_data: 400 POST https://bigquery.googleapis.com/bigquery/v2/projects/test-project/datasets/test_1753475874_ui_test/tables?prettyPrint=false: The project test-project has not enabled BigQuery.
+______________ TestUIRendering.test_graph_visualization_endpoint _______________
+
+self = <tests.e2e.tier0.test_t0_d_ui_rendering.TestUIRendering object at 0x15aa4a010>
+gcp_env = GCPTestEnvironment(project_id='test-project', dataset_id='test_onchain_data', region='us-central1', test_prefix='test_1753475875')
+async_http_client = <async_generator object async_http_client at 0x16f177e60>
+clean_test_data = None
+
+    @pytest.mark.asyncio
+    async def test_graph_visualization_endpoint(self, gcp_env, async_http_client, clean_test_data):
+        """Test graph visualization endpoint"""
+        # Test graph visualization API
+>       response = await async_http_client.get("/api/graph/visualization", params={
+            "address": "0xTEST123",
+            "depth": 2
+        })
+E       AttributeError: 'async_generator' object has no attribute 'get'
+
+tests/e2e/tier0/test_t0_d_ui_rendering.py:83: AttributeError
+__________________ TestUIRendering.test_health_check_endpoint __________________
+
+self = <tests.e2e.tier0.test_t0_d_ui_rendering.TestUIRendering object at 0x15aa26ad0>
+gcp_env = GCPTestEnvironment(project_id='test-project', dataset_id='test_onchain_data', region='us-central1', test_prefix='test_1753475875')
+async_http_client = <async_generator object async_http_client at 0x16f228820>
+clean_test_data = None
+
+    @pytest.mark.asyncio
+    async def test_health_check_endpoint(self, gcp_env, async_http_client, clean_test_data):
+        """Test application health check"""
+>       response = await async_http_client.get("/health")
+E       AttributeError: 'async_generator' object has no attribute 'get'
+
+tests/e2e/tier0/test_t0_d_ui_rendering.py:100: AttributeError
+___________________ TestUIRendering.test_api_error_handling ____________________
+
+self = <tests.e2e.tier0.test_t0_d_ui_rendering.TestUIRendering object at 0x15aa49f90>
+gcp_env = GCPTestEnvironment(project_id='test-project', dataset_id='test_onchain_data', region='us-central1', test_prefix='test_1753475875')
+async_http_client = <async_generator object async_http_client at 0x16f228ac0>
+clean_test_data = None
+
+    @pytest.mark.asyncio
+    async def test_api_error_handling(self, gcp_env, async_http_client, clean_test_data):
+        """Test API error handling doesn't crash"""
+        # Test invalid endpoints
+        invalid_endpoints = [
+            "/api/nonexistent",
+            "/api/graph/invalid",
+            "/api/dashboard/badparam"
+        ]
+    
+        for endpoint in invalid_endpoints:
+>           response = await async_http_client.get(endpoint)
+E           AttributeError: 'async_generator' object has no attribute 'get'
+
+tests/e2e/tier0/test_t0_d_ui_rendering.py:135: AttributeError
+__________________ TestUIRendering.test_static_assets_loading __________________
+
+self = <tests.e2e.tier0.test_t0_d_ui_rendering.TestUIRendering object at 0x15aa4a890>
+gcp_env = GCPTestEnvironment(project_id='test-project', dataset_id='test_onchain_data', region='us-central1', test_prefix='test_1753475875')
+async_http_client = <async_generator object async_http_client at 0x16f177ca0>
+clean_test_data = None
+
+    @pytest.mark.asyncio
+    async def test_static_assets_loading(self, gcp_env, async_http_client, clean_test_data):
+        """Test that static assets load properly"""
+        # Test common static asset paths
+        static_paths = [
+            "/static/css/main.css",
+            "/static/js/app.js",
+            "/assets/logo.png",
+            "/favicon.ico"
+        ]
+    
+        loaded_assets = 0
+    
+        for path in static_paths:
+>           response = await async_http_client.get(path)
+E           AttributeError: 'async_generator' object has no attribute 'get'
+
+tests/e2e/tier0/test_t0_d_ui_rendering.py:166: AttributeError
+____________ TestRealTimeIngestion.test_pubsub_to_bigquery_pipeline ____________
+
+self = <tests.e2e.tier1.test_t1_a_realtime_ingestion.TestRealTimeIngestion object at 0x15aa599d0>
+gcp_env = GCPTestEnvironment(project_id='test-project', dataset_id='test_onchain_data', region='us-central1', test_prefix='test_1753475875')
+pubsub_publisher = <google.cloud.pubsub_v1.PublisherClient object at 0x16f268d90>
+bigquery_client = <google.cloud.bigquery.client.Client object at 0x16f4b17d0>
+sample_chain_event = {'block_number': 18500000, 'event_type': 'transfer', 'fixture_id': 'test_sample_event', 'from_address': '0xA0b86a33E6441e8C73C3238E5A3F0B2E1f1D8E3F', ...}
+clean_test_data = None
+
+    def test_pubsub_to_bigquery_pipeline(self, gcp_env, pubsub_publisher, bigquery_client, sample_chain_event, clean_test_data):
+        """
+        T1-A: End-to-end ingestion pipeline test
+    
+        Flow:
+        1. Setup Pub/Sub topic and BigQuery destination
+        2. Publish Ethereum event to Pub/Sub
+        3. Simulate Dataflow processing
+        4. Verify data appears correctly in BigQuery
+        5. Validate data transformation and enrichment
+        """
+        gcp_utils = GCPTestUtils(gcp_env.project_id)
+    
+        # 1. Setup pipeline infrastructure
+        test_dataset = f"{gcp_env.test_prefix}_realtime_ingestion"
+        test_table = "ethereum_events"
+        test_topic = f"{gcp_env.test_prefix}_ethereum_raw"
+        test_subscription = f"{gcp_env.test_prefix}_ethereum_processor"
+    
+        gcp_utils.bq_create_dataset(test_dataset)
+        gcp_utils.bq_create_table(test_dataset, test_table, CHAIN_EVENTS_SCHEMA)
+>       gcp_utils.pubsub_create_topic(test_topic)
+
+tests/e2e/tier1/test_t1_a_realtime_ingestion.py:38: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <tests.e2e.helpers.gcp.GCPTestUtils object at 0x16f4b3690>
+topic_id = 'test_1753475875_ethereum_raw'
+
+    def pubsub_create_topic(self, topic_id: str) -> None:
+        """Create Pub/Sub topic if it doesn't exist"""
+>       topic_path = self.publisher.topic_path(self.project_id, topic_id)
+E       AttributeError: 'GCPTestUtils' object has no attribute 'publisher'
+
+tests/e2e/helpers/gcp.py:139: AttributeError
+------------------------------ Captured log call -------------------------------
+WARNING  tests.e2e.helpers.gcp:gcp.py:64 Failed to create dataset test_1753475875_realtime_ingestion: 400 POST https://bigquery.googleapis.com/bigquery/v2/projects/test-project/datasets?prettyPrint=false: The project test-project has not enabled BigQuery.
+WARNING  tests.e2e.helpers.gcp:gcp.py:99 Failed to create table test_1753475875_realtime_ingestion.ethereum_events: 400 POST https://bigquery.googleapis.com/bigquery/v2/projects/test-project/datasets/test_1753475875_realtime_ingestion/tables?prettyPrint=false: The project test-project has not enabled BigQuery.
+_______________ TestRealTimeIngestion.test_high_volume_ingestion _______________
+
+self = <tests.e2e.tier1.test_t1_a_realtime_ingestion.TestRealTimeIngestion object at 0x15aa5a050>
+gcp_env = GCPTestEnvironment(project_id='test-project', dataset_id='test_onchain_data', region='us-central1', test_prefix='test_1753475876')
+pubsub_publisher = <google.cloud.pubsub_v1.PublisherClient object at 0x16f6a9c10>
+bigquery_client = <google.cloud.bigquery.client.Client object at 0x16f249e50>
+clean_test_data = None
+
+    def test_high_volume_ingestion(self, gcp_env, pubsub_publisher, bigquery_client, clean_test_data):
+        """Test ingestion pipeline under load"""
+        gcp_utils = GCPTestUtils(gcp_env.project_id)
+    
+        test_dataset = f"{gcp_env.test_prefix}_volume_test"
+        test_table = "high_volume_events"
+        test_topic = f"{gcp_env.test_prefix}_volume_raw"
+    
+        gcp_utils.bq_create_dataset(test_dataset)
+        gcp_utils.bq_create_table(test_dataset, test_table, CHAIN_EVENTS_SCHEMA)
+>       gcp_utils.pubsub_create_topic(test_topic)
+
+tests/e2e/tier1/test_t1_a_realtime_ingestion.py:118: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <tests.e2e.helpers.gcp.GCPTestUtils object at 0x16f2481d0>
+topic_id = 'test_1753475876_volume_raw'
+
+    def pubsub_create_topic(self, topic_id: str) -> None:
+        """Create Pub/Sub topic if it doesn't exist"""
+>       topic_path = self.publisher.topic_path(self.project_id, topic_id)
+E       AttributeError: 'GCPTestUtils' object has no attribute 'publisher'
+
+tests/e2e/helpers/gcp.py:139: AttributeError
+------------------------------ Captured log call -------------------------------
+WARNING  tests.e2e.helpers.gcp:gcp.py:64 Failed to create dataset test_1753475876_volume_test: 400 POST https://bigquery.googleapis.com/bigquery/v2/projects/test-project/datasets?prettyPrint=false: The project test-project has not enabled BigQuery.
+WARNING  tests.e2e.helpers.gcp:gcp.py:99 Failed to create table test_1753475876_volume_test.high_volume_events: 400 POST https://bigquery.googleapis.com/bigquery/v2/projects/test-project/datasets/test_1753475876_volume_test/tables?prettyPrint=false: The project test-project has not enabled BigQuery.
+___________ TestRealTimeIngestion.test_data_validation_and_filtering ___________
+
+self = <tests.e2e.tier1.test_t1_a_realtime_ingestion.TestRealTimeIngestion object at 0x15aa5a6d0>
+gcp_env = GCPTestEnvironment(project_id='test-project', dataset_id='test_onchain_data', region='us-central1', test_prefix='test_1753475876')
+pubsub_publisher = <google.cloud.pubsub_v1.PublisherClient object at 0x16f4a2650>
+bigquery_client = <google.cloud.bigquery.client.Client object at 0x16f2b1650>
+clean_test_data = None
+
+    def test_data_validation_and_filtering(self, gcp_env, pubsub_publisher, bigquery_client, clean_test_data):
+        """Test data validation and filtering in ingestion pipeline"""
+        gcp_utils = GCPTestUtils(gcp_env.project_id)
+    
+        test_dataset = f"{gcp_env.test_prefix}_validation"
+        test_table = "validated_events"
+        test_topic = f"{gcp_env.test_prefix}_validation_raw"
+    
+        gcp_utils.bq_create_dataset(test_dataset)
+        gcp_utils.bq_create_table(test_dataset, test_table, CHAIN_EVENTS_SCHEMA)
+>       gcp_utils.pubsub_create_topic(test_topic)
+
+tests/e2e/tier1/test_t1_a_realtime_ingestion.py:173: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <tests.e2e.helpers.gcp.GCPTestUtils object at 0x16f2b2a90>
+topic_id = 'test_1753475876_validation_raw'
+
+    def pubsub_create_topic(self, topic_id: str) -> None:
+        """Create Pub/Sub topic if it doesn't exist"""
+>       topic_path = self.publisher.topic_path(self.project_id, topic_id)
+E       AttributeError: 'GCPTestUtils' object has no attribute 'publisher'
+
+tests/e2e/helpers/gcp.py:139: AttributeError
+------------------------------ Captured log call -------------------------------
+WARNING  tests.e2e.helpers.gcp:gcp.py:64 Failed to create dataset test_1753475876_validation: 400 POST https://bigquery.googleapis.com/bigquery/v2/projects/test-project/datasets?prettyPrint=false: The project test-project has not enabled BigQuery.
+WARNING  tests.e2e.helpers.gcp:gcp.py:99 Failed to create table test_1753475876_validation.validated_events: 400 POST https://bigquery.googleapis.com/bigquery/v2/projects/test-project/datasets/test_1753475876_validation/tables?prettyPrint=false: The project test-project has not enabled BigQuery.
+____________ TestRealTimeIngestion.test_streaming_ingestion_latency ____________
+
+self = <tests.e2e.tier1.test_t1_a_realtime_ingestion.TestRealTimeIngestion object at 0x15aa5ad50>
+gcp_env = GCPTestEnvironment(project_id='test-project', dataset_id='test_onchain_data', region='us-central1', test_prefix='test_1753475877')
+pubsub_publisher = <google.cloud.pubsub_v1.PublisherClient object at 0x16f66d1d0>
+bigquery_client = <google.cloud.bigquery.client.Client object at 0x16f6ac890>
+clean_test_data = None
+
+    @pytest.mark.asyncio
+    async def test_streaming_ingestion_latency(self, gcp_env, pubsub_publisher, bigquery_client, clean_test_data):
+        """Test ingestion latency for streaming data"""
+        gcp_utils = GCPTestUtils(gcp_env.project_id)
+    
+        test_dataset = f"{gcp_env.test_prefix}_latency"
+        test_table = "latency_events"
+        test_topic = f"{gcp_env.test_prefix}_latency_raw"
+    
+        gcp_utils.bq_create_dataset(test_dataset)
+        gcp_utils.bq_create_table(test_dataset, test_table, CHAIN_EVENTS_SCHEMA)
+>       gcp_utils.pubsub_create_topic(test_topic)
+
+tests/e2e/tier1/test_t1_a_realtime_ingestion.py:274: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <tests.e2e.helpers.gcp.GCPTestUtils object at 0x16f6afc50>
+topic_id = 'test_1753475877_latency_raw'
+
+    def pubsub_create_topic(self, topic_id: str) -> None:
+        """Create Pub/Sub topic if it doesn't exist"""
+>       topic_path = self.publisher.topic_path(self.project_id, topic_id)
+E       AttributeError: 'GCPTestUtils' object has no attribute 'publisher'
+
+tests/e2e/helpers/gcp.py:139: AttributeError
+------------------------------ Captured log call -------------------------------
+WARNING  tests.e2e.helpers.gcp:gcp.py:64 Failed to create dataset test_1753475877_latency: 400 POST https://bigquery.googleapis.com/bigquery/v2/projects/test-project/datasets?prettyPrint=false: The project test-project has not enabled BigQuery.
+WARNING  tests.e2e.helpers.gcp:gcp.py:99 Failed to create table test_1753475877_latency.latency_events: 400 POST https://bigquery.googleapis.com/bigquery/v2/projects/test-project/datasets/test_1753475877_latency/tables?prettyPrint=false: The project test-project has not enabled BigQuery.
+________________ TestRealTimeIngestion.test_duplicate_detection ________________
+
+self = <tests.e2e.tier1.test_t1_a_realtime_ingestion.TestRealTimeIngestion object at 0x15aa4da10>
+gcp_env = GCPTestEnvironment(project_id='test-project', dataset_id='test_onchain_data', region='us-central1', test_prefix='test_1753475878')
+pubsub_publisher = <google.cloud.pubsub_v1.PublisherClient object at 0x16f4b2110>
+bigquery_client = <google.cloud.bigquery.client.Client object at 0x16f286dd0>
+clean_test_data = None
+
+    def test_duplicate_detection(self, gcp_env, pubsub_publisher, bigquery_client, clean_test_data):
+        """Test duplicate event detection and handling"""
+        gcp_utils = GCPTestUtils(gcp_env.project_id)
+    
+        test_dataset = f"{gcp_env.test_prefix}_dedup"
+        test_table = "dedup_events"
+        test_topic = f"{gcp_env.test_prefix}_dedup_raw"
+    
+        gcp_utils.bq_create_dataset(test_dataset)
+        gcp_utils.bq_create_table(test_dataset, test_table, CHAIN_EVENTS_SCHEMA)
+>       gcp_utils.pubsub_create_topic(test_topic)
+
+tests/e2e/tier1/test_t1_a_realtime_ingestion.py:350: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <tests.e2e.helpers.gcp.GCPTestUtils object at 0x16f286a10>
+topic_id = 'test_1753475878_dedup_raw'
+
+    def pubsub_create_topic(self, topic_id: str) -> None:
+        """Create Pub/Sub topic if it doesn't exist"""
+>       topic_path = self.publisher.topic_path(self.project_id, topic_id)
+E       AttributeError: 'GCPTestUtils' object has no attribute 'publisher'
+
+tests/e2e/helpers/gcp.py:139: AttributeError
+------------------------------ Captured log call -------------------------------
+WARNING  tests.e2e.helpers.gcp:gcp.py:64 Failed to create dataset test_1753475878_dedup: 400 POST https://bigquery.googleapis.com/bigquery/v2/projects/test-project/datasets?prettyPrint=false: The project test-project has not enabled BigQuery.
+WARNING  tests.e2e.helpers.gcp:gcp.py:99 Failed to create table test_1753475878_dedup.dedup_events: 400 POST https://bigquery.googleapis.com/bigquery/v2/projects/test-project/datasets/test_1753475878_dedup/tables?prettyPrint=false: The project test-project has not enabled BigQuery.
+______________ TestBidirectionalSync.test_bigquery_to_neo4j_sync _______________
+
+self = <tests.e2e.tier1.test_t1_b_bidirectional_sync.TestBidirectionalSync object at 0x15aa5bcd0>
+gcp_env = GCPTestEnvironment(project_id='test-project', dataset_id='test_onchain_data', region='us-central1', test_prefix='test_1753475879')
+bigquery_client = <google.cloud.bigquery.client.Client object at 0x16f66f890>
+neo4j_utils = <tests.e2e.helpers.neo4j.Neo4jTestUtils object at 0x16f101b50>
+clean_test_data = None
+
+    def test_bigquery_to_neo4j_sync(self, gcp_env, bigquery_client, neo4j_utils, clean_test_data):
+        """
+        T1-B: BigQuery → Neo4j synchronization
+    
+        Flow:
+        1. Insert entity data into BigQuery
+        2. Trigger sync process (CDC simulation)
+        3. Verify entities appear in Neo4j
+        4. Validate relationship creation
+        5. Check data consistency
+        """
+        gcp_utils = GCPTestUtils(gcp_env.project_id)
+    
+        # 1. Setup BigQuery entities table
+        test_dataset = f"{gcp_env.test_prefix}_sync_test"
+        entities_table = "entities"
+        relationships_table = "relationships"
+    
+        gcp_utils.bq_create_dataset(test_dataset)
+        gcp_utils.bq_create_table(test_dataset, entities_table, ENTITIES_SCHEMA)
+        gcp_utils.bq_create_table(test_dataset, relationships_table, {
+            "fields": [
+                {"name": "from_address", "type": "STRING"},
+                {"name": "to_address", "type": "STRING"},
+                {"name": "relationship_type", "type": "STRING"},
+                {"name": "transaction_count", "type": "INTEGER"},
+                {"name": "total_value", "type": "FLOAT"},
+                {"name": "first_seen", "type": "INTEGER"},
+                {"name": "last_seen", "type": "INTEGER"},
+                {"name": "fixture_id", "type": "STRING"}
+            ]
+        })
+    
+        # Insert test entities to BigQuery
+        test_entities = [
+            {
+                "address": "0xBQ2NEO001",
+                "entity_type": "wallet",
+                "risk_score": 0.3,
+                "total_volume": 5000000.0,
+                "transaction_count": 25,
+                "first_seen": 1690000000,
+                "last_seen": 1698000000,
+                "labels": json.dumps(["high_volume", "defi_user"]),
+                "fixture_id": "T1_B_bq_to_neo"
+            },
+            {
+                "address": "0xBQ2NEO002",
+                "entity_type": "contract",
+                "risk_score": 0.1,
+                "total_volume": 50000000.0,
+                "transaction_count": 1000,
+                "first_seen": 1680000000,
+                "last_seen": 1698000000,
+                "labels": json.dumps(["dex", "verified"]),
+                "fixture_id": "T1_B_bq_to_neo"
+            },
+            {
+                "address": "0xBQ2NEO003",
+                "entity_type": "wallet",
+                "risk_score": 0.9,
+                "total_volume": 100000.0,
+                "transaction_count": 5,
+                "first_seen": 1697000000,
+                "last_seen": 1698000000,
+                "labels": json.dumps(["suspicious", "new_account"]),
+                "fixture_id": "T1_B_bq_to_neo"
+            }
+        ]
+    
+        test_relationships = [
+            {
+                "from_address": "0xBQ2NEO001",
+                "to_address": "0xBQ2NEO002",
+                "relationship_type": "INTERACTED_WITH",
+                "transaction_count": 10,
+                "total_value": 1500000.0,
+                "first_seen": 1695000000,
+                "last_seen": 1698000000,
+                "fixture_id": "T1_B_bq_to_neo"
+            },
+            {
+                "from_address": "0xBQ2NEO003",
+                "to_address": "0xBQ2NEO002",
+                "relationship_type": "SENT_TO",
+                "transaction_count": 3,
+                "total_value": 75000.0,
+                "first_seen": 1697500000,
+                "last_seen": 1698000000,
+                "fixture_id": "T1_B_bq_to_neo"
+            }
+        ]
+    
+>       gcp_utils.bq_insert_rows(test_dataset, entities_table, test_entities)
+
+tests/e2e/tier1/test_t1_b_bidirectional_sync.py:111: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/e2e/helpers/gcp.py:104: in bq_insert_rows
+    table = self.bq_client.get_table(table_ref)
+../.pyenv/versions/3.11.3/lib/python3.11/site-packages/google/cloud/bigquery/client.py:1208: in get_table
+    api_response = self._call_api(
+../.pyenv/versions/3.11.3/lib/python3.11/site-packages/google/cloud/bigquery/client.py:859: in _call_api
+    return call()
+../.pyenv/versions/3.11.3/lib/python3.11/site-packages/google/api_core/retry/retry_unary.py:294: in retry_wrapped_func
+    return retry_target(
+../.pyenv/versions/3.11.3/lib/python3.11/site-packages/google/api_core/retry/retry_unary.py:156: in retry_target
+    next_sleep = _retry_error_helper(
+../.pyenv/versions/3.11.3/lib/python3.11/site-packages/google/api_core/retry/retry_base.py:214: in _retry_error_helper
+    raise final_exc from source_exc
+../.pyenv/versions/3.11.3/lib/python3.11/site-packages/google/api_core/retry/retry_unary.py:147: in retry_target
+    result = target()
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <google.cloud.bigquery._http.Connection object at 0x16f5ccd50>
+method = 'GET'
+path = '/projects/test-project/datasets/test_1753475879_sync_test/tables/entities'
+query_params = None, data = None, content_type = None, headers = None
+api_base_url = None, api_version = None, expect_json = True
+_target_object = None, timeout = None, extra_api_info = None
+
+    def api_request(
+        self,
+        method,
+        path,
+        query_params=None,
+        data=None,
+        content_type=None,
+        headers=None,
+        api_base_url=None,
+        api_version=None,
+        expect_json=True,
+        _target_object=None,
+        timeout=_DEFAULT_TIMEOUT,
+        extra_api_info=None,
+    ):
+        """Make a request over the HTTP transport to the API.
+    
+        You shouldn't need to use this method, but if you plan to
+        interact with the API using these primitives, this is the
+        correct one to use.
+    
+        :type method: str
+        :param method: The HTTP method name (ie, ``GET``, ``POST``, etc).
+                       Required.
+    
+        :type path: str
+        :param path: The path to the resource (ie, ``'/b/bucket-name'``).
+                     Required.
+    
+        :type query_params: dict or list
+        :param query_params: A dictionary of keys and values (or list of
+                             key-value pairs) to insert into the query
+                             string of the URL.
+    
+        :type data: str
+        :param data: The data to send as the body of the request. Default is
+                     the empty string.
+    
+        :type content_type: str
+        :param content_type: The proper MIME type of the data provided. Default
+                             is None.
+    
+        :type headers: dict
+        :param headers: extra HTTP headers to be sent with the request.
+    
+        :type api_base_url: str
+        :param api_base_url: The base URL for the API endpoint.
+                             Typically you won't have to provide this.
+                             Default is the standard API base URL.
+    
+        :type api_version: str
+        :param api_version: The version of the API to call.  Typically
+                            you shouldn't provide this and instead use
+                            the default for the library.  Default is the
+                            latest API version supported by
+                            google-cloud-python.
+    
+        :type expect_json: bool
+        :param expect_json: If True, this method will try to parse the
+                            response as JSON and raise an exception if
+                            that cannot be done.  Default is True.
+    
+        :type _target_object: :class:`object`
+        :param _target_object:
+            (Optional) Protected argument to be used by library callers. This
+            can allow custom behavior, for example, to defer an HTTP request
+            and complete initialization of the object at a later time.
+    
+        :type timeout: float or tuple
+        :param timeout: (optional) The amount of time, in seconds, to wait
+            for the server response.
+    
+            Can also be passed as a tuple (connect_timeout, read_timeout).
+            See :meth:`requests.Session.request` documentation for details.
+    
+        :type extra_api_info: string
+        :param extra_api_info: (optional) Extra api info to be appended to
+            the X-Goog-API-Client header
+    
+        :raises ~google.cloud.exceptions.GoogleCloudError: if the response code
+            is not 200 OK.
+        :raises ValueError: if the response content type is not JSON.
+        :rtype: dict or str
+        :returns: The API response payload, either as a raw string or
+                  a dictionary if the response is valid JSON.
+        """
+        url = self.build_api_url(
+            path=path,
+            query_params=query_params,
+            api_base_url=api_base_url,
+            api_version=api_version,
+        )
+    
+        # Making the executive decision that any dictionary
+        # data will be sent properly as JSON.
+        if data and isinstance(data, dict):
+            data = json.dumps(data)
+            content_type = "application/json"
+    
+        response = self._make_request(
+            method=method,
+            url=url,
+            data=data,
+            content_type=content_type,
+            headers=headers,
+            target_object=_target_object,
+            timeout=timeout,
+            extra_api_info=extra_api_info,
+        )
+    
+        if not 200 <= response.status_code < 300:
+>           raise exceptions.from_http_response(response)
+E           google.api_core.exceptions.BadRequest: 400 GET https://bigquery.googleapis.com/bigquery/v2/projects/test-project/datasets/test_1753475879_sync_test/tables/entities?prettyPrint=false: The project test-project has not enabled BigQuery.
+
+../.pyenv/versions/3.11.3/lib/python3.11/site-packages/google/cloud/_http/__init__.py:494: BadRequest
+------------------------------ Captured log call -------------------------------
+WARNING  tests.e2e.helpers.gcp:gcp.py:64 Failed to create dataset test_1753475879_sync_test: 400 POST https://bigquery.googleapis.com/bigquery/v2/projects/test-project/datasets?prettyPrint=false: The project test-project has not enabled BigQuery.
+WARNING  tests.e2e.helpers.gcp:gcp.py:99 Failed to create table test_1753475879_sync_test.entities: 400 POST https://bigquery.googleapis.com/bigquery/v2/projects/test-project/datasets/test_1753475879_sync_test/tables?prettyPrint=false: The project test-project has not enabled BigQuery.
+WARNING  tests.e2e.helpers.gcp:gcp.py:99 Failed to create table test_1753475879_sync_test.relationships: 400 POST https://bigquery.googleapis.com/bigquery/v2/projects/test-project/datasets/test_1753475879_sync_test/tables?prettyPrint=false: The project test-project has not enabled BigQuery.
+______________ TestBidirectionalSync.test_neo4j_to_bigquery_sync _______________
+
+self = <tests.e2e.tier1.test_t1_b_bidirectional_sync.TestBidirectionalSync object at 0x15aa5bfd0>
+gcp_env = GCPTestEnvironment(project_id='test-project', dataset_id='test_onchain_data', region='us-central1', test_prefix='test_1753475880')
+bigquery_client = <google.cloud.bigquery.client.Client object at 0x16f9a0810>
+neo4j_utils = <tests.e2e.helpers.neo4j.Neo4jTestUtils object at 0x16f9a18d0>
+clean_test_data = None
+
+    def test_neo4j_to_bigquery_sync(self, gcp_env, bigquery_client, neo4j_utils, clean_test_data):
+        """
+        T1-B: Neo4j → BigQuery synchronization
+    
+        Flow:
+        1. Create entities and relationships in Neo4j
+        2. Trigger reverse sync process
+        3. Verify data appears in BigQuery
+        4. Check data transformation and enrichment
+        """
+        gcp_utils = GCPTestUtils(gcp_env.project_id)
+    
+        # 1. Setup BigQuery destination tables
+        test_dataset = f"{gcp_env.test_prefix}_reverse_sync"
+        entities_table = "neo4j_entities"
+        relationships_table = "neo4j_relationships"
+    
+        gcp_utils.bq_create_dataset(test_dataset)
+        gcp_utils.bq_create_table(test_dataset, entities_table, ENTITIES_SCHEMA)
+        gcp_utils.bq_create_table(test_dataset, relationships_table, {
+            "fields": [
+                {"name": "from_address", "type": "STRING"},
+                {"name": "to_address", "type": "STRING"},
+                {"name": "relationship_type", "type": "STRING"},
+                {"name": "weight", "type": "FLOAT"},
+                {"name": "properties", "type": "STRING"},
+                {"name": "created_in_neo4j", "type": "INTEGER"},
+                {"name": "fixture_id", "type": "STRING"}
+            ]
+        })
+    
+        # 2. Create test data in Neo4j
+        neo4j_entities = [
+            {
+                "address": "0xNEO2BQ001",
+                "type": "wallet",
+                "risk_score": 0.4,
+                "total_volume": 2000000,
+                "clustering_coefficient": 0.6,
+                "centrality_score": 0.8,
+                "fixture_id": "T1_B_neo_to_bq"
+            },
+            {
+                "address": "0xNEO2BQ002",
+                "type": "contract",
+                "risk_score": 0.2,
+                "total_volume": 20000000,
+                "clustering_coefficient": 0.9,
+                "centrality_score": 0.95,
+                "fixture_id": "T1_B_neo_to_bq"
+            }
+        ]
+    
+        neo4j_relationships = [
+            {
+                "from_address": "0xNEO2BQ001",
+                "to_address": "0xNEO2BQ002",
+                "relationship_type": "COMPLEX_INTERACTION",
+                "weight": 0.85,
+                "interaction_patterns": ["frequent", "large_amounts"],
+                "risk_indicators": ["none"],
+                "fixture_id": "T1_B_neo_to_bq"
+            }
+        ]
+    
+>       neo4j_utils.load_entities(neo4j_entities)
+E       AttributeError: 'Neo4jTestUtils' object has no attribute 'load_entities'
+
+tests/e2e/tier1/test_t1_b_bidirectional_sync.py:257: AttributeError
+------------------------------ Captured log call -------------------------------
+WARNING  tests.e2e.helpers.gcp:gcp.py:64 Failed to create dataset test_1753475880_reverse_sync: 400 POST https://bigquery.googleapis.com/bigquery/v2/projects/test-project/datasets?prettyPrint=false: The project test-project has not enabled BigQuery.
+WARNING  tests.e2e.helpers.gcp:gcp.py:99 Failed to create table test_1753475880_reverse_sync.neo4j_entities: 400 POST https://bigquery.googleapis.com/bigquery/v2/projects/test-project/datasets/test_1753475880_reverse_sync/tables?prettyPrint=false: The project test-project has not enabled BigQuery.
+WARNING  tests.e2e.helpers.gcp:gcp.py:99 Failed to create table test_1753475880_reverse_sync.neo4j_relationships: 400 POST https://bigquery.googleapis.com/bigquery/v2/projects/test-project/datasets/test_1753475880_reverse_sync/tables?prettyPrint=false: The project test-project has not enabled BigQuery.
+__________ TestBidirectionalSync.test_bidirectional_consistency_check __________
+
+self = <tests.e2e.tier1.test_t1_b_bidirectional_sync.TestBidirectionalSync object at 0x15aa68310>
+gcp_env = GCPTestEnvironment(project_id='test-project', dataset_id='test_onchain_data', region='us-central1', test_prefix='test_1753475881')
+bigquery_client = <google.cloud.bigquery.client.Client object at 0x16f0d21d0>
+neo4j_utils = <tests.e2e.helpers.neo4j.Neo4jTestUtils object at 0x16f0d1ed0>
+clean_test_data = None
+
+    def test_bidirectional_consistency_check(self, gcp_env, bigquery_client, neo4j_utils, clean_test_data):
+        """Test data consistency between BigQuery and Neo4j after bidirectional sync"""
+        gcp_utils = GCPTestUtils(gcp_env.project_id)
+    
+        # Setup test environment
+        test_dataset = f"{gcp_env.test_prefix}_consistency"
+        entities_table = "entities"
+    
+        gcp_utils.bq_create_dataset(test_dataset)
+        gcp_utils.bq_create_table(test_dataset, entities_table, ENTITIES_SCHEMA)
+    
+        # Create test entity that will be synced both ways
+        test_entity = {
+            "address": "0xCONSISTENCY001",
+            "entity_type": "wallet",
+            "risk_score": 0.5,
+            "total_volume": 1000000.0,
+            "transaction_count": 10,
+            "first_seen": 1690000000,
+            "last_seen": 1698000000,
+            "labels": json.dumps(["test", "consistency"]),
+            "fixture_id": "T1_B_consistency"
+        }
+    
+        # 1. Insert to BigQuery first
+>       gcp_utils.bq_insert_rows(test_dataset, entities_table, [test_entity])
+
+tests/e2e/tier1/test_t1_b_bidirectional_sync.py:370: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/e2e/helpers/gcp.py:104: in bq_insert_rows
+    table = self.bq_client.get_table(table_ref)
+../.pyenv/versions/3.11.3/lib/python3.11/site-packages/google/cloud/bigquery/client.py:1208: in get_table
+    api_response = self._call_api(
+../.pyenv/versions/3.11.3/lib/python3.11/site-packages/google/cloud/bigquery/client.py:859: in _call_api
+    return call()
+../.pyenv/versions/3.11.3/lib/python3.11/site-packages/google/api_core/retry/retry_unary.py:294: in retry_wrapped_func
+    return retry_target(
+../.pyenv/versions/3.11.3/lib/python3.11/site-packages/google/api_core/retry/retry_unary.py:156: in retry_target
+    next_sleep = _retry_error_helper(
+../.pyenv/versions/3.11.3/lib/python3.11/site-packages/google/api_core/retry/retry_base.py:214: in _retry_error_helper
+    raise final_exc from source_exc
+../.pyenv/versions/3.11.3/lib/python3.11/site-packages/google/api_core/retry/retry_unary.py:147: in retry_target
+    result = target()
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <google.cloud.bigquery._http.Connection object at 0x16f0d2710>
+method = 'GET'
+path = '/projects/test-project/datasets/test_1753475881_consistency/tables/entities'
+query_params = None, data = None, content_type = None, headers = None
+api_base_url = None, api_version = None, expect_json = True
+_target_object = None, timeout = None, extra_api_info = None
+
+    def api_request(
+        self,
+        method,
+        path,
+        query_params=None,
+        data=None,
+        content_type=None,
+        headers=None,
+        api_base_url=None,
+        api_version=None,
+        expect_json=True,
+        _target_object=None,
+        timeout=_DEFAULT_TIMEOUT,
+        extra_api_info=None,
+    ):
+        """Make a request over the HTTP transport to the API.
+    
+        You shouldn't need to use this method, but if you plan to
+        interact with the API using these primitives, this is the
+        correct one to use.
+    
+        :type method: str
+        :param method: The HTTP method name (ie, ``GET``, ``POST``, etc).
+                       Required.
+    
+        :type path: str
+        :param path: The path to the resource (ie, ``'/b/bucket-name'``).
+                     Required.
+    
+        :type query_params: dict or list
+        :param query_params: A dictionary of keys and values (or list of
+                             key-value pairs) to insert into the query
+                             string of the URL.
+    
+        :type data: str
+        :param data: The data to send as the body of the request. Default is
+                     the empty string.
+    
+        :type content_type: str
+        :param content_type: The proper MIME type of the data provided. Default
+                             is None.
+    
+        :type headers: dict
+        :param headers: extra HTTP headers to be sent with the request.
+    
+        :type api_base_url: str
+        :param api_base_url: The base URL for the API endpoint.
+                             Typically you won't have to provide this.
+                             Default is the standard API base URL.
+    
+        :type api_version: str
+        :param api_version: The version of the API to call.  Typically
+                            you shouldn't provide this and instead use
+                            the default for the library.  Default is the
+                            latest API version supported by
+                            google-cloud-python.
+    
+        :type expect_json: bool
+        :param expect_json: If True, this method will try to parse the
+                            response as JSON and raise an exception if
+                            that cannot be done.  Default is True.
+    
+        :type _target_object: :class:`object`
+        :param _target_object:
+            (Optional) Protected argument to be used by library callers. This
+            can allow custom behavior, for example, to defer an HTTP request
+            and complete initialization of the object at a later time.
+    
+        :type timeout: float or tuple
+        :param timeout: (optional) The amount of time, in seconds, to wait
+            for the server response.
+    
+            Can also be passed as a tuple (connect_timeout, read_timeout).
+            See :meth:`requests.Session.request` documentation for details.
+    
+        :type extra_api_info: string
+        :param extra_api_info: (optional) Extra api info to be appended to
+            the X-Goog-API-Client header
+    
+        :raises ~google.cloud.exceptions.GoogleCloudError: if the response code
+            is not 200 OK.
+        :raises ValueError: if the response content type is not JSON.
+        :rtype: dict or str
+        :returns: The API response payload, either as a raw string or
+                  a dictionary if the response is valid JSON.
+        """
+        url = self.build_api_url(
+            path=path,
+            query_params=query_params,
+            api_base_url=api_base_url,
+            api_version=api_version,
+        )
+    
+        # Making the executive decision that any dictionary
+        # data will be sent properly as JSON.
+        if data and isinstance(data, dict):
+            data = json.dumps(data)
+            content_type = "application/json"
+    
+        response = self._make_request(
+            method=method,
+            url=url,
+            data=data,
+            content_type=content_type,
+            headers=headers,
+            target_object=_target_object,
+            timeout=timeout,
+            extra_api_info=extra_api_info,
+        )
+    
+        if not 200 <= response.status_code < 300:
+>           raise exceptions.from_http_response(response)
+E           google.api_core.exceptions.BadRequest: 400 GET https://bigquery.googleapis.com/bigquery/v2/projects/test-project/datasets/test_1753475881_consistency/tables/entities?prettyPrint=false: The project test-project has not enabled BigQuery.
+
+../.pyenv/versions/3.11.3/lib/python3.11/site-packages/google/cloud/_http/__init__.py:494: BadRequest
+------------------------------ Captured log call -------------------------------
+WARNING  tests.e2e.helpers.gcp:gcp.py:64 Failed to create dataset test_1753475881_consistency: 400 POST https://bigquery.googleapis.com/bigquery/v2/projects/test-project/datasets?prettyPrint=false: The project test-project has not enabled BigQuery.
+WARNING  tests.e2e.helpers.gcp:gcp.py:99 Failed to create table test_1753475881_consistency.entities: 400 POST https://bigquery.googleapis.com/bigquery/v2/projects/test-project/datasets/test_1753475881_consistency/tables?prettyPrint=false: The project test-project has not enabled BigQuery.
+______________ TestBidirectionalSync.test_real_time_sync_latency _______________
+
+self = <tests.e2e.tier1.test_t1_b_bidirectional_sync.TestBidirectionalSync object at 0x15aa68690>
+gcp_env = GCPTestEnvironment(project_id='test-project', dataset_id='test_onchain_data', region='us-central1', test_prefix='test_1753475882')
+bigquery_client = <google.cloud.bigquery.client.Client object at 0x16f5481d0>
+neo4j_utils = <tests.e2e.helpers.neo4j.Neo4jTestUtils object at 0x16f549890>
+clean_test_data = None
+
+    @pytest.mark.asyncio
+    async def test_real_time_sync_latency(self, gcp_env, bigquery_client, neo4j_utils, clean_test_data):
+        """Test latency of real-time bidirectional sync"""
+        gcp_utils = GCPTestUtils(gcp_env.project_id)
+    
+        test_dataset = f"{gcp_env.test_prefix}_sync_latency"
+        entities_table = "real_time_entities"
+    
+        gcp_utils.bq_create_dataset(test_dataset)
+        gcp_utils.bq_create_table(test_dataset, entities_table, ENTITIES_SCHEMA)
+    
+        # Track sync timing
+        sync_times = []
+    
+        for i in range(5):
+            # 1. Insert to BigQuery with timestamp
+            insert_time = time.time()
+            entity = {
+                "address": f"0xLATENCY{i:03d}",
+                "entity_type": "wallet",
+                "risk_score": 0.1 * i,
+                "total_volume": 1000000.0 * i,
+                "transaction_count": 10 * i,
+                "first_seen": int(insert_time),
+                "last_seen": int(insert_time),
+                "labels": json.dumps([f"test_{i}"]),
+                "fixture_id": "T1_B_latency"
+            }
+    
+>           gcp_utils.bq_insert_rows(test_dataset, entities_table, [entity])
+
+tests/e2e/tier1/test_t1_b_bidirectional_sync.py:496: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/e2e/helpers/gcp.py:104: in bq_insert_rows
+    table = self.bq_client.get_table(table_ref)
+../.pyenv/versions/3.11.3/lib/python3.11/site-packages/google/cloud/bigquery/client.py:1208: in get_table
+    api_response = self._call_api(
+../.pyenv/versions/3.11.3/lib/python3.11/site-packages/google/cloud/bigquery/client.py:859: in _call_api
+    return call()
+../.pyenv/versions/3.11.3/lib/python3.11/site-packages/google/api_core/retry/retry_unary.py:294: in retry_wrapped_func
+    return retry_target(
+../.pyenv/versions/3.11.3/lib/python3.11/site-packages/google/api_core/retry/retry_unary.py:156: in retry_target
+    next_sleep = _retry_error_helper(
+../.pyenv/versions/3.11.3/lib/python3.11/site-packages/google/api_core/retry/retry_base.py:214: in _retry_error_helper
+    raise final_exc from source_exc
+../.pyenv/versions/3.11.3/lib/python3.11/site-packages/google/api_core/retry/retry_unary.py:147: in retry_target
+    result = target()
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <google.cloud.bigquery._http.Connection object at 0x16f54a010>
+method = 'GET'
+path = '/projects/test-project/datasets/test_1753475882_sync_latency/tables/real_time_entities'
+query_params = None, data = None, content_type = None, headers = None
+api_base_url = None, api_version = None, expect_json = True
+_target_object = None, timeout = None, extra_api_info = None
+
+    def api_request(
+        self,
+        method,
+        path,
+        query_params=None,
+        data=None,
+        content_type=None,
+        headers=None,
+        api_base_url=None,
+        api_version=None,
+        expect_json=True,
+        _target_object=None,
+        timeout=_DEFAULT_TIMEOUT,
+        extra_api_info=None,
+    ):
+        """Make a request over the HTTP transport to the API.
+    
+        You shouldn't need to use this method, but if you plan to
+        interact with the API using these primitives, this is the
+        correct one to use.
+    
+        :type method: str
+        :param method: The HTTP method name (ie, ``GET``, ``POST``, etc).
+                       Required.
+    
+        :type path: str
+        :param path: The path to the resource (ie, ``'/b/bucket-name'``).
+                     Required.
+    
+        :type query_params: dict or list
+        :param query_params: A dictionary of keys and values (or list of
+                             key-value pairs) to insert into the query
+                             string of the URL.
+    
+        :type data: str
+        :param data: The data to send as the body of the request. Default is
+                     the empty string.
+    
+        :type content_type: str
+        :param content_type: The proper MIME type of the data provided. Default
+                             is None.
+    
+        :type headers: dict
+        :param headers: extra HTTP headers to be sent with the request.
+    
+        :type api_base_url: str
+        :param api_base_url: The base URL for the API endpoint.
+                             Typically you won't have to provide this.
+                             Default is the standard API base URL.
+    
+        :type api_version: str
+        :param api_version: The version of the API to call.  Typically
+                            you shouldn't provide this and instead use
+                            the default for the library.  Default is the
+                            latest API version supported by
+                            google-cloud-python.
+    
+        :type expect_json: bool
+        :param expect_json: If True, this method will try to parse the
+                            response as JSON and raise an exception if
+                            that cannot be done.  Default is True.
+    
+        :type _target_object: :class:`object`
+        :param _target_object:
+            (Optional) Protected argument to be used by library callers. This
+            can allow custom behavior, for example, to defer an HTTP request
+            and complete initialization of the object at a later time.
+    
+        :type timeout: float or tuple
+        :param timeout: (optional) The amount of time, in seconds, to wait
+            for the server response.
+    
+            Can also be passed as a tuple (connect_timeout, read_timeout).
+            See :meth:`requests.Session.request` documentation for details.
+    
+        :type extra_api_info: string
+        :param extra_api_info: (optional) Extra api info to be appended to
+            the X-Goog-API-Client header
+    
+        :raises ~google.cloud.exceptions.GoogleCloudError: if the response code
+            is not 200 OK.
+        :raises ValueError: if the response content type is not JSON.
+        :rtype: dict or str
+        :returns: The API response payload, either as a raw string or
+                  a dictionary if the response is valid JSON.
+        """
+        url = self.build_api_url(
+            path=path,
+            query_params=query_params,
+            api_base_url=api_base_url,
+            api_version=api_version,
+        )
+    
+        # Making the executive decision that any dictionary
+        # data will be sent properly as JSON.
+        if data and isinstance(data, dict):
+            data = json.dumps(data)
+            content_type = "application/json"
+    
+        response = self._make_request(
+            method=method,
+            url=url,
+            data=data,
+            content_type=content_type,
+            headers=headers,
+            target_object=_target_object,
+            timeout=timeout,
+            extra_api_info=extra_api_info,
+        )
+    
+        if not 200 <= response.status_code < 300:
+>           raise exceptions.from_http_response(response)
+E           google.api_core.exceptions.BadRequest: 400 GET https://bigquery.googleapis.com/bigquery/v2/projects/test-project/datasets/test_1753475882_sync_latency/tables/real_time_entities?prettyPrint=false: The project test-project has not enabled BigQuery.
+
+../.pyenv/versions/3.11.3/lib/python3.11/site-packages/google/cloud/_http/__init__.py:494: BadRequest
+------------------------------ Captured log call -------------------------------
+WARNING  tests.e2e.helpers.gcp:gcp.py:64 Failed to create dataset test_1753475882_sync_latency: 400 POST https://bigquery.googleapis.com/bigquery/v2/projects/test-project/datasets?prettyPrint=false: The project test-project has not enabled BigQuery.
+WARNING  tests.e2e.helpers.gcp:gcp.py:99 Failed to create table test_1753475882_sync_latency.real_time_entities: 400 POST https://bigquery.googleapis.com/bigquery/v2/projects/test-project/datasets/test_1753475882_sync_latency/tables?prettyPrint=false: The project test-project has not enabled BigQuery.
+_____________ TestBidirectionalSync.test_sync_conflict_resolution ______________
+
+self = <tests.e2e.tier1.test_t1_b_bidirectional_sync.TestBidirectionalSync object at 0x15aa68d10>
+gcp_env = GCPTestEnvironment(project_id='test-project', dataset_id='test_onchain_data', region='us-central1', test_prefix='test_1753475883')
+bigquery_client = <google.cloud.bigquery.client.Client object at 0x16f633450>
+neo4j_utils = <tests.e2e.helpers.neo4j.Neo4jTestUtils object at 0x16f633a10>
+clean_test_data = None
+
+    def test_sync_conflict_resolution(self, gcp_env, bigquery_client, neo4j_utils, clean_test_data):
+        """Test conflict resolution when same entity is modified in both stores"""
+        gcp_utils = GCPTestUtils(gcp_env.project_id)
+    
+        test_dataset = f"{gcp_env.test_prefix}_conflicts"
+        entities_table = "conflict_entities"
+    
+        gcp_utils.bq_create_dataset(test_dataset)
+        gcp_utils.bq_create_table(test_dataset, entities_table, {
+            "fields": [
+                {"name": "address", "type": "STRING"},
+                {"name": "entity_type", "type": "STRING"},
+                {"name": "risk_score", "type": "FLOAT"},
+                {"name": "total_volume", "type": "FLOAT"},
+                {"name": "last_modified", "type": "INTEGER"},
+                {"name": "modified_in", "type": "STRING"},
+                {"name": "fixture_id", "type": "STRING"}
+            ]
+        })
+    
+        # Create initial entity
+        base_entity = {
+            "address": "0xCONFLICT001",
+            "entity_type": "wallet",
+            "risk_score": 0.5,
+            "total_volume": 1000000.0,
+            "last_modified": int(time.time()),
+            "modified_in": "initial",
+            "fixture_id": "T1_B_conflict"
+        }
+    
+        # Insert to both stores
+>       gcp_utils.bq_insert_rows(test_dataset, entities_table, [base_entity])
+
+tests/e2e/tier1/test_t1_b_bidirectional_sync.py:570: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/e2e/helpers/gcp.py:104: in bq_insert_rows
+    table = self.bq_client.get_table(table_ref)
+../.pyenv/versions/3.11.3/lib/python3.11/site-packages/google/cloud/bigquery/client.py:1208: in get_table
+    api_response = self._call_api(
+../.pyenv/versions/3.11.3/lib/python3.11/site-packages/google/cloud/bigquery/client.py:859: in _call_api
+    return call()
+../.pyenv/versions/3.11.3/lib/python3.11/site-packages/google/api_core/retry/retry_unary.py:294: in retry_wrapped_func
+    return retry_target(
+../.pyenv/versions/3.11.3/lib/python3.11/site-packages/google/api_core/retry/retry_unary.py:156: in retry_target
+    next_sleep = _retry_error_helper(
+../.pyenv/versions/3.11.3/lib/python3.11/site-packages/google/api_core/retry/retry_base.py:214: in _retry_error_helper
+    raise final_exc from source_exc
+../.pyenv/versions/3.11.3/lib/python3.11/site-packages/google/api_core/retry/retry_unary.py:147: in retry_target
+    result = target()
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <google.cloud.bigquery._http.Connection object at 0x16f633f10>
+method = 'GET'
+path = '/projects/test-project/datasets/test_1753475883_conflicts/tables/conflict_entities'
+query_params = None, data = None, content_type = None, headers = None
+api_base_url = None, api_version = None, expect_json = True
+_target_object = None, timeout = None, extra_api_info = None
+
+    def api_request(
+        self,
+        method,
+        path,
+        query_params=None,
+        data=None,
+        content_type=None,
+        headers=None,
+        api_base_url=None,
+        api_version=None,
+        expect_json=True,
+        _target_object=None,
+        timeout=_DEFAULT_TIMEOUT,
+        extra_api_info=None,
+    ):
+        """Make a request over the HTTP transport to the API.
+    
+        You shouldn't need to use this method, but if you plan to
+        interact with the API using these primitives, this is the
+        correct one to use.
+    
+        :type method: str
+        :param method: The HTTP method name (ie, ``GET``, ``POST``, etc).
+                       Required.
+    
+        :type path: str
+        :param path: The path to the resource (ie, ``'/b/bucket-name'``).
+                     Required.
+    
+        :type query_params: dict or list
+        :param query_params: A dictionary of keys and values (or list of
+                             key-value pairs) to insert into the query
+                             string of the URL.
+    
+        :type data: str
+        :param data: The data to send as the body of the request. Default is
+                     the empty string.
+    
+        :type content_type: str
+        :param content_type: The proper MIME type of the data provided. Default
+                             is None.
+    
+        :type headers: dict
+        :param headers: extra HTTP headers to be sent with the request.
+    
+        :type api_base_url: str
+        :param api_base_url: The base URL for the API endpoint.
+                             Typically you won't have to provide this.
+                             Default is the standard API base URL.
+    
+        :type api_version: str
+        :param api_version: The version of the API to call.  Typically
+                            you shouldn't provide this and instead use
+                            the default for the library.  Default is the
+                            latest API version supported by
+                            google-cloud-python.
+    
+        :type expect_json: bool
+        :param expect_json: If True, this method will try to parse the
+                            response as JSON and raise an exception if
+                            that cannot be done.  Default is True.
+    
+        :type _target_object: :class:`object`
+        :param _target_object:
+            (Optional) Protected argument to be used by library callers. This
+            can allow custom behavior, for example, to defer an HTTP request
+            and complete initialization of the object at a later time.
+    
+        :type timeout: float or tuple
+        :param timeout: (optional) The amount of time, in seconds, to wait
+            for the server response.
+    
+            Can also be passed as a tuple (connect_timeout, read_timeout).
+            See :meth:`requests.Session.request` documentation for details.
+    
+        :type extra_api_info: string
+        :param extra_api_info: (optional) Extra api info to be appended to
+            the X-Goog-API-Client header
+    
+        :raises ~google.cloud.exceptions.GoogleCloudError: if the response code
+            is not 200 OK.
+        :raises ValueError: if the response content type is not JSON.
+        :rtype: dict or str
+        :returns: The API response payload, either as a raw string or
+                  a dictionary if the response is valid JSON.
+        """
+        url = self.build_api_url(
+            path=path,
+            query_params=query_params,
+            api_base_url=api_base_url,
+            api_version=api_version,
+        )
+    
+        # Making the executive decision that any dictionary
+        # data will be sent properly as JSON.
+        if data and isinstance(data, dict):
+            data = json.dumps(data)
+            content_type = "application/json"
+    
+        response = self._make_request(
+            method=method,
+            url=url,
+            data=data,
+            content_type=content_type,
+            headers=headers,
+            target_object=_target_object,
+            timeout=timeout,
+            extra_api_info=extra_api_info,
+        )
+    
+        if not 200 <= response.status_code < 300:
+>           raise exceptions.from_http_response(response)
+E           google.api_core.exceptions.BadRequest: 400 GET https://bigquery.googleapis.com/bigquery/v2/projects/test-project/datasets/test_1753475883_conflicts/tables/conflict_entities?prettyPrint=false: The project test-project has not enabled BigQuery.
+
+../.pyenv/versions/3.11.3/lib/python3.11/site-packages/google/cloud/_http/__init__.py:494: BadRequest
+------------------------------ Captured log call -------------------------------
+WARNING  tests.e2e.helpers.gcp:gcp.py:64 Failed to create dataset test_1753475883_conflicts: 400 POST https://bigquery.googleapis.com/bigquery/v2/projects/test-project/datasets?prettyPrint=false: The project test-project has not enabled BigQuery.
+WARNING  tests.e2e.helpers.gcp:gcp.py:99 Failed to create table test_1753475883_conflicts.conflict_entities: 400 POST https://bigquery.googleapis.com/bigquery/v2/projects/test-project/datasets/test_1753475883_conflicts/tables?prettyPrint=false: The project test-project has not enabled BigQuery.
+_____________ TestRealServiceIntegration.test_websocket_endpoints ______________
+
+self = <tests.e2e.tier2.test_t2_a_real_service_integration.TestRealServiceIntegration object at 0x15aa84210>
+
+    @pytest.mark.asyncio
+    async def test_websocket_endpoints(self):
+        """Test WebSocket endpoints for real-time data"""
+        ws_endpoint = os.getenv('NEXT_PUBLIC_WEBSOCKET_ENDPOINT', 'ws://localhost:4000/subscriptions')
+    
+        try:
+>           async with websockets.connect(ws_endpoint, timeout=10) as websocket:
+
+tests/e2e/tier2/test_t2_a_real_service_integration.py:345: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+../.pyenv/versions/3.11.3/lib/python3.11/site-packages/websockets/asyncio/client.py:587: in __aenter__
+    return await self
+../.pyenv/versions/3.11.3/lib/python3.11/site-packages/websockets/asyncio/client.py:541: in __await_impl__
+    self.connection = await self.create_connection()
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <websockets.asyncio.client.connect object at 0x16f6f81d0>
+
+    async def create_connection(self) -> ClientConnection:
+        """Create TCP or Unix connection."""
+        loop = asyncio.get_running_loop()
+        kwargs = self.connection_kwargs.copy()
+    
+        ws_uri = parse_uri(self.uri)
+    
+        proxy = self.proxy
+        if kwargs.get("unix", False):
+            proxy = None
+        if kwargs.get("sock") is not None:
+            proxy = None
+        if proxy is True:
+            proxy = get_proxy(ws_uri)
+    
+        def factory() -> ClientConnection:
+            return self.protocol_factory(ws_uri)
+    
+        if ws_uri.secure:
+            kwargs.setdefault("ssl", True)
+            kwargs.setdefault("server_hostname", ws_uri.host)
+            if kwargs.get("ssl") is None:
+                raise ValueError("ssl=None is incompatible with a wss:// URI")
+        else:
+            if kwargs.get("ssl") is not None:
+                raise ValueError("ssl argument is incompatible with a ws:// URI")
+    
+        if kwargs.pop("unix", False):
+            _, connection = await loop.create_unix_connection(factory, **kwargs)
+        elif proxy is not None:
+            proxy_parsed = parse_proxy(proxy)
+            if proxy_parsed.scheme[:5] == "socks":
+                # Connect to the server through the proxy.
+                sock = await connect_socks_proxy(
+                    proxy_parsed,
+                    ws_uri,
+                    local_addr=kwargs.pop("local_addr", None),
+                )
+                # Initialize WebSocket connection via the proxy.
+                _, connection = await loop.create_connection(
+                    factory,
+                    sock=sock,
+                    **kwargs,
+                )
+            elif proxy_parsed.scheme[:4] == "http":
+                # Split keyword arguments between the proxy and the server.
+                all_kwargs, proxy_kwargs, kwargs = kwargs, {}, {}
+                for key, value in all_kwargs.items():
+                    if key.startswith("ssl") or key == "server_hostname":
+                        kwargs[key] = value
+                    elif key.startswith("proxy_"):
+                        proxy_kwargs[key[6:]] = value
+                    else:
+                        proxy_kwargs[key] = value
+                # Validate the proxy_ssl argument.
+                if proxy_parsed.scheme == "https":
+                    proxy_kwargs.setdefault("ssl", True)
+                    if proxy_kwargs.get("ssl") is None:
+                        raise ValueError(
+                            "proxy_ssl=None is incompatible with an https:// proxy"
+                        )
+                else:
+                    if proxy_kwargs.get("ssl") is not None:
+                        raise ValueError(
+                            "proxy_ssl argument is incompatible with an http:// proxy"
+                        )
+                # Connect to the server through the proxy.
+                transport = await connect_http_proxy(
+                    proxy_parsed,
+                    ws_uri,
+                    user_agent_header=self.user_agent_header,
+                    **proxy_kwargs,
+                )
+                # Initialize WebSocket connection via the proxy.
+                connection = factory()
+                transport.set_protocol(connection)
+                ssl = kwargs.pop("ssl", None)
+                if ssl is True:
+                    ssl = ssl_module.create_default_context()
+                if ssl is not None:
+                    new_transport = await loop.start_tls(
+                        transport, connection, ssl, **kwargs
+                    )
+                    assert new_transport is not None  # help mypy
+                    transport = new_transport
+                connection.connection_made(transport)
+            else:
+                raise AssertionError("unsupported proxy")
+        else:
+            # Connect to the server directly.
+            if kwargs.get("sock") is None:
+                kwargs.setdefault("host", ws_uri.host)
+                kwargs.setdefault("port", ws_uri.port)
+            # Initialize WebSocket connection.
+>           _, connection = await loop.create_connection(factory, **kwargs)
+E           TypeError: BaseEventLoop.create_connection() got an unexpected keyword argument 'timeout'
+
+../.pyenv/versions/3.11.3/lib/python3.11/site-packages/websockets/asyncio/client.py:467: TypeError
+_______ TestV3PatchesIntegration.test_patch_4_autonomous_action_executor _______
+
+self = <tests.e2e.tier2.test_t2_b_v3_patches_integration.TestV3PatchesIntegration object at 0x15aa8cdd0>
+
+    def test_patch_4_autonomous_action_executor(self):
+        """
+        Patch 4: Autonomous Action Executor
+        Test automated response system with YAML playbooks
+        """
+        # Create test playbook configuration
+        test_playbook = {
+            "name": "high_risk_wallet_response",
+            "trigger": {
+                "risk_score_threshold": 0.9,
+                "confidence_threshold": 0.8
+            },
+            "actions": [
+                {
+                    "type": "freeze_position",
+                    "params": {
+                        "duration": "24h",
+                        "notify_compliance": True
+                    }
+                },
+                {
+                    "type": "hedge_exposure",
+                    "params": {
+                        "percentage": 50,
+                        "instruments": ["USDC", "ETH"]
+                    }
+                },
+                {
+                    "type": "alert_notification",
+                    "params": {
+                        "channels": ["slack", "email"],
+                        "priority": "high"
+                    }
+                }
+            ]
+        }
+    
+        # Simulate high-risk signal that triggers action executor
+        trigger_signal = {
+            "signal_id": f"action_test_{int(time.time())}",
+            "wallet_address": "0xhighrisk789",
+            "risk_score": 0.95,
+            "confidence": 0.92,
+            "signal_type": "money_laundering_detected",
+            "evidence": ["mixer_interaction", "rapid_transactions", "suspicious_amounts"],
+            "timestamp": time.time()
+        }
+    
+        # Test action execution simulation
+        executed_actions = []
+    
+        for action in test_playbook["actions"]:
+            if action["type"] == "freeze_position":
+                # Simulate position freeze
+                freeze_result = {
+                    "action_type": "freeze_position",
+                    "wallet_address": trigger_signal["wallet_address"],
+                    "duration": action["params"]["duration"],
+                    "status": "executed",
+                    "timestamp": time.time(),
+                    "dry_run": True  # Safety flag
+                }
+                executed_actions.append(freeze_result)
+    
+            elif action["type"] == "hedge_exposure":
+                # Simulate hedge execution
+                hedge_result = {
+                    "action_type": "hedge_exposure",
+                    "wallet_address": trigger_signal["wallet_address"],
+                    "hedge_percentage": action["params"]["percentage"],
+                    "instruments": action["params"]["instruments"],
+                    "status": "executed",
+                    "timestamp": time.time(),
+                    "dry_run": True
+                }
+                executed_actions.append(hedge_result)
+    
+            elif action["type"] == "alert_notification":
+                # Simulate notification sending
+                alert_result = {
+                    "action_type": "alert_notification",
+                    "wallet_address": trigger_signal["wallet_address"],
+                    "channels": action["params"]["channels"],
+                    "priority": action["params"]["priority"],
+                    "status": "sent",
+                    "timestamp": time.time()
+                }
+                executed_actions.append(alert_result)
+    
+        # Store action execution results
+        project_id = os.getenv('GOOGLE_CLOUD_PROJECT')
+        dataset_id = os.getenv('BIGQUERY_DATASET')
+        bq_client = bigquery.Client(project=project_id)
+    
+        table_id = f"{dataset_id}.action_executions"
+        schema = [
+            bigquery.SchemaField("signal_id", "STRING"),
+            bigquery.SchemaField("wallet_address", "STRING"),
+            bigquery.SchemaField("action_type", "STRING"),
+            bigquery.SchemaField("status", "STRING"),
+            bigquery.SchemaField("execution_details", "STRING"),
+            bigquery.SchemaField("executed_at", "FLOAT"),
+            bigquery.SchemaField("dry_run", "BOOLEAN"),
+            bigquery.SchemaField("patch_test", "STRING"),
+        ]
+    
+        table = bigquery.Table(f"{project_id}.{table_id}", schema=schema)
+        bq_client.create_table(table, exists_ok=True)
+    
+        # Insert execution records
+        execution_records = []
+        for action in executed_actions:
+            record = {
+                "signal_id": trigger_signal["signal_id"],
+                "wallet_address": trigger_signal["wallet_address"],
+                "action_type": action["action_type"],
+                "status": action["status"],
+                "execution_details": json.dumps(action),
+                "executed_at": action["timestamp"],
+                "dry_run": action.get("dry_run", False),
+                "patch_test": "patch_4_action_executor"
+            }
+            execution_records.append(record)
+    
+        errors = bq_client.insert_rows_json(
+            bq_client.get_table(table_id),
+            execution_records
+        )
+        assert len(errors) == 0
+    
+        # Verify actions were executed
+        query = f"""
+        SELECT COUNT(*) as action_count,
+               COUNTIF(status = 'executed' OR status = 'sent') as successful_actions
+        FROM `{project_id}.{table_id}`
+        WHERE patch_test = 'patch_4_action_executor'
+        """
+    
+        query_job = bq_client.query(query)
+        results = list(query_job.result())
+    
+        assert len(results) == 1
+>       assert results[0].action_count == 3  # All three actions
+E       AssertionError: assert 45 == 3
+E        +  where 45 = Row((45, 45), {'action_count': 0, 'successful_actions': 1}).action_count
+
+tests/e2e/tier2/test_t2_b_v3_patches_integration.py:485: AssertionError
+______________ TestIngestionToProcessing.test_pubsub_message_flow ______________
+
+self = <test_services_integration.TestIngestionToProcessing object at 0x15aa84490>
+sample_blockchain_events = [{'block_number': 18500000, 'event_name': 'TRANSFER', 'from_address': '0xsender12300000000000000000000000000000', 'gas...00001, 'event_name': 'SWAP', 'from_address': '0xmevbot45600000000000000000000000000000', 'gas_price_gwei': 200.0, ...}]
+
+    @pytest.mark.asyncio
+    async def test_pubsub_message_flow(self, sample_blockchain_events):
+        """Test Pub/Sub message publishing and consuming."""
+        published_messages = []
+    
+        # Mock Pub/Sub publisher
+        with patch('google.cloud.pubsub_v1.PublisherClient') as mock_pub:
+            mock_client = Mock()
+    
+            def capture_publish(topic, data, **kwargs):
+                published_messages.append(json.loads(data.decode('utf-8')))
+                return Mock()
+    
+            mock_client.publish.side_effect = capture_publish
+            mock_pub.return_value = mock_client
+    
+            # Simulate ingestion service
+>           from services.ethereum_ingester.ethereum_ingester import MessagePublisher
+E           ImportError: cannot import name 'MessagePublisher' from 'services.ethereum_ingester.ethereum_ingester' (/Users/jadenfix/eth/services/ethereum_ingester/ethereum_ingester.py)
+
+tests/integration/test_services_integration.py:83: ImportError
+___________ TestIngestionToProcessing.test_agent_message_consumption ___________
+
+self = <test_services_integration.TestIngestionToProcessing object at 0x15aa98310>
+sample_blockchain_events = [{'block_number': 18500000, 'event_name': 'TRANSFER', 'from_address': '0xsender12300000000000000000000000000000', 'gas...00001, 'event_name': 'SWAP', 'from_address': '0xmevbot45600000000000000000000000000000', 'gas_price_gwei': 200.0, ...}]
+
+    @pytest.mark.asyncio
+    async def test_agent_message_consumption(self, sample_blockchain_events):
+        """Test agent consuming and processing messages."""
+        processed_events = []
+    
+        # Mock MEV agent
+        from services.mev_agent.mev_agent import MEVWatchAgent
+    
+        agent = MEVWatchAgent()
+    
+        # Mock signal publishing
+        async def capture_signal(signal):
+            processed_events.append({
+                'signal_type': signal.signal_type,
+                'confidence': signal.confidence_score,
+                'addresses': signal.related_addresses
+            })
+    
+        agent._publish_signal = capture_signal
+    
+        # Process high-gas event (should trigger MEV detection)
+        high_gas_event = sample_blockchain_events[1]
+        await agent._analyze_transaction(high_gas_event)
+    
+        # Verify signal was generated
+        assert len(processed_events) >= 1
+        signal = processed_events[0]
+>       assert signal['signal_type'] in ['FRONT_RUNNING', 'HIGH_GAS_ANOMALY']
+E       AssertionError: assert 'SANDWICH_ATTACK' in ['FRONT_RUNNING', 'HIGH_GAS_ANOMALY']
+
+tests/integration/test_services_integration.py:123: AssertionError
+------------------------------ Captured log call -------------------------------
+ERROR    services.mev_agent.mev_agent:mev_agent.py:251 {"service": "mev-watch-agent", "error": "'event_data'", "event": "Error in frontrunning detection", "logger": "services.mev_agent.mev_agent", "level": "error", "timestamp": "2025-07-25T20:38:26.918001Z"}
+ERROR    services.mev_agent.mev_agent:mev_agent.py:294 {"service": "mev-watch-agent", "error": "'event_data'", "event": "Error in arbitrage detection", "logger": "services.mev_agent.mev_agent", "level": "error", "timestamp": "2025-07-25T20:38:26.918184Z"}
+ERROR    services.mev_agent.mev_agent:mev_agent.py:331 {"service": "mev-watch-agent", "error": "'event_data'", "event": "Error in MEV bot detection", "logger": "services.mev_agent.mev_agent", "level": "error", "timestamp": "2025-07-25T20:38:26.918219Z"}
+______________ TestAPIIntegration.test_graphql_api_basic_queries _______________
+
+self = <test_services_integration.TestAPIIntegration object at 0x15aa98c50>
+
+    def test_graphql_api_basic_queries(self):
+        """Test GraphQL API basic functionality."""
+        from services.graph_api.graph_api import app
+        from fastapi.testclient import TestClient
+    
+        client = TestClient(app)
+    
+        # Test schema introspection
+        introspection_query = """
+        query IntrospectionQuery {
+            __schema {
+                queryType { name }
+                types {
+                    name
+                    kind
+                }
+            }
+        }
+        """
+    
+        response = client.post("/graphql", json={"query": introspection_query})
+        assert response.status_code == 200
+    
+        data = response.json()
+        assert 'data' in data
+        assert '__schema' in data['data']
+    
+        # Verify core types exist
+        type_names = [t['name'] for t in data['data']['__schema']['types']]
+        expected_types = ['Entity', 'Address', 'Transaction', 'Query']
+    
+        for expected_type in expected_types:
+>           assert expected_type in type_names
+E           AssertionError: assert 'Address' in ['Query', 'String', 'Int', 'Mutation', 'Entity', 'Float', ...]
+
+tests/integration/test_services_integration.py:189: AssertionError
+______________ TestDatabaseIntegration.test_bigquery_mock_queries ______________
+
+self = <test_services_integration.TestDatabaseIntegration object at 0x15aa99fd0>
+
+    def test_bigquery_mock_queries(self):
+        """Test BigQuery query functionality with mocks."""
+        with patch('google.cloud.bigquery.Client') as mock_bq:
+            mock_client = Mock()
+    
+            # Mock query result
+            mock_result = [
+                {'block_number': 18500000, 'tx_count': 150},
+                {'block_number': 18500001, 'tx_count': 143},
+                {'block_number': 18500002, 'tx_count': 167}
+            ]
+    
+            mock_job = Mock()
+            mock_job.result.return_value = [Mock(**row) for row in mock_result]
+            mock_client.query.return_value = mock_job
+            mock_bq.return_value = mock_client
+    
+            # Test database helper
+>           from services.ingestion.database_helper import BigQueryHelper
+E           ModuleNotFoundError: No module named 'services.ingestion.database_helper'
+
+tests/integration/test_services_integration.py:276: ModuleNotFoundError
+_______ TestSecurityAndCompliance.test_access_control_policy_enforcement _______
+
+self = <test_services_integration.TestSecurityAndCompliance object at 0x15aa9a890>
+
+    def test_access_control_policy_enforcement(self):
+        """Test access control policy evaluation."""
+>       from services.access_control.audit_sink import PolicyEvaluator
+E       ImportError: cannot import name 'PolicyEvaluator' from 'services.access_control.audit_sink' (/Users/jadenfix/eth/services/access_control/audit_sink.py)
+
+tests/integration/test_services_integration.py:290: ImportError
+__________ TestSecurityAndCompliance.test_audit_logging_functionality __________
+
+self = <test_services_integration.TestSecurityAndCompliance object at 0x15aa9af10>
+
+    def test_audit_logging_functionality(self):
+        """Test comprehensive audit logging."""
+        from services.access_control.audit_sink import AuditLogger
+    
+        logger = AuditLogger()
+    
+        # Generate test audit entries
+        entries = []
+    
+        # Successful query
+        entries.append(logger.log_access(
+            user='analyst@company.com',
+            resource='transactions_table',
+            action='SELECT',
+            result='SUCCESS',
+            metadata={'rows_returned': 150}
+        ))
+    
+        # Failed access attempt
+        entries.append(logger.log_access(
+            user='external@badactor.com',
+            resource='sensitive_data',
+            action='SELECT',
+            result='DENIED',
+            metadata={'reason': 'unauthorized_user'}
+        ))
+    
+        # Verify audit entries structure
+        for entry in entries:
+            assert 'user' in entry
+            assert 'resource' in entry
+            assert 'action' in entry
+            assert 'result' in entry
+            assert 'timestamp' in entry
+>           assert 'session_id' in entry
+E           AssertionError: assert 'session_id' in {'action': 'SELECT', 'metadata': {'rows_returned': 150}, 'resource': 'transactions_table', 'result': 'SUCCESS', ...}
+
+tests/integration/test_services_integration.py:351: AssertionError
+__________ TestSecurityAndCompliance.test_data_masking_implementation __________
+
+self = <test_services_integration.TestSecurityAndCompliance object at 0x15aa9b590>
+
+    def test_data_masking_implementation(self):
+        """Test data masking for sensitive information."""
+        from services.access_control.audit_sink import DataMasker
+    
+        masker = DataMasker()
+    
+        # Test data with mixed sensitive and non-sensitive fields
+        test_record = {
+            'transaction_hash': '0x123abc456def789',
+            'from_address': '0xsender123',
+            'to_address': '0xrecipient456',
+            'user_email': 'user@example.com',
+            'phone_number': '+1-555-123-4567',
+            'value_usd': 15000.50
+        }
+    
+>       masked_record = masker.mask_sensitive_data(test_record, user_role='analyst')
+E       TypeError: DataMasker.mask_sensitive_data() got an unexpected keyword argument 'user_role'
+
+tests/integration/test_services_integration.py:369: TypeError
+_________ TestWorkflowIntegration.test_dagster_job_definition_loading __________
+
+self = <test_services_integration.TestWorkflowIntegration object at 0x15aa9bdd0>
+
+    def test_dagster_job_definition_loading(self):
+        """Test loading Dagster job definitions."""
+>       from services.workflow_builder.sample_signal import (
+            high_value_transfer_monitor,
+            suspicious_activity_monitor
+        )
+
+tests/integration/test_services_integration.py:386: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+    """
+    Workflow Builder Service - Dagster job definitions for low-code signal building.
+    
+    Provides visual workflow composition for non-technical users to create
+    custom blockchain monitoring and alerting workflows.
+    """
+    
+    import os
+    from typing import Dict, List, Any, Optional
+    from datetime import datetime, timedelta
+    
+    from dagster import (
+        job, op, Config, In, Out, DynamicOut, DynamicPartitionsDefinition,
+        resource, sensor, schedule, asset, AssetMaterialization,
+        get_dagster_logger, OpExecutionContext, JobDefinition
+    )
+>   from dagster_gcp import BigQueryResource, gcp_gcs_resource
+E   ImportError: cannot import name 'gcp_gcs_resource' from 'dagster_gcp' (/Users/jadenfix/.pyenv/versions/3.11.3/lib/python3.11/site-packages/dagster_gcp/__init__.py)
+
+services/workflow_builder/sample_signal.py:17: ImportError
+____________ TestWorkflowIntegration.test_custom_workflow_creation _____________
+
+self = <test_services_integration.TestWorkflowIntegration object at 0x15aaa0490>
+
+    def test_custom_workflow_creation(self):
+        """Test dynamic workflow creation."""
+>       from services.workflow_builder.sample_signal import build_custom_workflow
+
+tests/integration/test_services_integration.py:401: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+    """
+    Workflow Builder Service - Dagster job definitions for low-code signal building.
+    
+    Provides visual workflow composition for non-technical users to create
+    custom blockchain monitoring and alerting workflows.
+    """
+    
+    import os
+    from typing import Dict, List, Any, Optional
+    from datetime import datetime, timedelta
+    
+    from dagster import (
+        job, op, Config, In, Out, DynamicOut, DynamicPartitionsDefinition,
+        resource, sensor, schedule, asset, AssetMaterialization,
+        get_dagster_logger, OpExecutionContext, JobDefinition
+    )
+>   from dagster_gcp import BigQueryResource, gcp_gcs_resource
+E   ImportError: cannot import name 'gcp_gcs_resource' from 'dagster_gcp' (/Users/jadenfix/.pyenv/versions/3.11.3/lib/python3.11/site-packages/dagster_gcp/__init__.py)
+
+services/workflow_builder/sample_signal.py:17: ImportError
+__________ TestWorkflowIntegration.test_workflow_execution_simulation __________
+
+self = <test_services_integration.TestWorkflowIntegration object at 0x15aaa0ad0>
+
+    @pytest.mark.asyncio
+    async def test_workflow_execution_simulation(self):
+        """Test workflow execution with mocked components."""
+        import pandas as pd
+        from unittest.mock import Mock
+>       from services.workflow_builder.sample_signal import (
+            fetch_blockchain_data,
+            detect_anomalies,
+            generate_signal
+        )
+
+tests/integration/test_services_integration.py:441: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+    """
+    Workflow Builder Service - Dagster job definitions for low-code signal building.
+    
+    Provides visual workflow composition for non-technical users to create
+    custom blockchain monitoring and alerting workflows.
+    """
+    
+    import os
+    from typing import Dict, List, Any, Optional
+    from datetime import datetime, timedelta
+    
+    from dagster import (
+        job, op, Config, In, Out, DynamicOut, DynamicPartitionsDefinition,
+        resource, sensor, schedule, asset, AssetMaterialization,
+        get_dagster_logger, OpExecutionContext, JobDefinition
+    )
+>   from dagster_gcp import BigQueryResource, gcp_gcs_resource
+E   ImportError: cannot import name 'gcp_gcs_resource' from 'dagster_gcp' (/Users/jadenfix/.pyenv/versions/3.11.3/lib/python3.11/site-packages/dagster_gcp/__init__.py)
+
+services/workflow_builder/sample_signal.py:17: ImportError
+________ TestSystemHealthMonitoring.test_health_check_service_discovery ________
+
+self = <test_services_integration.TestSystemHealthMonitoring object at 0x15aaa12d0>
+
+    @pytest.mark.asyncio
+    async def test_health_check_service_discovery(self):
+        """Test health checking of registered services."""
+>       from services.monitoring.health_service import HealthMonitoringService
+
+tests/integration/test_services_integration.py:502: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+    """
+    System Health and Monitoring Service.
+    
+    Provides comprehensive health checks, performance metrics, and
+    operational insights for the blockchain intelligence platform.
+    """
+    
+    import os
+    import asyncio
+    import json
+    import time
+    import logging
+    import psutil
+    from typing import Dict, List, Optional, Any, Tuple
+    from dataclasses import dataclass, asdict
+    from datetime import datetime, timedelta
+    from enum import Enum
+    
+    import structlog
+    import aiohttp
+>   import aioredis
+E   ModuleNotFoundError: No module named 'aioredis'
+
+services/monitoring/health_service.py:21: ModuleNotFoundError
+=========================== short test summary info ============================
+SKIPPED [1] tests/e2e/tier2/test_t2_a_real_service_integration.py:393: GraphQL endpoint returned 404
+FAILED tests/e2e/test_comprehensive.py::TestLayer1Ingestion::test_ethereum_ingestion_pipeline
+FAILED tests/e2e/test_comprehensive.py::TestLayer2SemanticFusion::test_ontology_graphql_api
+FAILED tests/e2e/test_comprehensive.py::TestLayer3IntelligenceAgentMesh::test_vertex_ai_pipeline_mock
+FAILED tests/e2e/test_comprehensive.py::TestLayer4APIVoiceOps::test_graphql_api_endpoints
+FAILED tests/e2e/test_comprehensive.py::TestLayer4APIVoiceOps::test_voice_ops_integration
+FAILED tests/e2e/test_comprehensive.py::TestLayer5UXWorkflowBuilder::test_dagster_workflow_execution
+FAILED tests/e2e/test_comprehensive.py::TestLayer5UXWorkflowBuilder::test_custom_workflow_builder
+FAILED tests/e2e/test_comprehensive.py::TestLayer6SystemIntegration::test_full_pipeline_integration
+FAILED tests/e2e/test_comprehensive.py::TestLayer6SystemIntegration::test_health_monitoring_integration
+FAILED tests/e2e/test_comprehensive.py::TestSecurityCompliance::test_encryption_at_rest
+FAILED tests/e2e/test_comprehensive.py::TestSecurityCompliance::test_gdpr_compliance
+FAILED tests/e2e/test_comprehensive.py::TestSecurityCompliance::test_soc2_audit_trail
+FAILED tests/e2e/tier0/test_t0_a_basic_ingestion.py::TestIngestToBigQuery::test_ingest_synthetic_transaction
+FAILED tests/e2e/tier0/test_t0_a_basic_ingestion.py::TestIngestToBigQuery::test_ingest_multiple_transactions
+FAILED tests/e2e/tier0/test_t0_a_basic_ingestion.py::TestIngestToBigQuery::test_ingest_with_pubsub_simulation
+FAILED tests/e2e/tier0/test_t0_b_basic_queries.py::TestBigQueryQueries::test_simple_bigquery_query
+FAILED tests/e2e/tier0/test_t0_b_basic_queries.py::TestBigQueryQueries::test_aggregated_query
+FAILED tests/e2e/tier0/test_t0_b_basic_queries.py::TestBigQueryQueries::test_query_with_filters
+FAILED tests/e2e/tier0/test_t0_c_graph_queries.py::TestNeo4jGraphQueries::test_simple_graph_query
+FAILED tests/e2e/tier0/test_t0_c_graph_queries.py::TestNeo4jGraphQueries::test_graph_path_query
+FAILED tests/e2e/tier0/test_t0_c_graph_queries.py::TestNeo4jGraphQueries::test_graph_aggregation_query
+FAILED tests/e2e/tier0/test_t0_c_graph_queries.py::TestNeo4jGraphQueries::test_graph_export_format
+FAILED tests/e2e/tier0/test_t0_d_ui_rendering.py::TestUIRendering::test_dashboard_loads_without_crash
+FAILED tests/e2e/tier0/test_t0_d_ui_rendering.py::TestUIRendering::test_graph_visualization_endpoint
+FAILED tests/e2e/tier0/test_t0_d_ui_rendering.py::TestUIRendering::test_health_check_endpoint
+FAILED tests/e2e/tier0/test_t0_d_ui_rendering.py::TestUIRendering::test_api_error_handling
+FAILED tests/e2e/tier0/test_t0_d_ui_rendering.py::TestUIRendering::test_static_assets_loading
+FAILED tests/e2e/tier1/test_t1_a_realtime_ingestion.py::TestRealTimeIngestion::test_pubsub_to_bigquery_pipeline
+FAILED tests/e2e/tier1/test_t1_a_realtime_ingestion.py::TestRealTimeIngestion::test_high_volume_ingestion
+FAILED tests/e2e/tier1/test_t1_a_realtime_ingestion.py::TestRealTimeIngestion::test_data_validation_and_filtering
+FAILED tests/e2e/tier1/test_t1_a_realtime_ingestion.py::TestRealTimeIngestion::test_streaming_ingestion_latency
+FAILED tests/e2e/tier1/test_t1_a_realtime_ingestion.py::TestRealTimeIngestion::test_duplicate_detection
+FAILED tests/e2e/tier1/test_t1_b_bidirectional_sync.py::TestBidirectionalSync::test_bigquery_to_neo4j_sync
+FAILED tests/e2e/tier1/test_t1_b_bidirectional_sync.py::TestBidirectionalSync::test_neo4j_to_bigquery_sync
+FAILED tests/e2e/tier1/test_t1_b_bidirectional_sync.py::TestBidirectionalSync::test_bidirectional_consistency_check
+FAILED tests/e2e/tier1/test_t1_b_bidirectional_sync.py::TestBidirectionalSync::test_real_time_sync_latency
+FAILED tests/e2e/tier1/test_t1_b_bidirectional_sync.py::TestBidirectionalSync::test_sync_conflict_resolution
+FAILED tests/e2e/tier2/test_t2_a_real_service_integration.py::TestRealServiceIntegration::test_websocket_endpoints
+FAILED tests/e2e/tier2/test_t2_b_v3_patches_integration.py::TestV3PatchesIntegration::test_patch_4_autonomous_action_executor
+FAILED tests/integration/test_services_integration.py::TestIngestionToProcessing::test_pubsub_message_flow
+FAILED tests/integration/test_services_integration.py::TestIngestionToProcessing::test_agent_message_consumption
+FAILED tests/integration/test_services_integration.py::TestAPIIntegration::test_graphql_api_basic_queries
+FAILED tests/integration/test_services_integration.py::TestDatabaseIntegration::test_bigquery_mock_queries
+FAILED tests/integration/test_services_integration.py::TestSecurityAndCompliance::test_access_control_policy_enforcement
+FAILED tests/integration/test_services_integration.py::TestSecurityAndCompliance::test_audit_logging_functionality
+FAILED tests/integration/test_services_integration.py::TestSecurityAndCompliance::test_data_masking_implementation
+FAILED tests/integration/test_services_integration.py::TestWorkflowIntegration::test_dagster_job_definition_loading
+FAILED tests/integration/test_services_integration.py::TestWorkflowIntegration::test_custom_workflow_creation
+FAILED tests/integration/test_services_integration.py::TestWorkflowIntegration::test_workflow_execution_simulation
+FAILED tests/integration/test_services_integration.py::TestSystemHealthMonitoring::test_health_check_service_discovery
+!!!!!!!!!!!!!!!!!!!!!!!!!! stopping after 50 failures !!!!!!!!!!!!!!!!!!!!!!!!!!
+50 failed, 55 passed, 1 skipped, 42 warnings in 54.01s

@@ -24,11 +24,11 @@ import pandas as pd
 
 # Test Configuration
 TEST_CONFIG = {
-    'GOOGLE_CLOUD_PROJECT': 'test-project',
+    'GOOGLE_CLOUD_PROJECT': 'ethhackathon',
     'ETHEREUM_RPC_URL': 'http://mock-ethereum-node',
     'REDIS_URL': 'redis://localhost:6379/15',  # Test DB
-    'NEO4J_URI': 'bolt://localhost:7687',
-    'ELEVENLABS_API_KEY': 'test-key',
+    'NEO4J_URI': 'neo4j://127.0.0.1:7687',
+    'ELEVENLABS_API_KEY': 'ELEVENLABS_API_KEY',
     'TEST_MODE': 'true'
 }
 

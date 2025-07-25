@@ -13,6 +13,8 @@ import json
 import time
 from pathlib import Path
 from typing import Dict, List, Any
+from dotenv import load_dotenv
+load_dotenv()
 
 # Add project root to Python path
 project_root = Path(__file__).parent
@@ -20,14 +22,50 @@ sys.path.insert(0, str(project_root))
 
 # Test configuration
 TEST_CONFIG = {
-    'GOOGLE_CLOUD_PROJECT': 'test-project-12345',
-    'ETHEREUM_RPC_URL': 'http://mock-ethereum:8545',
-    'REDIS_URL': 'redis://localhost:6379/15',
-    'NEO4J_URI': 'bolt://mock-neo4j:7687',
-    'ELEVENLABS_API_KEY': 'test-elevenlabs-key-123456',
-    'COINGECKO_API_KEY': 'test-coingecko-key-123456',
-    'TEST_MODE': 'true',
-    'SKIP_EXTERNAL_APIS': 'true'
+    'GOOGLE_CLOUD_PROJECT': os.getenv('GOOGLE_CLOUD_PROJECT', 'ethhackathon'),
+    'GOOGLE_APPLICATION_CREDENTIALS': os.getenv('GOOGLE_APPLICATION_CREDENTIALS', ''),
+    'BIGQUERY_DATASET': os.getenv('BIGQUERY_DATASET', 'onchain_data'),
+    'BIGQUERY_TABLE_RAW': os.getenv('BIGQUERY_TABLE_RAW', 'raw_events'),
+    'BIGQUERY_TABLE_RAW_DATA': os.getenv('BIGQUERY_TABLE_RAW_DATA', 'raw_data'),
+    'BIGQUERY_TABLE_CURATED': os.getenv('BIGQUERY_TABLE_CURATED', 'curated_events'),
+    'PUBSUB_TOPIC_RAW': os.getenv('PUBSUB_TOPIC_RAW', 'raw-chain-events'),
+    'PUBSUB_TOPIC_SIGNALS': os.getenv('PUBSUB_TOPIC_SIGNALS', 'ai-signals'),
+    'PUBSUB_TOPIC_FEEDBACK': os.getenv('PUBSUB_TOPIC_FEEDBACK', 'user-feedback'),
+    'PUBSUB_SUBSCRIPTION_INGESTION': os.getenv('PUBSUB_SUBSCRIPTION_INGESTION', 'ingestion-sub'),
+    'PUBSUB_SUBSCRIPTION_AGENTS': os.getenv('PUBSUB_SUBSCRIPTION_AGENTS', 'agents-sub'),
+    'ALCHEMY_API_KEY': os.getenv('ALCHEMY_API_KEY', ''),
+    'INFURA_PROJECT_ID': os.getenv('INFURA_PROJECT_ID', ''),
+    'INFURA_API_SECRET': os.getenv('INFURA_API_SECRET', ''),
+    'THEGRAPH_API_KEY': os.getenv('THEGRAPH_API_KEY', ''),
+    'VERTEX_AI_REGION': os.getenv('VERTEX_AI_REGION', 'us-central1'),
+    'VERTEX_AI_ENDPOINT': os.getenv('VERTEX_AI_ENDPOINT', ''),
+    'VERTEX_AI_MODEL_NAME': os.getenv('VERTEX_AI_MODEL_NAME', ''),
+    'NEO4J_URI': os.getenv('NEO4J_URI', ''),
+    'NEO4J_USER': os.getenv('NEO4J_USER', ''),
+    'NEO4J_PASSWORD': os.getenv('NEO4J_PASSWORD', ''),
+    'AURA_INSTANCEID': os.getenv('AURA_INSTANCEID', ''),
+    'AURA_INSTANCENAME': os.getenv('AURA_INSTANCENAME', ''),
+    'ELEVENLABS_API_KEY': os.getenv('ELEVENLABS_API_KEY', ''),
+    'ELEVENLABS_VOICE_ID': os.getenv('ELEVENLABS_VOICE_ID', ''),
+    'SLACK_BOT_TOKEN': os.getenv('SLACK_BOT_TOKEN', ''),
+    'SLACK_APP_TOKEN': os.getenv('SLACK_APP_TOKEN', ''),
+    'SLACK_SIGNING_SECRET': os.getenv('SLACK_SIGNING_SECRET', ''),
+    'STRIPE_SECRET_KEY': os.getenv('STRIPE_SECRET_KEY', ''),
+    'STRIPE_WEBHOOK_SECRET': os.getenv('STRIPE_WEBHOOK_SECRET', ''),
+    'DAGSTER_CLOUD_API_TOKEN': os.getenv('DAGSTER_CLOUD_API_TOKEN', ''),
+    'NODE_ENV': os.getenv('NODE_ENV', 'development'),
+    'PORT': os.getenv('PORT', '3000'),
+    'API_PORT': os.getenv('API_PORT', '8080'),
+    'LOG_LEVEL': os.getenv('LOG_LEVEL', 'info'),
+    'MAPBOX_TOKEN': os.getenv('MAPBOX_TOKEN', ''),
+    'NEXT_PUBLIC_MAPBOX_TOKEN': os.getenv('NEXT_PUBLIC_MAPBOX_TOKEN', ''),
+    'NEXT_PUBLIC_WEBSOCKET_ENDPOINT': os.getenv('NEXT_PUBLIC_WEBSOCKET_ENDPOINT', ''),
+    'NEXT_PUBLIC_GRAPHQL_ENDPOINT': os.getenv('NEXT_PUBLIC_GRAPHQL_ENDPOINT', ''),
+    'DECKGL_EXPLORER_PORT': os.getenv('DECKGL_EXPLORER_PORT', '3001'),
+    'TIMESERIES_CANVAS_PORT': os.getenv('TIMESERIES_CANVAS_PORT', '3002'),
+    'COMPLIANCE_MAP_PORT': os.getenv('COMPLIANCE_MAP_PORT', '3003'),
+    'WORKSPACE_PORT': os.getenv('WORKSPACE_PORT', '3004'),
+    # Add any other variables you use in your code/tests
 }
 
 # Set test environment variables

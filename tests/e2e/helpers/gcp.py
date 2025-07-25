@@ -68,14 +68,26 @@ class GCPTestUtils:
         client = self._get_bq_client()
         table_ref = client.dataset(dataset_id).table(table_id)
         
-        # Convert schema dict to BigQuery schema
+        # Convert schema dict or list to BigQuery schema
         bq_schema = []
-        for field in schema.get("fields", []):
-            bq_schema.append(bigquery.SchemaField(
-                field["name"], 
-                field["type"], 
-                mode=field.get("mode", "NULLABLE")
-            ))
+        if isinstance(schema, dict) and "fields" in schema:
+            fields = schema["fields"]
+        elif isinstance(schema, list):
+            fields = schema
+        else:
+            fields = []
+        for field in fields:
+            if hasattr(field, 'name') and hasattr(field, 'field_type'):
+                # Already a SchemaField object
+                bq_schema.append(field)
+            elif isinstance(field, dict):
+                bq_schema.append(bigquery.SchemaField(
+                    field["name"],
+                    field["type"],
+                    mode=field.get("mode", "NULLABLE")
+                ))
+            else:
+                raise TypeError(f"Unsupported schema field type: {type(field)}")
         
         table = bigquery.Table(table_ref, schema=bq_schema)
         

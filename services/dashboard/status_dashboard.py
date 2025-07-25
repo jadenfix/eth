@@ -99,7 +99,11 @@ class StatusStore:
         }
         
         # Start background data generation
-        asyncio.create_task(self.generate_mock_data())
+        try:
+            loop = asyncio.get_running_loop()
+            loop.create_task(self.generate_mock_data())
+        except RuntimeError:
+            pass
     
     async def generate_mock_data(self):
         """Generate mock real-time data."""

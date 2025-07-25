@@ -12,7 +12,7 @@ from datetime import datetime
 
 import structlog
 from ariadne import QueryType, MutationType, make_executable_schema, graphql_sync
-from ariadne.constants import PLAYGROUND_HTML
+from ariadne.explorer import ExplorerGraphiQL
 from neo4j import GraphDatabase
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse, HTMLResponse
@@ -332,7 +332,7 @@ async def graphql_endpoint(request: Request):
 
 @app.get("/graphql")
 async def graphql_playground():
-    return HTMLResponse(PLAYGROUND_HTML)
+    return ExplorerGraphiQL().html(None), 200
 
 
 @app.get("/health")

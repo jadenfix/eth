@@ -1,0 +1,28 @@
+# Dockerfile.e2e: E2E Test Runner Environment
+FROM python:3.10-slim
+
+WORKDIR /app
+
+# Install system dependencies (if needed)
+RUN apt-get update && apt-get install -y build-essential git && rm -rf /var/lib/apt/lists/*
+
+# Copy requirements and install
+COPY requirements.txt .
+RUN pip install --upgrade pip
+RUN pip install -r requirements.txt
+RUN pip install pytest pytest-asyncio pytest-cov
+
+# Copy the rest of the codebase
+COPY . .
+
+# Set environment variables for test credentials (override as needed)
+ENV GOOGLE_APPLICATION_CREDENTIALS=/app/.gcp_credentials.json
+ENV GOOGLE_CLOUD_PROJECT=ethhackathon
+ENV NEO4J_URI=bolt://localhost:7687
+ENV NEO4J_USER=neo4j
+ENV NEO4J_PASSWORD=password
+ENV ELEVENLABS_API_KEY=demo_key
+ENV ELEVENLABS_VOICE_ID=21m00Tcm4TlvDq8ikWAM
+
+# Default command: run the E2E test runner for tier0 and tier1
+CMD ["python", "test_runner_e2e.py", "--tiers", "0", "1", "--timeout", "15"] 

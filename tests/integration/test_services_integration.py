@@ -15,7 +15,7 @@ from pathlib import Path
 
 # Set test environment
 os.environ.update({
-    'GOOGLE_CLOUD_PROJECT': 'test-project',
+    'GOOGLE_CLOUD_PROJECT': 'ethhackathon',
     'ETHEREUM_RPC_URL': 'http://mock-node:8545', 
     'REDIS_URL': 'redis://localhost:6379/15',
     'TEST_MODE': 'true',

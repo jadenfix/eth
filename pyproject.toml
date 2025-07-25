@@ -12,5 +12,7 @@ markers = [
     "tier3: Resilience and scale tests",
     "slow: Tests that take more than 10 seconds",
     "integration: Integration tests requiring external services",
-    "unit: Unit tests for isolated components"
+    "unit: Unit tests for isolated components",
+    "neo4j: mark test as requiring Neo4j connection"
+
 ]

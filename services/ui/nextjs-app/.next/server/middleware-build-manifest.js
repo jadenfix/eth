@@ -24,15 +24,25 @@ self.__BUILD_MANIFEST = {
       "static/chunks/main.js",
       "static/chunks/pages/_error.js"
     ],
-    "/explorer": [
+    "/architecture": [
       "static/chunks/webpack.js",
       "static/chunks/main.js",
-      "static/chunks/pages/explorer.js"
+      "static/chunks/pages/architecture.js"
+    ],
+    "/ontology": [
+      "static/chunks/webpack.js",
+      "static/chunks/main.js",
+      "static/chunks/pages/ontology.js"
     ],
     "/services": [
       "static/chunks/webpack.js",
       "static/chunks/main.js",
       "static/chunks/pages/services.js"
+    ],
+    "/workspace": [
+      "static/chunks/webpack.js",
+      "static/chunks/main.js",
+      "static/chunks/pages/workspace.js"
     ]
   },
   "ampFirstPages": []

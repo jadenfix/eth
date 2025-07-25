@@ -9,6 +9,8 @@ import asyncio
 import time
 from typing import Dict, Any, Optional
 from dataclasses import dataclass
+from dotenv import load_dotenv
+load_dotenv()
 
 # Import dependencies with graceful fallbacks
 try:
@@ -77,7 +79,7 @@ class TestConfig:
 @pytest.fixture
 def gcp_env():
     """GCP test environment configuration"""
-    test_project = os.getenv("GCP_PROJECT_ID", "test-project-12345")
+    test_project = os.getenv("GCP_PROJECT_ID", os.getenv("GOOGLE_CLOUD_PROJECT", "ethhackathon"))
     return GCPTestEnvironment(
         project_id=test_project,
         test_prefix=f"test_{int(time.time())}"
