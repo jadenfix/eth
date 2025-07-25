@@ -74,7 +74,11 @@ System Readiness: 78% Production Ready
 
 import time
 import os
+import pytest
 
+@pytest.mark.e2e
+@pytest.mark.tier2
+@pytest.mark.integration
 def generate_test_report():
     """Generate comprehensive test report"""
     

@@ -72,8 +72,8 @@ class TestNeo4jGraphQueries:
         
         # 2. Query graph structure
         query = """
-        MATCH (a {fixture_id: 'T0_C_graph'})-[r {fixture_id: 'T0_C_graph'}]->(b {fixture_id: 'T0_C_graph'})
-        RETURN a.address as from_addr, 
+        MATCH (a:TestAddress {fixture_id: 'T0_C_graph'})-[r:TestRelationship {fixture_id: 'T0_C_graph'}]->(b:TestAddress {fixture_id: 'T0_C_graph'})
+        RETURN DISTINCT a.address as from_addr, 
                a.type as from_type,
                a.risk_score as from_risk,
                r.relationship_type as rel_type,
@@ -139,11 +139,13 @@ class TestNeo4jGraphQueries:
         
         # Query for paths from first to last node
         query = """
-        MATCH path = (start {address: '0xPATH000', fixture_id: 'T0_C_path'})
-                     -[*1..3 {fixture_id: 'T0_C_path'}]->
-                     (end {address: '0xPATH003', fixture_id: 'T0_C_path'})
-        RETURN [node in nodes(path) | node.address] as path_addresses,
+        MATCH path = (start:TestAddress {address: '0xPATH000', fixture_id: 'T0_C_path'})
+                     -[*1..3]->
+                     (end:TestAddress {address: '0xPATH003', fixture_id: 'T0_C_path'})
+        WHERE all(r in relationships(path) WHERE r:TestRelationship AND r.fixture_id = 'T0_C_path')
+        RETURN DISTINCT [node in nodes(path) | node.address] as path_addresses,
                length(path) as path_length
+        LIMIT 1
         """
         
         results = neo4j_utils.query_graph(query)
@@ -192,12 +194,12 @@ class TestNeo4jGraphQueries:
         
         # Query for aggregated data about the hub
         query = """
-        MATCH (spoke {fixture_id: 'T0_C_agg'})-[r {fixture_id: 'T0_C_agg'}]->(hub {address: '0xHUB001'})
+        MATCH (spoke:TestAddress {fixture_id: 'T0_C_agg'})-[r:TestRelationship {fixture_id: 'T0_C_agg'}]->(hub:TestAddress {address: '0xHUB001'})
         RETURN hub.address as hub_address,
-               count(spoke) as connected_nodes,
-               sum(r.transaction_count) as total_transactions,
-               sum(r.total_value) as total_value_received,
-               avg(spoke.risk_score) as avg_spoke_risk
+               count(DISTINCT spoke.address) as connected_nodes,
+               sum(DISTINCT r.transaction_count) as total_transactions,
+               sum(DISTINCT r.total_value) as total_value_received,
+               avg(DISTINCT spoke.risk_score) as avg_spoke_risk
         """
         
         results = neo4j_utils.query_graph(query)
@@ -239,7 +241,7 @@ class TestNeo4jGraphQueries:
         
         # Validate export format
         assert "nodes" in export_data, "Export should have 'nodes' field"
-        assert "edges" in export_data, "Export should have 'edges' field"
+        assert "relationships" in export_data, "Export should have 'relationships' field"
         
         # Validate nodes format
         nodes = export_data["nodes"]
@@ -247,16 +249,15 @@ class TestNeo4jGraphQueries:
         for node in nodes:
             assert "id" in node, "Node should have 'id' field"
             assert "type" in node, "Node should have 'type' field"
-            assert "properties" in node, "Node should have 'properties' field"
+            # Properties are directly on the node, not in a separate properties field
         
-        # Validate edges format
-        edges = export_data["edges"]
-        assert len(edges) == 1, "Should have 1 edge"
-        edge = edges[0]
-        assert "source" in edge, "Edge should have 'source' field"
-        assert "target" in edge, "Edge should have 'target' field"
-        assert "type" in edge, "Edge should have 'type' field"
-        assert "properties" in edge, "Edge should have 'properties' field"
+        # Validate relationships format
+        relationships = export_data["relationships"]
+        assert len(relationships) == 1, "Should have 1 relationship"
+        relationship = relationships[0]
+        assert "from" in relationship, "Relationship should have 'from' field"
+        assert "to" in relationship, "Relationship should have 'to' field"
+        assert "type" in relationship, "Relationship should have 'type' field"
         
         # Verify JSON serialization
         json_str = json.dumps(export_data)

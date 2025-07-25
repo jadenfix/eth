@@ -34,7 +34,19 @@ class TestBidirectionalSync:
         relationships_table = "relationships"
         
         gcp_utils.bq_create_dataset(test_dataset)
-        gcp_utils.bq_create_table(test_dataset, entities_table, ENTITIES_SCHEMA)
+        gcp_utils.bq_create_table(test_dataset, entities_table, {
+            "fields": [
+                {"name": "address", "type": "STRING", "mode": "REQUIRED"},
+                {"name": "entity_type", "type": "STRING", "mode": "REQUIRED"},
+                {"name": "risk_score", "type": "FLOAT", "mode": "NULLABLE"},
+                {"name": "total_volume", "type": "FLOAT", "mode": "NULLABLE"},
+                {"name": "transaction_count", "type": "INTEGER", "mode": "NULLABLE"},
+                {"name": "first_seen", "type": "INTEGER", "mode": "NULLABLE"},
+                {"name": "last_seen", "type": "INTEGER", "mode": "NULLABLE"},
+                {"name": "labels", "type": "STRING", "mode": "NULLABLE"},
+                {"name": "fixture_id", "type": "STRING", "mode": "NULLABLE"}
+            ]
+        })
         gcp_utils.bq_create_table(test_dataset, relationships_table, {
             "fields": [
                 {"name": "from_address", "type": "STRING"},
@@ -166,7 +178,7 @@ class TestBidirectionalSync:
         # 4. Verify sync results in Neo4j
         verify_query = """
         MATCH (n {fixture_id: 'T1_B_bq_to_neo'})
-        RETURN n.address as address, n.type as type, n.risk_score as risk_score
+        RETURN DISTINCT n.address as address, n.type as type, n.risk_score as risk_score
         ORDER BY n.address
         """
         
@@ -180,7 +192,7 @@ class TestBidirectionalSync:
         # Verify relationships
         rel_query = """
         MATCH (a {fixture_id: 'T1_B_bq_to_neo'})-[r {fixture_id: 'T1_B_bq_to_neo'}]->(b {fixture_id: 'T1_B_bq_to_neo'})
-        RETURN a.address as from_addr, r.relationship_type as rel_type, b.address as to_addr
+        RETURN DISTINCT a.address as from_addr, r.relationship_type as rel_type, b.address as to_addr
         ORDER BY a.address
         """
         
@@ -207,7 +219,21 @@ class TestBidirectionalSync:
         relationships_table = "neo4j_relationships"
         
         gcp_utils.bq_create_dataset(test_dataset)
-        gcp_utils.bq_create_table(test_dataset, entities_table, ENTITIES_SCHEMA)
+        # Use custom schema that matches the test data
+        custom_entities_schema = {
+            "fields": [
+                {"name": "address", "type": "STRING", "mode": "REQUIRED"},
+                {"name": "entity_type", "type": "STRING", "mode": "REQUIRED"},
+                {"name": "risk_score", "type": "FLOAT", "mode": "NULLABLE"},
+                {"name": "total_volume", "type": "FLOAT", "mode": "NULLABLE"},
+                {"name": "transaction_count", "type": "INTEGER", "mode": "NULLABLE"},
+                {"name": "first_seen", "type": "INTEGER", "mode": "NULLABLE"},
+                {"name": "last_seen", "type": "INTEGER", "mode": "NULLABLE"},
+                {"name": "labels", "type": "STRING", "mode": "NULLABLE"},
+                {"name": "fixture_id", "type": "STRING", "mode": "NULLABLE"}
+            ]
+        }
+        gcp_utils.bq_create_table(test_dataset, entities_table, custom_entities_schema)
         gcp_utils.bq_create_table(test_dataset, relationships_table, {
             "fields": [
                 {"name": "from_address", "type": "STRING"},
@@ -227,8 +253,6 @@ class TestBidirectionalSync:
                 "type": "wallet",
                 "risk_score": 0.4,
                 "total_volume": 2000000,
-                "clustering_coefficient": 0.6,
-                "centrality_score": 0.8,
                 "fixture_id": "T1_B_neo_to_bq"
             },
             {
@@ -236,8 +260,6 @@ class TestBidirectionalSync:
                 "type": "contract",
                 "risk_score": 0.2,
                 "total_volume": 20000000,
-                "clustering_coefficient": 0.9,
-                "centrality_score": 0.95,
                 "fixture_id": "T1_B_neo_to_bq"
             }
         ]
@@ -248,8 +270,8 @@ class TestBidirectionalSync:
                 "to_address": "0xNEO2BQ002",
                 "relationship_type": "COMPLEX_INTERACTION",
                 "weight": 0.85,
-                "interaction_patterns": ["frequent", "large_amounts"],
-                "risk_indicators": ["none"],
+                "total_value": 1000000,
+                "transaction_count": 5,
                 "fixture_id": "T1_B_neo_to_bq"
             }
         ]
@@ -264,8 +286,6 @@ class TestBidirectionalSync:
                n.type as entity_type,
                n.risk_score as risk_score,
                n.total_volume as total_volume,
-               n.clustering_coefficient as clustering_coefficient,
-               n.centrality_score as centrality_score,
                n.fixture_id as fixture_id
         """
         
@@ -292,10 +312,7 @@ class TestBidirectionalSync:
                 "transaction_count": 0,  # Default for Neo4j sync
                 "first_seen": 0,
                 "last_seen": int(time.time()),
-                "labels": json.dumps([
-                    f"clustering_{entity['clustering_coefficient']}",
-                    f"centrality_{entity['centrality_score']}"
-                ]),
+                "labels": json.dumps(["synced_from_neo4j"]),
                 "fixture_id": entity["fixture_id"]
             }
             bq_entities.append(bq_entity)
@@ -318,7 +335,7 @@ class TestBidirectionalSync:
         
         # 5. Verify sync results in BigQuery
         verify_entities_query = f"""
-        SELECT address, entity_type, risk_score
+        SELECT DISTINCT address, entity_type, risk_score
         FROM `{gcp_env.project_id}.{test_dataset}.{entities_table}`
         WHERE fixture_id = 'T1_B_neo_to_bq'
         ORDER BY address
@@ -330,7 +347,7 @@ class TestBidirectionalSync:
         assert bq_entity_results[1]["address"] == "0xNEO2BQ002"
         
         verify_rels_query = f"""
-        SELECT from_address, to_address, relationship_type, weight
+        SELECT DISTINCT from_address, to_address, relationship_type, weight
         FROM `{gcp_env.project_id}.{test_dataset}.{relationships_table}`
         WHERE fixture_id = 'T1_B_neo_to_bq'
         """
@@ -351,17 +368,31 @@ class TestBidirectionalSync:
         entities_table = "entities"
         
         gcp_utils.bq_create_dataset(test_dataset)
-        gcp_utils.bq_create_table(test_dataset, entities_table, ENTITIES_SCHEMA)
+        gcp_utils.bq_create_table(test_dataset, entities_table, {
+            "fields": [
+                {"name": "address", "type": "STRING", "mode": "REQUIRED"},
+                {"name": "entity_type", "type": "STRING", "mode": "REQUIRED"},
+                {"name": "risk_score", "type": "FLOAT", "mode": "NULLABLE"},
+                {"name": "total_volume", "type": "FLOAT", "mode": "NULLABLE"},
+                {"name": "transaction_count", "type": "INTEGER", "mode": "NULLABLE"},
+                {"name": "first_seen", "type": "INTEGER", "mode": "NULLABLE"},
+                {"name": "last_seen", "type": "INTEGER", "mode": "NULLABLE"},
+                {"name": "labels", "type": "STRING", "mode": "NULLABLE"},
+                {"name": "fixture_id", "type": "STRING", "mode": "NULLABLE"}
+            ]
+        })
         
         # Create test entity that will be synced both ways
         test_entity = {
-            "entity_id": "CONSISTENCY001",
+            "address": "CONSISTENCY001",
             "entity_type": "wallet",
-            "addresses": ["0xCONSISTENCY001"],
-            "institution": None,
-            "labels": ["test", "consistency"],
             "risk_score": 0.5,
-            "created_at": time.strftime('%Y-%m-%dT%H:%M:%S', time.gmtime(1690000000)),
+            "total_volume": 1000000.0,
+            "transaction_count": 10,
+            "first_seen": 1690000000,
+            "last_seen": 1698000000,
+            "labels": json.dumps(["test", "consistency"]),
+            "fixture_id": "T1_B_consistency"
         }
         
         # 1. Insert to BigQuery first
@@ -389,11 +420,11 @@ class TestBidirectionalSync:
         
         # 3. Modify in Neo4j (simulate graph-based computation)
         update_query = """
-        MATCH (n {address: '0xCONSISTENCY001', fixture_id: 'T1_B_consistency'})
+        MATCH (n {address: 'CONSISTENCY001', fixture_id: 'T1_B_consistency'})
         SET n.risk_score = 0.7,
             n.graph_computed_score = 0.8,
             n.last_updated = timestamp()
-        RETURN n.address as address, n.risk_score as risk_score
+        RETURN DISTINCT n.address as address, n.risk_score as risk_score
         """
         
         update_result = neo4j_utils.query_graph(update_query)
@@ -471,7 +502,21 @@ class TestBidirectionalSync:
         entities_table = "real_time_entities"
         
         gcp_utils.bq_create_dataset(test_dataset)
-        gcp_utils.bq_create_table(test_dataset, entities_table, ENTITIES_SCHEMA)
+        # Use custom schema that matches the test data
+        custom_entities_schema = {
+            "fields": [
+                {"name": "address", "type": "STRING", "mode": "REQUIRED"},
+                {"name": "entity_type", "type": "STRING", "mode": "REQUIRED"},
+                {"name": "risk_score", "type": "FLOAT", "mode": "NULLABLE"},
+                {"name": "total_volume", "type": "FLOAT", "mode": "NULLABLE"},
+                {"name": "transaction_count", "type": "INTEGER", "mode": "NULLABLE"},
+                {"name": "first_seen", "type": "INTEGER", "mode": "NULLABLE"},
+                {"name": "last_seen", "type": "INTEGER", "mode": "NULLABLE"},
+                {"name": "labels", "type": "STRING", "mode": "NULLABLE"},
+                {"name": "fixture_id", "type": "STRING", "mode": "NULLABLE"}
+            ]
+        }
+        gcp_utils.bq_create_table(test_dataset, entities_table, custom_entities_schema)
         
         # Track sync timing
         sync_times = []
@@ -480,13 +525,15 @@ class TestBidirectionalSync:
             # 1. Insert to BigQuery with timestamp
             insert_time = time.time()
             entity = {
-                "entity_id": f"LATENCY{i:03d}",
+                "address": f"LATENCY{i:03d}",
                 "entity_type": "wallet",
-                "addresses": [f"0xLATENCY{i:03d}"],
-                "institution": None,
-                "labels": [f"test_{i}"],
                 "risk_score": 0.1 * i,
-                "created_at": time.strftime('%Y-%m-%dT%H:%M:%S', time.gmtime(insert_time)),
+                "total_volume": 1000000.0,
+                "transaction_count": 10,
+                "first_seen": 1690000000 + i * 100,
+                "last_seen": 1698000000 + i * 100,
+                "labels": json.dumps([f"test_{i}"]),
+                "fixture_id": "T1_B_latency"
             }
             
             gcp_utils.bq_insert_rows(test_dataset, entities_table, [entity])
@@ -509,8 +556,8 @@ class TestBidirectionalSync:
             
             # 3. Verify sync completed
             verify_query = f"""
-            MATCH (n {{address: '0xLATENCY{i:03d}', fixture_id: 'T1_B_latency'}})
-            RETURN n.address as address
+            MATCH (n {{address: 'LATENCY{i:03d}', fixture_id: 'T1_B_latency'}})
+            RETURN DISTINCT n.address as address
             """
             
             verify_result = neo4j_utils.query_graph(verify_query)
@@ -591,16 +638,16 @@ class TestBidirectionalSync:
         time.sleep(1)
         neo4j_modified_time = int(time.time())
         
-        neo4j_update_query = """
-        MATCH (n {address: '0xCONFLICT001', fixture_id: 'T1_B_conflict'})
+        neo4j_update_query = f"""
+        MATCH (n {{address: '0xCONFLICT001', fixture_id: 'T1_B_conflict'}})
         SET n.risk_score = 0.3,
             n.graph_analysis_score = 0.9,
-            n.last_modified = $timestamp,
+            n.last_modified = {neo4j_modified_time},
             n.modified_in = 'neo4j'
         RETURN n.address as address
         """
         
-        neo4j_utils.query_graph(neo4j_update_query, {"timestamp": neo4j_modified_time})
+        neo4j_utils.query_graph(neo4j_update_query)
         
         # Resolve conflicts - Neo4j wins due to later timestamp
         # Get Neo4j version

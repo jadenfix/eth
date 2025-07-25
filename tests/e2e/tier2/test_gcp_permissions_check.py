@@ -13,6 +13,7 @@ import httpx
 
 @pytest.mark.e2e
 @pytest.mark.tier2
+@pytest.mark.integration
 class TestGCPPermissions:
     """Test GCP permissions after IAM updates"""
     
@@ -113,9 +114,9 @@ class TestGCPPermissions:
                 
         except Exception as e:
             print(f"❌ BigQuery permissions test failed: {e}")
-            return False
+            assert False, f"BigQuery permissions test failed: {e}"
         
-        return True
+        assert True, "BigQuery permissions test passed"
     
     def test_vertex_ai_permissions(self):
         """Test Vertex AI access permissions"""
@@ -167,11 +168,11 @@ class TestGCPPermissions:
                 else:
                     print("⚠️  Vertex AI endpoint access limited")
             
-            return True
+            assert True, "Vertex AI permissions test passed"
             
         except Exception as e:
             print(f"❌ Vertex AI permissions test failed: {e}")
-            return False
+            assert False, f"Vertex AI permissions test failed: {e}"
     
     def test_comprehensive_gcp_access(self):
         """Comprehensive test of all GCP services"""
@@ -206,11 +207,14 @@ class TestGCPPermissions:
         if bq_success and vertex_success:
             print("\n🎉 ALL GCP PERMISSIONS WORKING!")
             print("Ready for full V3 system deployment")
+            assert True, "All GCP permissions working"
         elif bq_success:
             print("\n✅ BigQuery permissions working - Vertex AI needs setup")
             print("Ready for data pipeline testing")
+            assert True, "BigQuery permissions working"
         elif vertex_success:
             print("\n✅ Vertex AI accessible - BigQuery needs permissions")
+            assert True, "Vertex AI accessible"
             print("Ready for AI explanations testing")
         else:
             print("\n⚠️  Both services need permission updates")

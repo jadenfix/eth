@@ -342,7 +342,8 @@ class TestRealServiceIntegration:
         ws_endpoint = os.getenv('NEXT_PUBLIC_WEBSOCKET_ENDPOINT', 'ws://localhost:4000/subscriptions')
         
         try:
-            async with websockets.connect(ws_endpoint, timeout=10) as websocket:
+            # Use asyncio.wait_for for timeout instead of websocket.settimeout
+            async with websockets.connect(ws_endpoint) as websocket:
                 # Send test subscription
                 test_subscription = {
                     "type": "start",
@@ -353,8 +354,8 @@ class TestRealServiceIntegration:
                 
                 await websocket.send(json.dumps(test_subscription))
                 
-                # Wait for response
-                response = await asyncio.wait_for(websocket.recv(), timeout=5)
+                # Wait for response with timeout
+                response = await asyncio.wait_for(websocket.recv(), timeout=10)
                 response_data = json.loads(response)
                 
                 assert "type" in response_data

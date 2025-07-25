@@ -13,6 +13,7 @@ markers = [
     "slow: Tests that take more than 10 seconds",
     "integration: Integration tests requiring external services",
     "unit: Unit tests for isolated components",
-    "neo4j: mark test as requiring Neo4j connection"
-
+    "neo4j: mark test as requiring Neo4j connection",
+    "v3: marks tests as v3 add-on features",
+    "mock: marks tests that use mocks"
 ]

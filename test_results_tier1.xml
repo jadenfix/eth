@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites><testsuite name="pytest" errors="0" failures="10" skipped="0" tests="10" time="15.935" timestamp="2025-07-25T14:06:03.014058" hostname="Mac.lan"><testcase classname="tests.e2e.tier1.test_t1_a_realtime_ingestion.TestRealTimeIngestion" name="test_pubsub_to_bigquery_pipeline" time="1.050"><failure message="AttributeError: 'GCPTestUtils' object has no attribute 'publisher'">tests/e2e/tier1/test_t1_a_realtime_ingestion.py:38: in test_pubsub_to_bigquery_pipeline
+    gcp_utils.pubsub_create_topic(test_topic)
+tests/e2e/helpers/gcp.py:139: in pubsub_create_topic
+    topic_path = self.publisher.topic_path(self.project_id, topic_id)
+E   AttributeError: 'GCPTestUtils' object has no attribute 'publisher'</failure></testcase><testcase classname="tests.e2e.tier1.test_t1_a_realtime_ingestion.TestRealTimeIngestion" name="test_high_volume_ingestion" time="1.331"><failure message="AttributeError: 'GCPTestUtils' object has no attribute 'publisher'">tests/e2e/tier1/test_t1_a_realtime_ingestion.py:118: in test_high_volume_ingestion
+    gcp_utils.pubsub_create_topic(test_topic)
+tests/e2e/helpers/gcp.py:139: in pubsub_create_topic
+    topic_path = self.publisher.topic_path(self.project_id, topic_id)
+E   AttributeError: 'GCPTestUtils' object has no attribute 'publisher'</failure></testcase><testcase classname="tests.e2e.tier1.test_t1_a_realtime_ingestion.TestRealTimeIngestion" name="test_data_validation_and_filtering" time="1.159"><failure message="AttributeError: 'GCPTestUtils' object has no attribute 'publisher'">tests/e2e/tier1/test_t1_a_realtime_ingestion.py:173: in test_data_validation_and_filtering
+    gcp_utils.pubsub_create_topic(test_topic)
+tests/e2e/helpers/gcp.py:139: in pubsub_create_topic
+    topic_path = self.publisher.topic_path(self.project_id, topic_id)
+E   AttributeError: 'GCPTestUtils' object has no attribute 'publisher'</failure></testcase><testcase classname="tests.e2e.tier1.test_t1_a_realtime_ingestion.TestRealTimeIngestion" name="test_streaming_ingestion_latency" time="1.138"><failure message="AttributeError: 'GCPTestUtils' object has no attribute 'publisher'">tests/e2e/tier1/test_t1_a_realtime_ingestion.py:274: in test_streaming_ingestion_latency
+    gcp_utils.pubsub_create_topic(test_topic)
+tests/e2e/helpers/gcp.py:139: in pubsub_create_topic
+    topic_path = self.publisher.topic_path(self.project_id, topic_id)
+E   AttributeError: 'GCPTestUtils' object has no attribute 'publisher'</failure></testcase><testcase classname="tests.e2e.tier1.test_t1_a_realtime_ingestion.TestRealTimeIngestion" name="test_duplicate_detection" time="0.997"><failure message="AttributeError: 'GCPTestUtils' object has no attribute 'publisher'">tests/e2e/tier1/test_t1_a_realtime_ingestion.py:350: in test_duplicate_detection
+    gcp_utils.pubsub_create_topic(test_topic)
+tests/e2e/helpers/gcp.py:139: in pubsub_create_topic
+    topic_path = self.publisher.topic_path(self.project_id, topic_id)
+E   AttributeError: 'GCPTestUtils' object has no attribute 'publisher'</failure></testcase><testcase classname="tests.e2e.tier1.test_t1_b_bidirectional_sync.TestBidirectionalSync" name="test_bigquery_to_neo4j_sync" time="2.024"><failure message="Exception: BigQuery insert errors: [{'index': 0, 'errors': [{'reason': 'invalid', 'location': 'first_seen', 'debugInfo': '', 'message': 'no such field: first_seen.'}]}, {'index': 1, 'errors': [{'reason': 'invalid', 'location': 'fixture_id', 'debugInfo': '', 'message': 'no such field: fixture_id.'}]}, {'index': 2, 'errors': [{'reason': 'invalid', 'location': 'total_volume', 'debugInfo': '', 'message': 'no such field: total_volume.'}]}]">tests/e2e/tier1/test_t1_b_bidirectional_sync.py:111: in test_bigquery_to_neo4j_sync
+    gcp_utils.bq_insert_rows(test_dataset, entities_table, test_entities)
+tests/e2e/helpers/gcp.py:108: in bq_insert_rows
+    raise Exception(f"BigQuery insert errors: {errors}")
+E   Exception: BigQuery insert errors: [{'index': 0, 'errors': [{'reason': 'invalid', 'location': 'first_seen', 'debugInfo': '', 'message': 'no such field: first_seen.'}]}, {'index': 1, 'errors': [{'reason': 'invalid', 'location': 'fixture_id', 'debugInfo': '', 'message': 'no such field: fixture_id.'}]}, {'index': 2, 'errors': [{'reason': 'invalid', 'location': 'total_volume', 'debugInfo': '', 'message': 'no such field: total_volume.'}]}]</failure></testcase><testcase classname="tests.e2e.tier1.test_t1_b_bidirectional_sync.TestBidirectionalSync" name="test_neo4j_to_bigquery_sync" time="1.112"><failure message="AttributeError: 'Neo4jTestUtils' object has no attribute 'load_entities'">tests/e2e/tier1/test_t1_b_bidirectional_sync.py:257: in test_neo4j_to_bigquery_sync
+    neo4j_utils.load_entities(neo4j_entities)
+E   AttributeError: 'Neo4jTestUtils' object has no attribute 'load_entities'</failure></testcase><testcase classname="tests.e2e.tier1.test_t1_b_bidirectional_sync.TestBidirectionalSync" name="test_bidirectional_consistency_check" time="2.617"><failure message="google.api_core.exceptions.BadRequest: 400 Unrecognized name: fixture_id at [4:15]; reason: invalidQuery, location: query, message: Unrecognized name: fixture_id at [4:15]&#10;&#10;Location: US&#10;Job ID: 77e3eece-fb0d-498d-a8e2-5c3fb8fe959f">tests/e2e/tier1/test_t1_b_bidirectional_sync.py:377: in test_bidirectional_consistency_check
+    bq_data = gcp_utils.bq_query(bq_query)
+tests/e2e/helpers/gcp.py:115: in bq_query
+    results = job.result()
+../.pyenv/versions/3.11.3/lib/python3.11/site-packages/google/cloud/bigquery/job/query.py:1704: in result
+    while not is_job_done():
+../.pyenv/versions/3.11.3/lib/python3.11/site-packages/google/api_core/retry/retry_unary.py:294: in retry_wrapped_func
+    return retry_target(
+../.pyenv/versions/3.11.3/lib/python3.11/site-packages/google/api_core/retry/retry_unary.py:156: in retry_target
+    next_sleep = _retry_error_helper(
+../.pyenv/versions/3.11.3/lib/python3.11/site-packages/google/api_core/retry/retry_base.py:214: in _retry_error_helper
+    raise final_exc from source_exc
+../.pyenv/versions/3.11.3/lib/python3.11/site-packages/google/api_core/retry/retry_unary.py:147: in retry_target
+    result = target()
+../.pyenv/versions/3.11.3/lib/python3.11/site-packages/google/cloud/bigquery/job/query.py:1653: in is_job_done
+    raise job_failed_exception
+E   google.api_core.exceptions.BadRequest: 400 Unrecognized name: fixture_id at [4:15]; reason: invalidQuery, location: query, message: Unrecognized name: fixture_id at [4:15]
+E   
+E   Location: US
+E   Job ID: 77e3eece-fb0d-498d-a8e2-5c3fb8fe959f</failure></testcase><testcase classname="tests.e2e.tier1.test_t1_b_bidirectional_sync.TestBidirectionalSync" name="test_real_time_sync_latency" time="2.101"><failure message="KeyError: 'address'">tests/e2e/tier1/test_t1_b_bidirectional_sync.py:498: in test_real_time_sync_latency
+    "address": entity["address"],
+E   KeyError: 'address'</failure></testcase><testcase classname="tests.e2e.tier1.test_t1_b_bidirectional_sync.TestBidirectionalSync" name="test_sync_conflict_resolution" time="1.828"><failure message="AttributeError: 'Neo4jTestUtils' object has no attribute 'load_entities'">tests/e2e/tier1/test_t1_b_bidirectional_sync.py:575: in test_sync_conflict_resolution
+    neo4j_utils.load_entities([neo4j_entity])
+E   AttributeError: 'Neo4jTestUtils' object has no attribute 'load_entities'</failure></testcase></testsuite></testsuites>

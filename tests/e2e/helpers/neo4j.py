@@ -89,6 +89,103 @@ class Neo4jTestUtils:
         logger.info(f"Loaded {nodes_created} ontology entities to Neo4j")
         return nodes_created
     
+    def load_entities(self, entities: List[Dict[str, Any]]) -> int:
+        """Load entities into Neo4j (alias for load_ontology for compatibility)"""
+        if not self.driver:
+            logger.info(f"Mock: Loaded {len(entities)} entities")
+            return len(entities)
+        
+        nodes_created = 0
+        with self.driver.session() as session:
+            for entity in entities:
+                # Create address node with all properties
+                # Build dynamic properties from entity dict
+                properties = {
+                    "address": entity.get("address"),
+                    "type": entity.get("type", "wallet"),
+                    "risk_score": entity.get("risk_score", 0.0),
+                    "total_volume": entity.get("total_volume", 0),
+                    "fixture_id": entity.get("fixture_id", "test")
+                }
+                
+                # Add any additional properties
+                for key, value in entity.items():
+                    if key not in ["address", "type", "risk_score", "total_volume", "fixture_id"]:
+                        properties[key] = value
+                
+                # Build dynamic query - use MERGE to prevent duplicates
+                prop_pairs = [f"{k}: ${k}" for k in properties.keys()]
+                query = f"""
+                MERGE (a:TestAddress {{address: $address, fixture_id: $fixture_id}})
+                SET a += {{{', '.join([f'{k}: ${k}' for k in properties.keys() if k not in ['address', 'fixture_id']])}}}
+                """
+                session.run(query, properties)
+                nodes_created += 1
+        
+        logger.info(f"Loaded {nodes_created} entities to Neo4j")
+        return nodes_created
+    
+    def load_relationships(self, relationships: List[Dict[str, Any]]) -> int:
+        """Load relationships into Neo4j"""
+        if not self.driver:
+            logger.info(f"Mock: Loaded {len(relationships)} relationships")
+            return len(relationships)
+        
+        rels_created = 0
+        with self.driver.session() as session:
+            for rel in relationships:
+                # Create relationship between addresses - use MERGE to prevent duplicates
+                query = """
+                MATCH (a:TestAddress {address: $from_address})
+                MATCH (b:TestAddress {address: $to_address})
+                MERGE (a)-[r:TestRelationship {fixture_id: $fixture_id}]->(b)
+                SET r.relationship_type = $relationship_type,
+                    r.transaction_count = $transaction_count,
+                    r.total_value = $total_value,
+                    r.weight = $weight
+                """
+                session.run(query, {
+                    "from_address": rel.get("from_address"),
+                    "to_address": rel.get("to_address"),
+                    "relationship_type": rel.get("relationship_type", "RELATED_TO"),
+                    "transaction_count": rel.get("transaction_count", 0),
+                    "total_value": rel.get("total_value", 0),
+                    "weight": rel.get("weight", 0.0),
+                    "fixture_id": rel.get("fixture_id", "test")
+                })
+                rels_created += 1
+        
+        logger.info(f"Loaded {rels_created} relationships to Neo4j")
+        return rels_created
+    
+    def query_graph(self, query: str) -> List[Dict[str, Any]]:
+        """Execute Cypher query and return results"""
+        if not self.driver:
+            # Return mock data for testing
+            logger.info(f"Mock: Executed query: {query}")
+            return [
+                {
+                    "from_addr": "0xMOCK123",
+                    "to_addr": "0xMOCK456", 
+                    "rel_type": "INTERACTED_WITH",
+                    "tx_count": 5,
+                    "from_risk": 0.3,
+                    "to_risk": 0.7
+                },
+                {
+                    "from_addr": "0xMOCK456",
+                    "to_addr": "0xMOCK789",
+                    "rel_type": "SENT_TO", 
+                    "tx_count": 2,
+                    "from_risk": 0.7,
+                    "to_risk": 0.1
+                }
+            ]
+        
+        with self.driver.session() as session:
+            result = session.run(query)
+            return [dict(record) for record in result]
+    
     def get_entity_by_id(self, entity_id: str) -> Optional[Dict[str, Any]]:
         """Get entity by ID"""
         if not self.driver:
@@ -220,38 +317,92 @@ class Neo4jTestUtils:
             record = result.single()
             return record["count"] if record else 0
     
-    def export_graph_data(self) -> Dict[str, Any]:
-        """Export graph data for validation"""
+    def export_graph_data(self, filter_condition: str = None) -> Dict[str, Any]:
+        """Export graph data with optional filter"""
         if not self.driver:
+            logger.info(f"Mock: Exported graph data with filter: {filter_condition}")
             return {
-                "nodes": 5,
-                "relationships": 10,
-                "entities": [
-                    {"entity_id": "mock_1", "type": "exchange"},
-                    {"entity_id": "mock_2", "type": "wallet"}
-                ]
+                "nodes": [
+                    {"id": "0xMOCK123", "type": "wallet", "risk_score": 0.3},
+                    {"id": "0xMOCK456", "type": "contract", "risk_score": 0.7},
+                    {"id": "0xMOCK789", "type": "wallet", "risk_score": 0.1}
+                ],
+                "relationships": [
+                    {"from": "0xMOCK123", "to": "0xMOCK456", "type": "INTERACTED_WITH"},
+                    {"from": "0xMOCK456", "to": "0xMOCK789", "type": "SENT_TO"}
+                ],
+                "metadata": {
+                    "node_count": 3,
+                    "relationship_count": 2,
+                    "export_timestamp": "2024-01-01T00:00:00Z"
+                }
             }
         
+        # Build query with optional filter
+        if filter_condition:
+            # Parse the filter condition to extract the fixture_id value
+            if "fixture_id = '" in filter_condition:
+                fixture_id = filter_condition.split("fixture_id = '")[1].split("'")[0]
+                base_query = """
+                MATCH (n:TestAddress {fixture_id: $fixture_id})
+                OPTIONAL MATCH (n)-[r:TestRelationship {fixture_id: $fixture_id}]->(m:TestAddress {fixture_id: $fixture_id})
+                RETURN DISTINCT n.address as node_id, n.type as node_type, n.risk_score as risk_score,
+                       r.relationship_type as rel_type, m.address as target_id
+                """
+                params = {"fixture_id": fixture_id}
+            else:
+                base_query = """
+                MATCH (n:TestAddress)
+                OPTIONAL MATCH (n)-[r:TestRelationship]->(m:TestAddress)
+                RETURN n.address as node_id, n.type as node_type, n.risk_score as risk_score,
+                       r.relationship_type as rel_type, m.address as target_id
+                """
+                params = {}
+        else:
+            base_query = """
+            MATCH (n:TestAddress)
+            OPTIONAL MATCH (n)-[r:TestRelationship]->(m:TestAddress)
+            RETURN n.address as node_id, n.type as node_type, n.risk_score as risk_score,
+                   r.relationship_type as rel_type, m.address as target_id
+            """
+            params = {}
+        
         with self.driver.session() as session:
-            # Get node counts
-            nodes_result = session.run("MATCH (n) RETURN count(n) as count")
-            nodes_count = nodes_result.single()["count"]
+            result = session.run(base_query, params)
+            records = [dict(record) for record in result]
             
-            # Get relationship counts
-            rels_result = session.run("MATCH ()-[r]-() RETURN count(r) as count")
-            rels_count = rels_result.single()["count"]
+            # Process into nodes and relationships
+            nodes = []
+            relationships = []
+            node_ids = set()
+            relationship_ids = set()  # Track unique relationships
             
-            # Get sample entities
-            entities_result = session.run("""
-                MATCH (e:TestEntity)
-                RETURN e.entity_id as entity_id, e.entity_type as entity_type
-                LIMIT 10
-            """)
-            entities = [{"entity_id": record["entity_id"], "type": record["entity_type"]} 
-                       for record in entities_result]
+            for record in records:
+                if record["node_id"] and record["node_id"] not in node_ids:
+                    nodes.append({
+                        "id": record["node_id"],
+                        "type": record["node_type"],
+                        "risk_score": record["risk_score"]
+                    })
+                    node_ids.add(record["node_id"])
+                
+                if record["target_id"] and record["rel_type"]:
+                    # Create unique relationship ID to avoid duplicates
+                    rel_id = f"{record['node_id']}-{record['rel_type']}-{record['target_id']}"
+                    if rel_id not in relationship_ids:
+                        relationships.append({
+                            "from": record["node_id"],
+                            "to": record["target_id"],
+                            "type": record["rel_type"]
+                        })
+                        relationship_ids.add(rel_id)
             
             return {
-                "nodes": nodes_count,
-                "relationships": rels_count,
-                "entities": entities
+                "nodes": nodes,
+                "relationships": relationships,
+                "metadata": {
+                    "node_count": len(nodes),
+                    "relationship_count": len(relationships),
+                    "export_timestamp": "2024-01-01T00:00:00Z"
+                }
             }

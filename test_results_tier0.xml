@@ -1,93 +1,33 @@
-<?xml version="1.0" encoding="utf-8"?><testsuites><testsuite name="pytest" errors="2" failures="9" skipped="4" tests="26" time="26.035" timestamp="2025-07-22T23:23:21.046407" hostname="Makenas-MacBook-Air-8.local"><testcase classname="tests.e2e.tier0.test_t0_a_basic_ingestion.TestIngestToBigQuery" name="test_ingest_synthetic_transaction" time="5.007"><error message="failed on setup with &quot;Failed: Timeout (&gt;5.0s) from pytest-timeout.&quot;">tests/e2e/conftest.py:94: in bigquery_client
-    client = bigquery.Client()
-../.pyenv/versions/3.11.3/lib/python3.11/site-packages/google/cloud/bigquery/client.py:259: in __init__
-    super(Client, self).__init__(
-../.pyenv/versions/3.11.3/lib/python3.11/site-packages/google/cloud/client/__init__.py:338: in __init__
-    _ClientProjectMixin.__init__(self, project=project, credentials=credentials)
-../.pyenv/versions/3.11.3/lib/python3.11/site-packages/google/cloud/client/__init__.py:286: in __init__
-    project = self._determine_default(project)
-../.pyenv/versions/3.11.3/lib/python3.11/site-packages/google/cloud/client/__init__.py:305: in _determine_default
-    return _determine_default_project(project)
-../.pyenv/versions/3.11.3/lib/python3.11/site-packages/google/cloud/_helpers/__init__.py:152: in _determine_default_project
-    _, project = google.auth.default()
-../.pyenv/versions/3.11.3/lib/python3.11/site-packages/google/auth/_default.py:651: in default
-    credentials, project_id = checker()
-../.pyenv/versions/3.11.3/lib/python3.11/site-packages/google/auth/_default.py:647: in &lt;lambda&gt;
-    lambda: _get_gce_credentials(request, quota_project_id=quota_project_id),
-../.pyenv/versions/3.11.3/lib/python3.11/site-packages/google/auth/_default.py:350: in _get_gce_credentials
-    if _metadata.is_on_gce(request=request):
-../.pyenv/versions/3.11.3/lib/python3.11/site-packages/google/auth/compute_engine/_metadata.py:78: in is_on_gce
-    if ping(request):
-../.pyenv/versions/3.11.3/lib/python3.11/site-packages/google/auth/compute_engine/_metadata.py:131: in ping
-    response = request(
-../.pyenv/versions/3.11.3/lib/python3.11/site-packages/google/auth/transport/_http_client.py:105: in __call__
-    connection.request(method, path, body=body, headers=headers, **kwargs)
-../.pyenv/versions/3.11.3/lib/python3.11/http/client.py:1283: in request
-    self._send_request(method, url, body, headers, encode_chunked)
-../.pyenv/versions/3.11.3/lib/python3.11/http/client.py:1329: in _send_request
-    self.endheaders(body, encode_chunked=encode_chunked)
-../.pyenv/versions/3.11.3/lib/python3.11/http/client.py:1278: in endheaders
-    self._send_output(message_body, encode_chunked=encode_chunked)
-../.pyenv/versions/3.11.3/lib/python3.11/http/client.py:1038: in _send_output
-    self.send(msg)
-../.pyenv/versions/3.11.3/lib/python3.11/http/client.py:976: in send
-    self.connect()
-../.pyenv/versions/3.11.3/lib/python3.11/http/client.py:942: in connect
-    self.sock = self._create_connection(
-../.pyenv/versions/3.11.3/lib/python3.11/socket.py:836: in create_connection
-    sock.connect(sa)
-E   Failed: Timeout (&gt;5.0s) from pytest-timeout.</error></testcase><testcase classname="tests.e2e.tier0.test_t0_a_basic_ingestion.TestIngestToBigQuery" name="test_ingest_multiple_transactions" time="5.003"><error message="failed on setup with &quot;Failed: Timeout (&gt;5.0s) from pytest-timeout.&quot;">tests/e2e/conftest.py:94: in bigquery_client
-    client = bigquery.Client()
-../.pyenv/versions/3.11.3/lib/python3.11/site-packages/google/cloud/bigquery/client.py:259: in __init__
-    super(Client, self).__init__(
-../.pyenv/versions/3.11.3/lib/python3.11/site-packages/google/cloud/client/__init__.py:338: in __init__
-    _ClientProjectMixin.__init__(self, project=project, credentials=credentials)
-../.pyenv/versions/3.11.3/lib/python3.11/site-packages/google/cloud/client/__init__.py:286: in __init__
-    project = self._determine_default(project)
-../.pyenv/versions/3.11.3/lib/python3.11/site-packages/google/cloud/client/__init__.py:305: in _determine_default
-    return _determine_default_project(project)
-../.pyenv/versions/3.11.3/lib/python3.11/site-packages/google/cloud/_helpers/__init__.py:152: in _determine_default_project
-    _, project = google.auth.default()
-../.pyenv/versions/3.11.3/lib/python3.11/site-packages/google/auth/_default.py:651: in default
-    credentials, project_id = checker()
-../.pyenv/versions/3.11.3/lib/python3.11/site-packages/google/auth/_default.py:647: in &lt;lambda&gt;
-    lambda: _get_gce_credentials(request, quota_project_id=quota_project_id),
-../.pyenv/versions/3.11.3/lib/python3.11/site-packages/google/auth/_default.py:350: in _get_gce_credentials
-    if _metadata.is_on_gce(request=request):
-../.pyenv/versions/3.11.3/lib/python3.11/site-packages/google/auth/compute_engine/_metadata.py:78: in is_on_gce
-    if ping(request):
-../.pyenv/versions/3.11.3/lib/python3.11/site-packages/google/auth/compute_engine/_metadata.py:129: in ping
-    for attempt in backoff:
-../.pyenv/versions/3.11.3/lib/python3.11/site-packages/google/auth/_exponential_backoff.py:133: in __next__
-    time.sleep(jitter)
-E   Failed: Timeout (&gt;5.0s) from pytest-timeout.</error></testcase><testcase classname="tests.e2e.tier0.test_t0_a_basic_ingestion.TestIngestToBigQuery" name="test_ingest_with_pubsub_simulation" time="2.989"><skipped type="pytest.skip" message="Pub/Sub client creation failed: Your default credentials were not found. To set up Application Default Credentials, see https://cloud.google.com/docs/authentication/external/set-up-adc for more information.">/Users/jadenfix/eth/tests/e2e/tier0/test_t0_a_basic_ingestion.py:104: Pub/Sub client creation failed: Your default credentials were not found. To set up Application Default Credentials, see https://cloud.google.com/docs/authentication/external/set-up-adc for more information.</skipped></testcase><testcase classname="tests.e2e.tier0.test_t0_b_basic_queries.TestBigQueryQueries" name="test_simple_bigquery_query" time="2.997"><skipped type="pytest.skip" message="BigQuery client creation failed: Your default credentials were not found. To set up Application Default Credentials, see https://cloud.google.com/docs/authentication/external/set-up-adc for more information.">/Users/jadenfix/eth/tests/e2e/tier0/test_t0_b_basic_queries.py:15: BigQuery client creation failed: Your default credentials were not found. To set up Application Default Credentials, see https://cloud.google.com/docs/authentication/external/set-up-adc for more information.</skipped></testcase><testcase classname="tests.e2e.tier0.test_t0_b_basic_queries.TestBigQueryQueries" name="test_aggregated_query" time="3.114"><skipped type="pytest.skip" message="BigQuery client creation failed: Your default credentials were not found. To set up Application Default Credentials, see https://cloud.google.com/docs/authentication/external/set-up-adc for more information.">/Users/jadenfix/eth/tests/e2e/tier0/test_t0_b_basic_queries.py:80: BigQuery client creation failed: Your default credentials were not found. To set up Application Default Credentials, see https://cloud.google.com/docs/authentication/external/set-up-adc for more information.</skipped></testcase><testcase classname="tests.e2e.tier0.test_t0_b_basic_queries.TestBigQueryQueries" name="test_query_with_filters" time="3.219"><skipped type="pytest.skip" message="BigQuery client creation failed: Your default credentials were not found. To set up Application Default Credentials, see https://cloud.google.com/docs/authentication/external/set-up-adc for more information.">/Users/jadenfix/eth/tests/e2e/tier0/test_t0_b_basic_queries.py:139: BigQuery client creation failed: Your default credentials were not found. To set up Application Default Credentials, see https://cloud.google.com/docs/authentication/external/set-up-adc for more information.</skipped></testcase><testcase classname="tests.e2e.tier0.test_t0_c_graph_queries.TestNeo4jGraphQueries" name="test_simple_graph_query" time="0.095"><failure message="AttributeError: 'Neo4jTestUtils' object has no attribute 'load_entities'">tests/e2e/tier0/test_t0_c_graph_queries.py:70: in test_simple_graph_query
-    neo4j_utils.load_entities(test_entities)
-E   AttributeError: 'Neo4jTestUtils' object has no attribute 'load_entities'</failure></testcase><testcase classname="tests.e2e.tier0.test_t0_c_graph_queries.TestNeo4jGraphQueries" name="test_graph_path_query" time="0.000"><failure message="AttributeError: 'Neo4jTestUtils' object has no attribute 'load_entities'">tests/e2e/tier0/test_t0_c_graph_queries.py:137: in test_graph_path_query
-    neo4j_utils.load_entities(entities)
-E   AttributeError: 'Neo4jTestUtils' object has no attribute 'load_entities'</failure></testcase><testcase classname="tests.e2e.tier0.test_t0_c_graph_queries.TestNeo4jGraphQueries" name="test_graph_aggregation_query" time="0.000"><failure message="AttributeError: 'Neo4jTestUtils' object has no attribute 'load_entities'">tests/e2e/tier0/test_t0_c_graph_queries.py:190: in test_graph_aggregation_query
-    neo4j_utils.load_entities([hub_entity] + spoke_entities)
-E   AttributeError: 'Neo4jTestUtils' object has no attribute 'load_entities'</failure></testcase><testcase classname="tests.e2e.tier0.test_t0_c_graph_queries.TestNeo4jGraphQueries" name="test_graph_export_format" time="0.000"><failure message="AttributeError: 'Neo4jTestUtils' object has no attribute 'load_entities'">tests/e2e/tier0/test_t0_c_graph_queries.py:234: in test_graph_export_format
-    neo4j_utils.load_entities(entities)
-E   AttributeError: 'Neo4jTestUtils' object has no attribute 'load_entities'</failure></testcase><testcase classname="tests.e2e.tier0.test_t0_d_ui_rendering.TestUIRendering" name="test_dashboard_loads_without_crash" time="3.163"><failure message="google.auth.exceptions.DefaultCredentialsError: Your default credentials were not found. To set up Application Default Credentials, see https://cloud.google.com/docs/authentication/external/set-up-adc for more information.">tests/e2e/tier0/test_t0_d_ui_rendering.py:33: in test_dashboard_loads_without_crash
-    gcp_utils.bq_create_dataset(test_dataset)
-tests/e2e/helpers/gcp.py:55: in bq_create_dataset
-    client = self._get_bq_client()
-tests/e2e/helpers/gcp.py:44: in _get_bq_client
-    self.bq_client = bigquery.Client(project=self.project_id)
-../.pyenv/versions/3.11.3/lib/python3.11/site-packages/google/cloud/bigquery/client.py:259: in __init__
-    super(Client, self).__init__(
-../.pyenv/versions/3.11.3/lib/python3.11/site-packages/google/cloud/client/__init__.py:339: in __init__
-    Client.__init__(
-../.pyenv/versions/3.11.3/lib/python3.11/site-packages/google/cloud/client/__init__.py:196: in __init__
-    credentials, _ = google.auth.default(scopes=scopes)
-../.pyenv/versions/3.11.3/lib/python3.11/site-packages/google/auth/_default.py:685: in default
-    raise exceptions.DefaultCredentialsError(_CLOUD_SDK_MISSING_CREDENTIALS)
-E   google.auth.exceptions.DefaultCredentialsError: Your default credentials were not found. To set up Application Default Credentials, see https://cloud.google.com/docs/authentication/external/set-up-adc for more information.</failure></testcase><testcase classname="tests.e2e.tier0.test_t0_d_ui_rendering.TestUIRendering" name="test_graph_visualization_endpoint" time="0.001"><failure message="AttributeError: 'async_generator' object has no attribute 'get'">tests/e2e/tier0/test_t0_d_ui_rendering.py:83: in test_graph_visualization_endpoint
-    response = await async_http_client.get("/api/graph/visualization", params={
-E   AttributeError: 'async_generator' object has no attribute 'get'</failure></testcase><testcase classname="tests.e2e.tier0.test_t0_d_ui_rendering.TestUIRendering" name="test_health_check_endpoint" time="0.000"><failure message="AttributeError: 'async_generator' object has no attribute 'get'">tests/e2e/tier0/test_t0_d_ui_rendering.py:100: in test_health_check_endpoint
-    response = await async_http_client.get("/health")
-E   AttributeError: 'async_generator' object has no attribute 'get'</failure></testcase><testcase classname="tests.e2e.tier0.test_t0_d_ui_rendering.TestUIRendering" name="test_api_error_handling" time="0.000"><failure message="AttributeError: 'async_generator' object has no attribute 'get'">tests/e2e/tier0/test_t0_d_ui_rendering.py:135: in test_api_error_handling
-    response = await async_http_client.get(endpoint)
-E   AttributeError: 'async_generator' object has no attribute 'get'</failure></testcase><testcase classname="tests.e2e.tier0.test_t0_d_ui_rendering.TestUIRendering" name="test_static_assets_loading" time="0.000"><failure message="AttributeError: 'async_generator' object has no attribute 'get'">tests/e2e/tier0/test_t0_d_ui_rendering.py:166: in test_static_assets_loading
-    response = await async_http_client.get(path)
-E   AttributeError: 'async_generator' object has no attribute 'get'</failure></testcase><testcase classname="tests.e2e.tier0.test_t0_d_ui_rendering.TestUIRendering" name="test_websocket_connection" time="0.046" /><testcase classname="tests.e2e.tier0.test_t0_d_ui_rendering.TestUIRendering" name="test_ui_configuration_valid" time="0.001" /><testcase classname="tests.e2e.tier0.test_t0_simple_infrastructure.TestBasicInfrastructure" name="test_python_environment" time="0.000" /><testcase classname="tests.e2e.tier0.test_t0_simple_infrastructure.TestBasicInfrastructure" name="test_pytest_markers" time="0.000" /><testcase classname="tests.e2e.tier0.test_t0_simple_infrastructure.TestBasicInfrastructure" name="test_test_data_fixtures" time="0.000" /><testcase classname="tests.e2e.tier0.test_t0_simple_infrastructure.TestBasicInfrastructure" name="test_time_based_operations" time="0.000" /><testcase classname="tests.e2e.tier0.test_t0_simple_infrastructure.TestBasicInfrastructure" name="test_data_structures" time="0.000" /><testcase classname="tests.e2e.tier0.test_t0_simple_infrastructure.TestBasicInfrastructure" name="test_error_handling" time="0.000" /><testcase classname="tests.e2e.tier0.test_t0_simple_infrastructure.TestBasicInfrastructure" name="test_list_operations" time="0.000" /><testcase classname="tests.e2e.tier0.test_t0_simple_infrastructure.TestBasicInfrastructure" name="test_configuration_loading" time="0.000" /><testcase classname="tests.e2e.tier0.test_t0_simple_infrastructure.TestBasicInfrastructure" name="test_async_compatibility" time="0.011" /></testsuite></testsuites>
+<?xml version="1.0" encoding="utf-8"?><testsuites><testsuite name="pytest" errors="0" failures="4" skipped="0" tests="26" time="23.900" timestamp="2025-07-25T14:14:47.688137" hostname="Mac.lan"><testcase classname="tests.e2e.tier0.test_t0_a_basic_ingestion.TestIngestToBigQuery" name="test_ingest_synthetic_transaction" time="3.787" /><testcase classname="tests.e2e.tier0.test_t0_a_basic_ingestion.TestIngestToBigQuery" name="test_ingest_multiple_transactions" time="2.947" /><testcase classname="tests.e2e.tier0.test_t0_a_basic_ingestion.TestIngestToBigQuery" name="test_ingest_with_pubsub_simulation" time="4.387" /><testcase classname="tests.e2e.tier0.test_t0_b_basic_queries.TestBigQueryQueries" name="test_simple_bigquery_query" time="3.352" /><testcase classname="tests.e2e.tier0.test_t0_b_basic_queries.TestBigQueryQueries" name="test_aggregated_query" time="3.422" /><testcase classname="tests.e2e.tier0.test_t0_b_basic_queries.TestBigQueryQueries" name="test_query_with_filters" time="3.077" /><testcase classname="tests.e2e.tier0.test_t0_c_graph_queries.TestNeo4jGraphQueries" name="test_simple_graph_query" time="0.237" /><testcase classname="tests.e2e.tier0.test_t0_c_graph_queries.TestNeo4jGraphQueries" name="test_graph_path_query" time="0.067"><failure message="neo4j.exceptions.CypherSyntaxError: {code: Neo.ClientError.Statement.SyntaxError} {message: Invalid input ':': expected a parameter, 'WHERE', ']' or '{' (line 3, column 29 (offset: 118))&#10;&quot;                     -[*1..3:TestRelationship]-&gt;&quot;&#10;                             ^}">neo4j.exceptions.GqlError: {gql_status: 42I06} {gql_status_description: error: syntax error or access rule violation - invalid input. Invalid input ':', expected: a parameter, 'WHERE', ']' or '{'.} {message: 42I06: Invalid input ':', expected: a parameter, 'WHERE', ']' or '{'.} {diagnostic_record: {'_classification': 'CLIENT_ERROR', '_position': {'column': 29, 'line': 3, 'offset': 118}, 'OPERATION': '', 'OPERATION_CODE': '0', 'CURRENT_SCHEMA': '/'}} {raw_classification: CLIENT_ERROR}
+
+The above exception was the direct cause of the following exception:
+tests/e2e/tier0/test_t0_c_graph_queries.py:151: in test_graph_path_query
+    results = neo4j_utils.query_graph(query)
+tests/e2e/helpers/neo4j.py:181: in query_graph
+    result = session.run(query)
+../.pyenv/versions/3.11.3/lib/python3.11/site-packages/neo4j/_sync/work/session.py:328: in run
+    self._auto_result._run(
+../.pyenv/versions/3.11.3/lib/python3.11/site-packages/neo4j/_sync/work/result.py:236: in _run
+    self._attach()
+../.pyenv/versions/3.11.3/lib/python3.11/site-packages/neo4j/_sync/work/result.py:430: in _attach
+    self._connection.fetch_message()
+../.pyenv/versions/3.11.3/lib/python3.11/site-packages/neo4j/_sync/io/_common.py:184: in inner
+    func(*args, **kwargs)
+../.pyenv/versions/3.11.3/lib/python3.11/site-packages/neo4j/_sync/io/_bolt.py:864: in fetch_message
+    res = self._process_message(tag, fields)
+../.pyenv/versions/3.11.3/lib/python3.11/site-packages/neo4j/_sync/io/_bolt5.py:1208: in _process_message
+    response.on_failure(summary_metadata or {})
+../.pyenv/versions/3.11.3/lib/python3.11/site-packages/neo4j/_sync/io/_common.py:254: in on_failure
+    raise self._hydrate_error(metadata)
+E   neo4j.exceptions.CypherSyntaxError: {code: Neo.ClientError.Statement.SyntaxError} {message: Invalid input ':': expected a parameter, 'WHERE', ']' or '{' (line 3, column 29 (offset: 118))
+E   "                     -[*1..3:TestRelationship]-&gt;"
+E                                ^}</failure></testcase><testcase classname="tests.e2e.tier0.test_t0_c_graph_queries.TestNeo4jGraphQueries" name="test_graph_aggregation_query" time="0.109"><failure message="assert 450 == 15">tests/e2e/tier0/test_t0_c_graph_queries.py:212: in test_graph_aggregation_query
+    assert result["total_transactions"] == 15  # 1+2+3+4+5
+E   assert 450 == 15</failure></testcase><testcase classname="tests.e2e.tier0.test_t0_c_graph_queries.TestNeo4jGraphQueries" name="test_graph_export_format" time="0.156"><failure message="AssertionError: Export should have 'edges' field&#10;assert 'edges' in {'metadata': {'export_timestamp': '2024-01-01T00:00:00Z', 'node_count': 2, 'relationship_count': 30}, 'nodes': [{'id':...o': '0xEXPORT2', 'type': 'INTERACTED_WITH'}, {'from': '0xEXPORT1', 'to': '0xEXPORT2', 'type': 'INTERACTED_WITH'}, ...]}">tests/e2e/tier0/test_t0_c_graph_queries.py:244: in test_graph_export_format
+    assert "edges" in export_data, "Export should have 'edges' field"
+E   AssertionError: Export should have 'edges' field
+E   assert 'edges' in {'metadata': {'export_timestamp': '2024-01-01T00:00:00Z', 'node_count': 2, 'relationship_count': 30}, 'nodes': [{'id':...o': '0xEXPORT2', 'type': 'INTERACTED_WITH'}, {'from': '0xEXPORT1', 'to': '0xEXPORT2', 'type': 'INTERACTED_WITH'}, ...]}</failure></testcase><testcase classname="tests.e2e.tier0.test_t0_d_ui_rendering.TestUIRendering" name="test_dashboard_loads_without_crash" time="1.920" /><testcase classname="tests.e2e.tier0.test_t0_d_ui_rendering.TestUIRendering" name="test_graph_visualization_endpoint" time="0.001" /><testcase classname="tests.e2e.tier0.test_t0_d_ui_rendering.TestUIRendering" name="test_health_check_endpoint" time="0.001" /><testcase classname="tests.e2e.tier0.test_t0_d_ui_rendering.TestUIRendering" name="test_api_error_handling" time="0.001"><failure message="AssertionError: Should return proper error code for /api/dashboard/badparam&#10;assert 200 in [400, 404, 405, 500]&#10; +  where 200 = &lt;tests.e2e.conftest.async_http_client.&lt;locals&gt;.MockAsyncClient.get.&lt;locals&gt;.MockResponse object at 0x12a01c050&gt;.status_code">tests/e2e/tier0/test_t0_d_ui_rendering.py:138: in test_api_error_handling
+    assert response.status_code in [400, 404, 405, 500], f"Should return proper error code for {endpoint}"
+E   AssertionError: Should return proper error code for /api/dashboard/badparam
+E   assert 200 in [400, 404, 405, 500]
+E    +  where 200 = &lt;tests.e2e.conftest.async_http_client.&lt;locals&gt;.MockAsyncClient.get.&lt;locals&gt;.MockResponse object at 0x12a01c050&gt;.status_code</failure></testcase><testcase classname="tests.e2e.tier0.test_t0_d_ui_rendering.TestUIRendering" name="test_static_assets_loading" time="0.000" /><testcase classname="tests.e2e.tier0.test_t0_d_ui_rendering.TestUIRendering" name="test_websocket_connection" time="0.028" /><testcase classname="tests.e2e.tier0.test_t0_d_ui_rendering.TestUIRendering" name="test_ui_configuration_valid" time="0.001" /><testcase classname="tests.e2e.tier0.test_t0_simple_infrastructure.TestBasicInfrastructure" name="test_python_environment" time="0.000" /><testcase classname="tests.e2e.tier0.test_t0_simple_infrastructure.TestBasicInfrastructure" name="test_pytest_markers" time="0.000" /><testcase classname="tests.e2e.tier0.test_t0_simple_infrastructure.TestBasicInfrastructure" name="test_test_data_fixtures" time="0.000" /><testcase classname="tests.e2e.tier0.test_t0_simple_infrastructure.TestBasicInfrastructure" name="test_time_based_operations" time="0.000" /><testcase classname="tests.e2e.tier0.test_t0_simple_infrastructure.TestBasicInfrastructure" name="test_data_structures" time="0.000" /><testcase classname="tests.e2e.tier0.test_t0_simple_infrastructure.TestBasicInfrastructure" name="test_error_handling" time="0.000" /><testcase classname="tests.e2e.tier0.test_t0_simple_infrastructure.TestBasicInfrastructure" name="test_list_operations" time="0.000" /><testcase classname="tests.e2e.tier0.test_t0_simple_infrastructure.TestBasicInfrastructure" name="test_configuration_loading" time="0.000" /><testcase classname="tests.e2e.tier0.test_t0_simple_infrastructure.TestBasicInfrastructure" name="test_async_compatibility" time="0.013" /></testsuite></testsuites>
