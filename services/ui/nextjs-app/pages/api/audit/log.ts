@@ -1,6 +1,6 @@
 import { NextApiRequest, NextApiResponse } from 'next'
-import { getSession } from 'next-auth/react'
-import { audit_service } from '../../../../../services/access_control/audit_service'
+import { getServerSession } from 'next-auth'
+import { authOptions } from '../auth/[...nextauth]'
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'POST') {
@@ -8,40 +8,35 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   try {
-    // Get user session
-    const session = await getSession({ req })
-    
-    if (!session?.user?.id) {
+    // Verify user session
+    const session = await getServerSession(req, res, authOptions)
+    if (!session) {
       return res.status(401).json({ error: 'Unauthorized' })
     }
 
-    const { action, details, resource_type, resource_id, severity = 'INFO' } = req.body
+    const { action, details, timestamp } = req.body
 
-    if (!action || !details) {
-      return res.status(400).json({ error: 'Action and details are required' })
+    // Call the audit service via HTTP
+    const auditResponse = await fetch('http://localhost:4001/audit/log', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        action,
+        details: {
+          ...details,
+          user_id: session.user.id,
+        },
+        timestamp,
+      }),
+    })
+
+    if (!auditResponse.ok) {
+      throw new Error('Failed to log audit event')
     }
 
-    // Get client IP and user agent
-    const ip_address = req.headers['x-forwarded-for'] as string || 
-                      req.connection.remoteAddress || 
-                      req.socket.remoteAddress
-    const user_agent = req.headers['user-agent']
-
-    // Log the audit event
-    const success = await audit_service.log_user_action(
-      session.user.id,
-      action,
-      details,
-      ip_address,
-      user_agent
-    )
-
-    if (success) {
-      res.status(200).json({ success: true, message: 'Audit event logged successfully' })
-    } else {
-      res.status(500).json({ error: 'Failed to log audit event' })
-    }
-
+    res.status(200).json({ success: true })
   } catch (error) {
     console.error('Audit logging error:', error)
     res.status(500).json({ error: 'Internal server error' })

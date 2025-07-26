@@ -303,3 +303,249 @@ class VertexAIPipeline:
         if PipelineJob:
             PipelineJob('test-job', '/tmp/test-template.yaml')
         return {'status': 'success', 'job_id': 'vertex-ai-entity-resolution-mock-job'}
+
+import asyncio
+from typing import Dict, List, Any
+from collections import defaultdict
+from datetime import datetime
+import logging
+import sys
+import os
+sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..'))
+
+from services.entity_resolution.entity_resolver import EntityResolver
+from services.graph_api.neo4j_client import Neo4jClient
+from services.ethereum_ingester.real_data_service import RealDataService
+
+logger = logging.getLogger(__name__)
+
+class EntityResolutionPipeline:
+    def __init__(self):
+        self.resolver = EntityResolver()
+        self.neo4j_client = Neo4jClient()
+        self.real_data_service = None
+    
+    async def initialize(self):
+        """Initialize the pipeline with real data service"""
+        self.real_data_service = RealDataService()
+        await self.real_data_service.__aenter__()
+    
+    async def cleanup(self):
+        """Cleanup resources"""
+        if self.real_data_service:
+            await self.real_data_service.__aexit__(None, None, None)
+    
+    async def process_new_transactions(self, transactions: List[Dict[str, Any]]):
+        """Process new transactions for entity resolution"""
+        if not transactions:
+            return {}
+        
+        # Group transactions by address
+        address_transactions = defaultdict(list)
+        for tx in transactions:
+            if tx.get('from'):
+                address_transactions[tx['from']].append(tx)
+            if tx.get('to'):
+                address_transactions[tx['to']].append(tx)
+        
+        # Perform entity resolution
+        try:
+            clusters = self.resolver.cluster_addresses(address_transactions)
+            logger.info(f"Found {len(clusters)} entity clusters from {len(address_transactions)} addresses")
+            
+            # Store results in Neo4j
+            stored_clusters = {}
+            for entity_id, addresses in clusters.items():
+                if len(addresses) > 1:  # Only store clusters with multiple addresses
+                    metadata = {
+                        'confidence_score': self._calculate_cluster_confidence(addresses, address_transactions),
+                        'cluster_size': len(addresses),
+                        'created_at': datetime.utcnow().isoformat(),
+                        'transaction_count': sum(len(address_transactions[addr]) for addr in addresses),
+                        'total_value': sum(
+                            sum(tx.get('value', 0) for tx in address_transactions[addr])
+                            for addr in addresses
+                        )
+                    }
+                    
+                    result = self.neo4j_client.create_entity_cluster(entity_id, addresses, metadata)
+                    if result:
+                        stored_clusters[entity_id] = {
+                            'addresses': addresses,
+                            'metadata': metadata
+                        }
+            
+            logger.info(f"Stored {len(stored_clusters)} entity clusters in Neo4j")
+            return stored_clusters
+            
+        except Exception as e:
+            logger.error(f"Error in entity resolution: {e}")
+            return {}
+    
+    async def process_real_data(self, data_type: str = "latest", limit: int = 100):
+        """Process real blockchain data for entity resolution"""
+        if not self.real_data_service:
+            await self.initialize()
+        
+        try:
+            if data_type == "latest":
+                transactions = await self.real_data_service.get_latest_transactions(limit)
+            elif data_type == "whale":
+                transactions = await self.real_data_service.get_whale_transactions()
+            elif data_type == "mev":
+                transactions = await self.real_data_service.get_mev_transactions()
+            else:
+                transactions = await self.real_data_service.get_latest_transactions(limit)
+            
+            logger.info(f"Processing {len(transactions)} {data_type} transactions")
+            
+            # Process transactions for entity resolution
+            clusters = await self.process_new_transactions(transactions)
+            
+            # Create wallet nodes for all addresses
+            all_addresses = set()
+            for tx in transactions:
+                if tx.get('from'):
+                    all_addresses.add(tx['from'])
+                if tx.get('to'):
+                    all_addresses.add(tx['to'])
+            
+            for address in all_addresses:
+                self.neo4j_client.create_wallet_node(address, {
+                    'first_seen': datetime.utcnow().isoformat(),
+                    'data_type': data_type
+                })
+            
+            # Create transaction relationships
+            for tx in transactions:
+                if tx.get('from') and tx.get('to'):
+                    self.neo4j_client.create_transaction_relationship(
+                        tx['from'], tx['to'], tx.get('hash', ''), {
+                            'value': tx.get('value', 0),
+                            'gas_price': tx.get('gasPrice', 0),
+                            'timestamp': tx.get('timestamp', 0),
+                            'data_type': data_type
+                        }
+                    )
+            
+            return {
+                'transactions_processed': len(transactions),
+                'addresses_found': len(all_addresses),
+                'clusters_created': len(clusters),
+                'clusters': clusters
+            }
+            
+        except Exception as e:
+            logger.error(f"Error processing real data: {e}")
+            return {
+                'error': str(e),
+                'transactions_processed': 0,
+                'addresses_found': 0,
+                'clusters_created': 0,
+                'clusters': {}
+            }
+    
+    def _calculate_cluster_confidence(self, addresses: List[str], address_transactions: Dict) -> float:
+        """Calculate confidence score for a cluster"""
+        if len(addresses) < 2:
+            return 0.0
+        
+        try:
+            # Calculate average similarity within cluster
+            similarities = []
+            for i in range(len(addresses)):
+                for j in range(i + 1, len(addresses)):
+                    addr1_features = self.resolver.extract_features(
+                        addresses[i], 
+                        address_transactions[addresses[i]]
+                    )
+                    addr2_features = self.resolver.extract_features(
+                        addresses[j], 
+                        address_transactions[addresses[j]]
+                    )
+                    similarity = self.resolver.calculate_similarity_score(addr1_features, addr2_features)
+                    similarities.append(similarity)
+            
+            return sum(similarities) / len(similarities) if similarities else 0.0
+        except Exception as e:
+            logger.error(f"Error calculating cluster confidence: {e}")
+            return 0.0
+    
+    async def get_entity_info(self, entity_id: str) -> Dict[str, Any]:
+        """Get information about a specific entity"""
+        try:
+            with self.neo4j_client.driver.session() as session:
+                query = """
+                MATCH (e:Entity {id: $entity_id})-[:OWNS]->(w:Wallet)
+                RETURN e, collect(w) as wallets
+                """
+                result = session.run(query, entity_id=entity_id)
+                record = result.single()
+                
+                if record:
+                    return {
+                        'entity_id': record['e']['id'],
+                        'metadata': dict(record['e']),
+                        'wallets': [w['address'] for w in record['wallets']]
+                    }
+                return None
+        except Exception as e:
+            logger.error(f"Error getting entity info: {e}")
+            return None
+    
+    async def find_related_entities(self, address: str) -> List[Dict[str, Any]]:
+        """Find entities related to a specific address"""
+        try:
+            with self.neo4j_client.driver.session() as session:
+                query = """
+                MATCH (w:Wallet {address: $address})-[:OWNS]-(e:Entity)
+                MATCH (e)-[:OWNS]->(other_wallets:Wallet)
+                RETURN e, collect(other_wallets) as related_wallets
+                """
+                result = session.run(query, address=address)
+                entities = []
+                
+                for record in result:
+                    entities.append({
+                        'entity_id': record['e']['id'],
+                        'metadata': dict(record['e']),
+                        'related_wallets': [w['address'] for w in record['related_wallets']]
+                    })
+                
+                return entities
+        except Exception as e:
+            logger.error(f"Error finding related entities: {e}")
+            return []
+    
+    async def get_entity_statistics(self) -> Dict[str, Any]:
+        """Get statistics about entities and clustering"""
+        try:
+            metrics = self.neo4j_client.get_metrics()
+            
+            # Get cluster distribution
+            with self.neo4j_client.driver.session() as session:
+                cluster_sizes = session.run("""
+                    MATCH (e:Entity)-[:OWNS]->(w:Wallet)
+                    RETURN e.id, count(w) as size
+                    ORDER BY size DESC
+                """)
+                
+                size_distribution = {}
+                for record in cluster_sizes:
+                    size = record['size']
+                    size_distribution[size] = size_distribution.get(size, 0) + 1
+            
+            return {
+                'metrics': metrics,
+                'cluster_distribution': size_distribution,
+                'total_clusters': len(size_distribution),
+                'average_cluster_size': sum(size * count for size, count in size_distribution.items()) / sum(size_distribution.values()) if size_distribution else 0
+            }
+        except Exception as e:
+            logger.error(f"Error getting entity statistics: {e}")
+            return {
+                'metrics': {'status': 'error'},
+                'cluster_distribution': {},
+                'total_clusters': 0,
+                'average_cluster_size': 0
+            }

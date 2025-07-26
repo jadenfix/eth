@@ -1,0 +1,17 @@
+{
+  "total_tests": 9,
+  "passed": 8,
+  "failed": 1,
+  "success_rate": 88.88888888888889,
+  "results": {
+    "Graph API Health": true,
+    "Neo4j Connection": false,
+    "Entity Resolution Sample": true,
+    "Wallet Creation": true,
+    "Relationship Creation": true,
+    "Entity Search": true,
+    "Wallet Info": true,
+    "Graph Analysis": true,
+    "Transaction Processing": true
+  }
+}
