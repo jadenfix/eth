@@ -58,7 +58,7 @@ import {
   FiDatabase,
   FiCpu,
   FiGlobe,
-  FiBarChart3,
+  FiBarChart,
   FiUsers,
   FiSettings,
   FiPlay,
@@ -82,7 +82,7 @@ import {
   FiCompass,
   FiAward,
   FiStar,
-  FiRocket
+  FiPocket
 } from 'react-icons/fi';
 
 // Mock data for demo
@@ -442,12 +442,12 @@ const DemoPage: React.FC = () => {
         {/* Feature Showcase Tabs */}
         <Card bg={cardBg} border="1px" borderColor={borderColor}>
           <CardBody>
-            <Tabs onChange={setActiveTab} value={activeTab}>
+            <Tabs onChange={setActiveTab} index={activeTab}>
               <TabList>
                 <Tab><Icon as={FiDatabase} mr={2} />Data Ingestion</Tab>
                 <Tab><Icon as={FiCpu} mr={2} />AI Intelligence</Tab>
                 <Tab><Icon as={FiShield} mr={2} />Security & Compliance</Tab>
-                <Tab><Icon as={FiBarChart3} mr={2} />Analytics</Tab>
+                                  <Tab><Icon as={FiBarChart} mr={2} />Analytics</Tab>
                 <Tab><Icon as={FiGlobe} mr={2} />Visualization</Tab>
               </TabList>
 
@@ -607,7 +607,7 @@ const DemoPage: React.FC = () => {
                       </Card>
                       <Card variant="outline">
                         <CardBody>
-                          <Icon as={FiBarChart3} color="green.500" boxSize={6} mb={2} />
+                          <Icon as={FiBarChart} color="green.500" boxSize={6} mb={2} />
                           <Text fontWeight="bold">Time Series Canvas</Text>
                           <Text fontSize="sm" color={mutedTextColor}>
                             Live time-series data visualization with interactive dashboards
@@ -637,7 +637,7 @@ const DemoPage: React.FC = () => {
             <HStack justify="space-between" align="center">
               <VStack align="start" spacing={2}>
                 <Heading size="lg" color="blue.800">
-                  <Icon as={FiRocket} mr={2} />
+                  <Icon as={FiPocket} mr={2} />
                   Ready to Deploy?
                 </Heading>
                 <Text color="blue.700">

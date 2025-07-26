@@ -45,6 +45,10 @@ import {
   FormLabel,
   Textarea,
 } from '@chakra-ui/react';
+import { SessionProvider } from 'next-auth/react';
+import { ProtectedRoute } from '../src/components/auth/ProtectedRoute';
+import { useAuth } from '../src/hooks/useAuth';
+import { useAudit } from '../src/hooks/useAudit';
 import { 
   FiActivity, 
   FiShield, 
@@ -96,45 +100,19 @@ import {
 } from 'react-icons/fi';
 import CleanNavigation from '../src/components/layout/CleanNavigation';
 
-// Mock real-time data
-const mockData = {
-  systemStatus: {
-    overall: 'healthy',
-    uptime: '99.9%',
-    lastUpdate: '2 seconds ago',
-    services: [
-      { name: 'Blockchain Ingestion', status: 'active', color: 'green' },
-      { name: 'AI Intelligence', status: 'active', color: 'green' },
-      { name: 'Security & Compliance', status: 'active', color: 'green' },
-      { name: 'Analytics Engine', status: 'active', color: 'green' },
-      { name: 'Visualization', status: 'active', color: 'green' },
-    ]
-  },
-  keyMetrics: {
-    blocksProcessed: 1247,
-    transactionsAnalyzed: 45678,
-    entitiesResolved: 3421,
-    mevDetected: 23,
-    riskAlerts: 7,
-    confidenceScore: 94.2,
-  },
-  recentActivity: [
-    { type: 'mev', message: 'Front-running attack detected', time: '30s ago', severity: 'high' },
-    { type: 'entity', message: 'New entity resolved: Binance Hot Wallet', time: '2m ago', severity: 'info' },
-    { type: 'sanctions', message: 'OFAC-sanctioned address detected', time: '5m ago', severity: 'medium' },
-    { type: 'arbitrage', message: 'Cross-DEX opportunity identified', time: '8m ago', severity: 'low' },
-  ],
-  quickActions: [
-    { name: 'Search Entities', icon: FiSearch, color: 'blue', description: 'Find addresses and entities' },
-    { name: 'MEV Monitor', icon: FiZap, color: 'orange', description: 'Track MEV opportunities' },
-    { name: 'Security Audit', icon: FiShield, color: 'red', description: 'Run security checks' },
-    { name: 'Voice Commands', icon: FiHeadphones, color: 'purple', description: 'Use voice interface' },
-    { name: 'Analytics', icon: FiBarChart, color: 'green', description: 'View detailed analytics' },
-    { name: 'Visualization', icon: FiGlobe, color: 'teal', description: 'Explore data visually' },
-  ]
-};
+// Quick actions for navigation
+const quickActions = [
+  { name: 'Search Entities', icon: FiSearch, color: 'blue', description: 'Find addresses and entities', path: '/intelligence/entities' },
+  { name: 'MEV Monitor', icon: FiZap, color: 'orange', description: 'Track MEV opportunities', path: '/mev' },
+  { name: 'Security Audit', icon: FiShield, color: 'red', description: 'Run security checks', path: '/compliance' },
+  { name: 'Voice Commands', icon: FiHeadphones, color: 'purple', description: 'Use voice interface', path: '/voice' },
+  { name: 'Analytics', icon: FiBarChart, color: 'green', description: 'View detailed analytics', path: '/analytics' },
+  { name: 'Visualization', icon: FiGlobe, color: 'teal', description: 'Explore data visually', path: '/canvas' },
+];
 
 const MainDashboard: React.FC = () => {
+  const { user, isAdmin, isAnalyst, isViewer } = useAuth();
+  const { logUserAction } = useAudit();
   const [isLive, setIsLive] = useState(true);
   const [selectedAction, setSelectedAction] = useState<any>(null);
   const [realTimeData, setRealTimeData] = useState<any>(null);
@@ -206,10 +184,6 @@ const MainDashboard: React.FC = () => {
 
       setRealTimeData(realData);
       setLastUpdate(new Date());
-      
-      // Update mock data with real values
-      mockData.keyMetrics = realData.metrics;
-      mockData.recentActivity = realData.recentActivity;
 
     } catch (error) {
       console.error('Error fetching live data:', error);
@@ -224,18 +198,29 @@ const MainDashboard: React.FC = () => {
 
   useEffect(() => {
     fetchLiveData();
-    const interval = setInterval(fetchLiveData, 30000); // Update every 30 seconds
+    const interval = setInterval(fetchLiveData, 10000); // Update every 10 seconds
     return () => clearInterval(interval);
   }, []);
 
-  const handleQuickAction = (action: any) => {
-    setSelectedAction(action);
-    onOpen();
-    toast({
-      title: `${action.name} Activated`,
-      description: action.description,
-      status: "success",
-      duration: 3000,
+  const handleQuickAction = async (action: any) => {
+    if (action.path) {
+      window.location.href = action.path;
+    } else {
+      setSelectedAction(action);
+      onOpen();
+      toast({
+        title: `${action.name} Activated`,
+        description: action.description,
+        status: "success",
+        duration: 3000,
+      });
+    }
+    
+    // Log the action
+    await logUserAction('QUICK_ACTION', {
+      action_name: action.name,
+      action_type: action.type,
+      page: 'dashboard'
     });
   };
 
@@ -267,6 +252,15 @@ const MainDashboard: React.FC = () => {
                   LIVE DATA
                 </Badge>
               )}
+              <Button
+                size="sm"
+                colorScheme="blue"
+                leftIcon={<Icon as={FiRefreshCw} />}
+                onClick={fetchLiveData}
+                isLoading={!realTimeData}
+              >
+                Refresh Now
+              </Button>
             </HStack>
             <Text color={mutedTextColor} fontSize="lg">
               Real-time blockchain intelligence at your fingertips
@@ -300,10 +294,10 @@ const MainDashboard: React.FC = () => {
                 <Stat>
                   <StatLabel color={mutedTextColor} fontSize="sm">Blocks Processed</StatLabel>
                   <StatNumber color="blue.500" fontSize="xl">
-                    {realTimeData ? realTimeData.metrics.blocksProcessed.toLocaleString() : mockData.keyMetrics.blocksProcessed.toLocaleString()}
+                    {realTimeData ? realTimeData.metrics.blocksProcessed.toLocaleString() : 'Loading...'}
                   </StatNumber>
                   <StatHelpText fontSize="xs">
-                    {realTimeData ? `Current: #${realTimeData.ethereum.currentBlock.toLocaleString()}` : 'Last 24 hours'}
+                    {realTimeData ? `Current: #${realTimeData.ethereum.currentBlock.toLocaleString()}` : 'Connecting...'}
                   </StatHelpText>
                 </Stat>
               </CardBody>
@@ -313,7 +307,7 @@ const MainDashboard: React.FC = () => {
                 <Stat>
                   <StatLabel color={mutedTextColor} fontSize="sm">Transactions</StatLabel>
                   <StatNumber color="green.500" fontSize="xl">
-                    {realTimeData ? realTimeData.metrics.transactionsAnalyzed.toLocaleString() : mockData.keyMetrics.transactionsAnalyzed.toLocaleString()}
+                    {realTimeData ? realTimeData.metrics.transactionsAnalyzed.toLocaleString() : 'Loading...'}
                   </StatNumber>
                   <StatHelpText fontSize="xs">
                     {realTimeData ? `${realTimeData.ethereum.transactionsInBlock} in latest block` : 'Real-time analysis'}
@@ -326,7 +320,7 @@ const MainDashboard: React.FC = () => {
                 <Stat>
                   <StatLabel color={mutedTextColor} fontSize="sm">Entities Resolved</StatLabel>
                   <StatNumber color="purple.500" fontSize="xl">
-                    {realTimeData ? realTimeData.metrics.entitiesResolved.toLocaleString() : mockData.keyMetrics.entitiesResolved.toLocaleString()}
+                    {realTimeData ? realTimeData.metrics.entitiesResolved.toLocaleString() : 'Loading...'}
                   </StatNumber>
                   <StatHelpText fontSize="xs">AI-powered matching</StatHelpText>
                 </Stat>
@@ -337,7 +331,7 @@ const MainDashboard: React.FC = () => {
                 <Stat>
                   <StatLabel color={mutedTextColor} fontSize="sm">MEV Detected</StatLabel>
                   <StatNumber color="orange.500" fontSize="xl">
-                    {realTimeData ? realTimeData.metrics.mevDetected : mockData.keyMetrics.mevDetected}
+                    {realTimeData ? realTimeData.metrics.mevDetected : 'Loading...'}
                   </StatNumber>
                   <StatHelpText fontSize="xs">Attack patterns</StatHelpText>
                 </Stat>
@@ -348,7 +342,7 @@ const MainDashboard: React.FC = () => {
                 <Stat>
                   <StatLabel color={mutedTextColor} fontSize="sm">Risk Alerts</StatLabel>
                   <StatNumber color="red.500" fontSize="xl">
-                    {realTimeData ? realTimeData.metrics.riskAlerts : mockData.keyMetrics.riskAlerts}
+                    {realTimeData ? realTimeData.metrics.riskAlerts : 'Loading...'}
                   </StatNumber>
                   <StatHelpText fontSize="xs">Active threats</StatHelpText>
                 </Stat>
@@ -359,7 +353,7 @@ const MainDashboard: React.FC = () => {
                 <Stat>
                   <StatLabel color={mutedTextColor} fontSize="sm">Confidence</StatLabel>
                   <StatNumber color="teal.500" fontSize="xl">
-                    {realTimeData ? realTimeData.metrics.confidenceScore : mockData.keyMetrics.confidenceScore}%
+                    {realTimeData ? realTimeData.metrics.confidenceScore : 'Loading...'}%
                   </StatNumber>
                   <StatHelpText fontSize="xs">AI accuracy</StatHelpText>
                 </Stat>
@@ -379,7 +373,7 @@ const MainDashboard: React.FC = () => {
                     Quick Actions
                   </Heading>
                   <SimpleGrid columns={{ base: 2, md: 3 }} spacing={4}>
-                    {mockData.quickActions.map((action, index) => (
+                    {quickActions.map((action: any, index: number) => (
                       <Button
                         key={index}
                         variant="outline"
@@ -410,7 +404,7 @@ const MainDashboard: React.FC = () => {
                     Recent Activity
                   </Heading>
                   <VStack spacing={3} align="stretch">
-                    {(realTimeData ? realTimeData.recentActivity : mockData.recentActivity).map((activity: any, index: number) => (
+                    {(realTimeData ? realTimeData.recentActivity : []).map((activity: any, index: number) => (
                       <HStack key={index} justify="space-between" p={3} bg="gray.50" borderRadius="md">
                         <HStack spacing={3}>
                           <Icon 
@@ -461,7 +455,11 @@ const MainDashboard: React.FC = () => {
                           <Progress value={100} size="xs" colorScheme={service.color} width="60px" />
                         </HStack>
                       </HStack>
-                    )) : mockData.systemStatus.services.map((service: any, index: number) => (
+                    )) : [
+                      { name: 'Graph API', status: 'connecting', color: 'gray' },
+                      { name: 'Voice Ops', status: 'connecting', color: 'gray' },
+                      { name: 'Ethereum Ingester', status: 'connecting', color: 'gray' },
+                    ].map((service: any, index: number) => (
                       <HStack key={index} justify="space-between">
                         <Text fontSize="sm" fontWeight="medium">{service.name}</Text>
                         <HStack spacing={2}>
@@ -473,12 +471,14 @@ const MainDashboard: React.FC = () => {
                     <Divider />
                     <HStack justify="space-between">
                       <Text fontSize="sm" color={mutedTextColor}>Uptime</Text>
-                      <Text fontSize="sm" fontWeight="bold" color="green.500">{mockData.systemStatus.uptime}</Text>
+                      <Text fontSize="sm" fontWeight="bold" color="green.500">
+                        {realTimeData ? '99.9%' : 'Connecting...'}
+                      </Text>
                     </HStack>
                     <HStack justify="space-between">
                       <Text fontSize="sm" color={mutedTextColor}>Last Update</Text>
                       <Text fontSize="sm" color={mutedTextColor}>
-                        {realTimeData ? lastUpdate.toLocaleTimeString() : mockData.systemStatus.lastUpdate}
+                        {realTimeData ? lastUpdate.toLocaleTimeString() : 'Connecting...'}
                       </Text>
                     </HStack>
                   </VStack>
@@ -573,4 +573,12 @@ const MainDashboard: React.FC = () => {
   );
 };
 
-export default MainDashboard;
+export default function DashboardPage() {
+  return (
+    <SessionProvider>
+      <ProtectedRoute requiredRole="viewer">
+        <MainDashboard />
+      </ProtectedRoute>
+    </SessionProvider>
+  );
+}

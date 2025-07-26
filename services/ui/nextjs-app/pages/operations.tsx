@@ -40,17 +40,10 @@ import {
   FormControl,
   FormLabel,
 } from '@chakra-ui/react';
-import PalantirLayout from '../src/components/layout/PalantirLayout';
+import CleanNavigation from '../src/components/layout/CleanNavigation';
 
 // Mock operations data
-const mockOperationsMetrics = {
-  totalOperations: 1247,
-  activeOperations: 23,
-  completedToday: 156,
-  successRate: 99.2,
-  averageResponseTime: 1.8,
-  systemUptime: 99.97,
-};
+
 
 const mockActiveOperations = [
   {
@@ -151,7 +144,10 @@ const Operations: NextPage = () => {
   };
 
   return (
-    <PalantirLayout>
+    <Box bg={bg} minH="100vh">
+      <CleanNavigation />
+      
+      <Box p={6}>
       <Head>
         <title>Operations Center - Onchain Command Center</title>
         <meta name="description" content="Real-time operations monitoring and control center" />
@@ -335,7 +331,8 @@ const Operations: NextPage = () => {
           </CardBody>
         </Card>
       </Container>
-    </PalantirLayout>
+          </Box>
+    </Box>
   );
 };
 

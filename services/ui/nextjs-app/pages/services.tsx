@@ -18,7 +18,7 @@ import {
   Divider,
   useColorModeValue,
 } from '@chakra-ui/react';
-import PalantirLayout from '../src/components/layout/PalantirLayout';
+import CleanNavigation from '../src/components/layout/CleanNavigation';
 import Link from 'next/link';
 
 interface ServiceCard {
@@ -222,7 +222,10 @@ const ServicesPage: NextPage = () => {
   }, {} as Record<string, ServiceCard[]>);
 
   return (
-    <PalantirLayout>
+    <Box bg={bg} minH="100vh">
+      <CleanNavigation />
+      
+      <Box p={6}>
       <Head>
         <title>Services Overview | Onchain Command Center</title>
         <meta name="description" content="Comprehensive overview of all available services in the Onchain Command Center platform" />
@@ -345,7 +348,8 @@ const ServicesPage: NextPage = () => {
           ))}
         </VStack>
       </Container>
-    </PalantirLayout>
+          </Box>
+    </Box>
   );
 };
 

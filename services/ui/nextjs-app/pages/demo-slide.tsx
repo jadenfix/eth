@@ -236,7 +236,7 @@ const DemoSlide: React.FC = () => {
         </Alert>
 
         {/* Main Demo Content */}
-        <Tabs onChange={setActiveTab} value={activeTab} variant="enclosed">
+        <Tabs onChange={setActiveTab} index={activeTab} variant="enclosed">
           <TabList>
             <Tab><Icon as={FiActivity} mr={2} />Live Dashboard</Tab>
             <Tab><Icon as={FiZap} mr={2} />MEV Intelligence</Tab>

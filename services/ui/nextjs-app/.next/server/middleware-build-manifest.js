@@ -3,71 +3,24 @@ self.__BUILD_MANIFEST = {
     "static/chunks/polyfills.js"
   ],
   "devFiles": [
-    "static/chunks/react-refresh.js"
+    "static/chunks/fallback/react-refresh.js"
   ],
-  "ampDevFiles": [],
+  "ampDevFiles": [
+    "static/chunks/fallback/webpack.js",
+    "static/chunks/fallback/amp.js"
+  ],
   "lowPriorityFiles": [],
   "rootMainFiles": [],
   "pages": {
-    "/": [
-      "static/chunks/webpack.js",
-      "static/chunks/main.js",
-      "static/chunks/pages/index.js"
-    ],
     "/_app": [
-      "static/chunks/webpack.js",
-      "static/chunks/main.js",
-      "static/chunks/pages/_app.js"
+      "static/chunks/fallback/webpack.js",
+      "static/chunks/fallback/main.js",
+      "static/chunks/fallback/pages/_app.js"
     ],
     "/_error": [
-      "static/chunks/webpack.js",
-      "static/chunks/main.js",
-      "static/chunks/pages/_error.js"
-    ],
-    "/analytics": [
-      "static/chunks/webpack.js",
-      "static/chunks/main.js",
-      "static/chunks/pages/analytics.js"
-    ],
-    "/canvas": [
-      "static/chunks/webpack.js",
-      "static/chunks/main.js",
-      "static/chunks/pages/canvas.js"
-    ],
-    "/compliance": [
-      "static/chunks/webpack.js",
-      "static/chunks/main.js",
-      "static/chunks/pages/compliance.js"
-    ],
-    "/intelligence/entities": [
-      "static/chunks/webpack.js",
-      "static/chunks/main.js",
-      "static/chunks/pages/intelligence/entities.js"
-    ],
-    "/live-data": [
-      "static/chunks/webpack.js",
-      "static/chunks/main.js",
-      "static/chunks/pages/live-data.js"
-    ],
-    "/mev": [
-      "static/chunks/webpack.js",
-      "static/chunks/main.js",
-      "static/chunks/pages/mev.js"
-    ],
-    "/monitoring": [
-      "static/chunks/webpack.js",
-      "static/chunks/main.js",
-      "static/chunks/pages/monitoring.js"
-    ],
-    "/voice": [
-      "static/chunks/webpack.js",
-      "static/chunks/main.js",
-      "static/chunks/pages/voice.js"
-    ],
-    "/workspace": [
-      "static/chunks/webpack.js",
-      "static/chunks/main.js",
-      "static/chunks/pages/workspace.js"
+      "static/chunks/fallback/webpack.js",
+      "static/chunks/fallback/main.js",
+      "static/chunks/fallback/pages/_error.js"
     ]
   },
   "ampFirstPages": []
