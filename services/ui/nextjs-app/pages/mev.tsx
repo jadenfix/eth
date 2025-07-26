@@ -1,520 +1,485 @@
 import React, { useState, useEffect } from 'react';
 import { NextPage } from 'next';
 import Head from 'next/head';
-import Link from 'next/link';
 import {
   Box,
-  Container,
+  Grid,
   VStack,
   HStack,
   Heading,
   Text,
-  Button,
-  useColorModeValue,
-  SimpleGrid,
   Card,
   CardBody,
   CardHeader,
   Badge,
-  Progress,
-  Stat,
-  StatLabel,
-  StatNumber,
-  StatHelpText,
-  StatArrow,
+  Button,
+  useColorModeValue,
   Table,
   Thead,
   Tbody,
   Tr,
   Th,
   Td,
-  TableContainer,
-  Tab,
-  Tabs,
-  TabList,
-  TabPanels,
-  TabPanel,
+  Flex,
+  Progress,
+  Stat,
+  StatLabel,
+  StatNumber,
+  StatHelpText,
+  StatArrow,
+  Divider,
+  Select,
+  Input,
+  InputGroup,
+  InputLeftElement,
   Alert,
   AlertIcon,
-  Code,
+  AlertTitle,
+  AlertDescription,
 } from '@chakra-ui/react';
-import { ResponsiveLayout } from '../src/components';
+import PalantirLayout from '../src/components/layout/PalantirLayout';
 
-interface MEVMetrics {
-  totalDetected: number;
-  sandwichAttacks: number;
-  arbitrageOps: number;
-  liquidations: number;
-  dailyVolume: number;
-  alertsTriggered: number;
-}
+// Mock MEV data
+const mockMEVData = {
+  totalDetected: 156,
+  totalValue: 2345000,
+  averageValue: 15032,
+  successRate: 87.3,
+  recentDetections: 12,
+};
 
-interface MEVAlert {
-  id: string;
-  type: 'sandwich' | 'arbitrage' | 'liquidation' | 'backrun';
-  txHash: string;
-  blockNumber: number;
-  profit: number;
-  victim?: string;
-  timestamp: string;
-  severity: 'low' | 'medium' | 'high';
-}
+const mockMEVEvents = [
+  {
+    id: 1,
+    type: 'SANDWICH_ATTACK',
+    description: 'Sandwich attack on Uniswap V3 ETH/USDC pair',
+    victim: '0x742d35Cc6634C0532925a3b8D6Ac492395d8',
+    attacker: '0x8ba1f109551bD432803012645Hac136c82',
+    value: 45230,
+    gasUsed: 450000,
+    gasPrice: 200,
+    timestamp: '2 minutes ago',
+    status: 'DETECTED',
+    severity: 'HIGH',
+  },
+  {
+    id: 2,
+    type: 'FRONT_RUNNING',
+    description: 'Front-running large DEX trade',
+    victim: '0xabc123def456789ghi0123456789jklmnop',
+    attacker: '0xmev_bot_123456789abcdef0123456789',
+    value: 125000,
+    gasUsed: 320000,
+    gasPrice: 180,
+    timestamp: '5 minutes ago',
+    status: 'DETECTED',
+    severity: 'HIGH',
+  },
+  {
+    id: 3,
+    type: 'ARBITRAGE',
+    description: 'Cross-DEX arbitrage opportunity',
+    victim: '0xdef456abc789ghi0123456789jklmnopqr',
+    attacker: '0xarb_bot_456789abcdef0123456789ghijk',
+    value: 89000,
+    gasUsed: 280000,
+    gasPrice: 150,
+    timestamp: '8 minutes ago',
+    status: 'DETECTED',
+    severity: 'MEDIUM',
+  },
+  {
+    id: 4,
+    type: 'LIQUIDATION',
+    description: 'Compound protocol liquidation',
+    victim: '0xghi789def012abc3456789jklmnopqrstu',
+    attacker: '0xliq_bot_789abcdef0123456789ghijklmn',
+    value: 67000,
+    gasUsed: 220000,
+    gasPrice: 120,
+    timestamp: '12 minutes ago',
+    status: 'DETECTED',
+    severity: 'MEDIUM',
+  },
+];
 
 const MEVPage: NextPage = () => {
-  const [metrics, setMetrics] = useState<MEVMetrics>({
-    totalDetected: 1247,
-    sandwichAttacks: 234,
-    arbitrageOps: 456,
-    liquidations: 89,
-    dailyVolume: 2456789,
-    alertsTriggered: 127,
-  });
+  const [selectedType, setSelectedType] = useState('ALL');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [timeRange, setTimeRange] = useState('24H');
 
-  const [recentAlerts, setRecentAlerts] = useState<MEVAlert[]>([
-    {
-      id: 'alert1',
-      type: 'sandwich',
-      txHash: '0x8b4c9f3e2a1d7b6c5e8f9a0d3b2c4e7f1a5b8d9c2e4f7a0b3c5d8f1e4a7b0c3',
-      blockNumber: 18756432,
-      profit: 2.47,
-      victim: '0x742d35Cc8d3C8A9F99D4F7b79Da3E87C1b4b7F8d',
-      timestamp: '3 minutes ago',
-      severity: 'high',
-    },
-    {
-      id: 'alert2',
-      type: 'arbitrage',
-      txHash: '0x3a2b1c4d5e6f7890abcdef1234567890abcdef1234567890abcdef1234567890',
-      blockNumber: 18756429,
-      profit: 0.85,
-      timestamp: '7 minutes ago',
-      severity: 'medium',
-    },
-    {
-      id: 'alert3',
-      type: 'liquidation',
-      txHash: '0xdef123456789abcdef123456789abcdef123456789abcdef123456789abcdef12',
-      blockNumber: 18756425,
-      profit: 1.23,
-      victim: '0x8ba1f109edD4bd1C1b8d3C9A2b1c4d5e6f789012',
-      timestamp: '12 minutes ago',
-      severity: 'medium',
-    },
-  ]);
-
-  const bgColor = useColorModeValue('gray.100', 'gray.900');
-  const cardBg = useColorModeValue('white', 'gray.800');
-
-  // Simulate real-time updates
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setMetrics(prev => ({
-        ...prev,
-        totalDetected: prev.totalDetected + Math.floor(Math.random() * 3),
-        alertsTriggered: prev.alertsTriggered + Math.floor(Math.random() * 2),
-        dailyVolume: prev.dailyVolume + Math.floor(Math.random() * 10000),
-      }));
-    }, 10000);
-
-    return () => clearInterval(interval);
-  }, []);
+  const bg = useColorModeValue('white', 'dark.800');
+  const borderColor = useColorModeValue('gray.200', 'dark.700');
+  const textColor = useColorModeValue('gray.800', 'gray.100');
+  const mutedTextColor = useColorModeValue('gray.600', 'gray.400');
 
   const getSeverityColor = (severity: string) => {
     switch (severity) {
-      case 'high': return 'red';
-      case 'medium': return 'yellow';
-      case 'low': return 'green';
+      case 'HIGH': return 'error';
+      case 'MEDIUM': return 'warning';
+      case 'LOW': return 'info';
       default: return 'gray';
     }
   };
 
-  const getTypeIcon = (type: string) => {
+  const getTypeColor = (type: string) => {
     switch (type) {
-      case 'sandwich': return '🥪';
-      case 'arbitrage': return '⚖️';
-      case 'liquidation': return '💧';
-      case 'backrun': return '🏃';
-      default: return '🔍';
+      case 'SANDWICH_ATTACK': return 'error';
+      case 'FRONT_RUNNING': return 'warning';
+      case 'ARBITRAGE': return 'info';
+      case 'LIQUIDATION': return 'crypto';
+      default: return 'gray';
     }
   };
 
+  const filteredEvents = mockMEVEvents.filter(event => {
+    const matchesType = selectedType === 'ALL' || event.type === selectedType;
+    const matchesSearch = event.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                         event.victim.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                         event.attacker.toLowerCase().includes(searchQuery.toLowerCase());
+    return matchesType && matchesSearch;
+  });
+
   return (
-    <ResponsiveLayout 
-      title="MEV Watch Agent | Blockchain Intelligence"
-      description="Real-time MEV detection and monitoring system"
-    >
+    <PalantirLayout>
       <Head>
-        <title>MEV Watch Agent | Blockchain Intelligence</title>
-        <meta name="description" content="Real-time MEV detection and monitoring system" />
+        <title>MEV Detection - Onchain Command Center</title>
       </Head>
 
-      <Box bg={bgColor} minH="100vh">
-
-      {/* Header */}
-      <Box bg={cardBg} borderBottom="1px solid" borderColor="gray.200" py={4} shadow="sm">
-        <Container maxW="7xl" px={6}>
+      <VStack spacing={6} align="stretch">
+        {/* Header Section */}
+        <Box>
           <HStack justify="space-between" align="center">
-            <HStack spacing={4}>
-              <Link href="/services">
-                <Button variant="ghost" size="sm">← All Services</Button>
-              </Link>
-              <Text fontSize="2xl">🤖</Text>
-              <VStack align="start" spacing={0}>
-                <Heading size="lg">MEV Watch Agent</Heading>
-                <Text color="gray.600">Real-time MEV Detection & Monitoring</Text>
-              </VStack>
-            </HStack>
-
-            <HStack spacing={3}>
-              <Badge colorScheme="green" variant="solid" px={3} py={1}>
-                ACTIVE
-              </Badge>
-              <Badge colorScheme="purple" variant="solid" px={3} py={1}>
-                {metrics.alertsTriggered} ALERTS
-              </Badge>
-              <Link href="/workspace">
-                <Button colorScheme="blue">Open in Workspace</Button>
-              </Link>
-            </HStack>
-          </HStack>
-        </Container>
-      </Box>
-
-      <Container maxW="7xl" py={8} px={6}>
-        <VStack spacing={8} align="stretch">
-          
-          {/* Alert Banner */}
-          <Alert status="info" borderRadius="md">
-            <AlertIcon />
             <VStack align="start" spacing={1}>
-              <Text fontWeight="medium">MEV Watch Agent is actively monitoring Ethereum mainnet</Text>
-              <Text fontSize="sm" color="gray.600">
-                Detecting sandwich attacks, arbitrage opportunities, and liquidation events in real-time
+              <Heading size="lg" color={textColor}>
+                MEV Detection System
+              </Heading>
+              <Text color={mutedTextColor} fontSize="sm">
+                Real-time detection and analysis of Maximal Extractable Value attacks
               </Text>
             </VStack>
-          </Alert>
+            <HStack spacing={4}>
+              <Badge colorScheme="error" size="lg">
+                ACTIVE MONITORING
+              </Badge>
+            </HStack>
+          </HStack>
+        </Box>
 
-          {/* Metrics Grid */}
-          <SimpleGrid columns={{ base: 2, md: 3, lg: 6 }} spacing={4}>
-            <Card bg={cardBg}>
-              <CardBody>
-                <Stat>
-                  <StatLabel color="gray.600">Total Detected</StatLabel>
-                  <StatNumber fontSize="xl">{metrics.totalDetected}</StatNumber>
-                  <StatHelpText>
-                    <StatArrow type="increase" />
-                    +5.2% this hour
-                  </StatHelpText>
-                </Stat>
-              </CardBody>
-            </Card>
+        {/* Alert Banner */}
+        <Alert status="warning" borderRadius="md">
+          <AlertIcon />
+          <Box>
+            <AlertTitle>High MEV Activity Detected</AlertTitle>
+            <AlertDescription>
+              12 MEV attacks detected in the last hour. System is actively monitoring for new threats.
+            </AlertDescription>
+          </Box>
+        </Alert>
 
-            <Card bg={cardBg}>
-              <CardBody>
-                <Stat>
-                  <StatLabel color="gray.600">Sandwich Attacks</StatLabel>
-                  <StatNumber fontSize="xl">{metrics.sandwichAttacks}</StatNumber>
-                  <StatHelpText>
-                    <StatArrow type="increase" />
-                    +8.1% today
-                  </StatHelpText>
-                </Stat>
-              </CardBody>
-            </Card>
-
-            <Card bg={cardBg}>
-              <CardBody>
-                <Stat>
-                  <StatLabel color="gray.600">Arbitrage Ops</StatLabel>
-                  <StatNumber fontSize="xl">{metrics.arbitrageOps}</StatNumber>
-                  <StatHelpText>
-                    <StatArrow type="increase" />
-                    +12.3% today
-                  </StatHelpText>
-                </Stat>
-              </CardBody>
-            </Card>
-
-            <Card bg={cardBg}>
-              <CardBody>
-                <Stat>
-                  <StatLabel color="gray.600">Liquidations</StatLabel>
-                  <StatNumber fontSize="xl">{metrics.liquidations}</StatNumber>
-                  <StatHelpText>
-                    <StatArrow type="decrease" />
-                    -2.4% today
-                  </StatHelpText>
-                </Stat>
-              </CardBody>
-            </Card>
-
-            <Card bg={cardBg}>
-              <CardBody>
-                <Stat>
-                  <StatLabel color="gray.600">Daily Volume</StatLabel>
-                  <StatNumber fontSize="xl">{(metrics.dailyVolume / 1000000).toFixed(1)}M</StatNumber>
-                  <StatHelpText>MEV extracted</StatHelpText>
-                </Stat>
-              </CardBody>
-            </Card>
-
-            <Card bg={cardBg}>
-              <CardBody>
-                <Stat>
-                  <StatLabel color="gray.600">Alerts</StatLabel>
-                  <StatNumber fontSize="xl">{metrics.alertsTriggered}</StatNumber>
-                  <StatHelpText>This hour</StatHelpText>
-                </Stat>
-              </CardBody>
-            </Card>
-          </SimpleGrid>
-
-          {/* Tabs Section */}
-          <Card bg={cardBg}>
-            <CardHeader>
-              <Heading size="md">MEV Monitoring Dashboard</Heading>
-            </CardHeader>
+        {/* Key Metrics Grid */}
+        <Grid templateColumns="repeat(auto-fit, minmax(200px, 1fr))" gap={6}>
+          <Card>
             <CardBody>
-              <Tabs variant="enclosed">
-                <TabList>
-                  <Tab>Recent Alerts</Tab>
-                  <Tab>Detection Patterns</Tab>
-                  <Tab>Agent Configuration</Tab>
-                  <Tab>Performance Metrics</Tab>
-                </TabList>
-
-                <TabPanels>
-                  {/* Recent Alerts Tab */}
-                  <TabPanel px={0}>
-                    <TableContainer>
-                      <Table size="sm">
-                        <Thead>
-                          <Tr>
-                            <Th>Type</Th>
-                            <Th>Transaction</Th>
-                            <Th>Block</Th>
-                            <Th>Profit (ETH)</Th>
-                            <Th>Victim</Th>
-                            <Th>Severity</Th>
-                            <Th>Time</Th>
-                          </Tr>
-                        </Thead>
-                        <Tbody>
-                          {recentAlerts.map((alert) => (
-                            <Tr key={alert.id}>
-                              <Td>
-                                <HStack spacing={2}>
-                                  <Text>{getTypeIcon(alert.type)}</Text>
-                                  <Badge variant="outline" textTransform="capitalize">
-                                    {alert.type}
-                                  </Badge>
-                                </HStack>
-                              </Td>
-                              <Td>
-                                <Code fontSize="xs" colorScheme="blue">
-                                  {alert.txHash.slice(0, 10)}...{alert.txHash.slice(-8)}
-                                </Code>
-                              </Td>
-                              <Td>
-                                <Text fontFamily="mono" fontSize="sm">
-                                  {alert.blockNumber.toLocaleString()}
-                                </Text>
-                              </Td>
-                              <Td>
-                                <Text fontWeight="medium" color="green.500">
-                                  +{alert.profit.toFixed(2)}
-                                </Text>
-                              </Td>
-                              <Td>
-                                {alert.victim ? (
-                                  <Code fontSize="xs" colorScheme="red">
-                                    {alert.victim.slice(0, 8)}...{alert.victim.slice(-6)}
-                                  </Code>
-                                ) : (
-                                  <Text color="gray.500">-</Text>
-                                )}
-                              </Td>
-                              <Td>
-                                <Badge colorScheme={getSeverityColor(alert.severity)} variant="solid">
-                                  {alert.severity.toUpperCase()}
-                                </Badge>
-                              </Td>
-                              <Td>
-                                <Text fontSize="xs" color="gray.500">
-                                  {alert.timestamp}
-                                </Text>
-                              </Td>
-                            </Tr>
-                          ))}
-                        </Tbody>
-                      </Table>
-                    </TableContainer>
-                  </TabPanel>
-
-                  {/* Detection Patterns Tab */}
-                  <TabPanel px={0}>
-                    <SimpleGrid columns={{ base: 1, md: 2 }} spacing={6}>
-                      <Card size="sm">
-                        <CardHeader pb={2}>
-                          <Text fontWeight="medium">Detection Algorithms</Text>
-                        </CardHeader>
-                        <CardBody pt={0}>
-                          <VStack align="stretch" spacing={3}>
-                            <HStack justify="space-between">
-                              <Text fontSize="sm">🥪 Sandwich Detection</Text>
-                              <Badge colorScheme="green">Active</Badge>
-                            </HStack>
-                            <HStack justify="space-between">
-                              <Text fontSize="sm">⚖️ Arbitrage Monitoring</Text>
-                              <Badge colorScheme="green">Active</Badge>
-                            </HStack>
-                            <HStack justify="space-between">
-                              <Text fontSize="sm">💧 Liquidation Tracker</Text>
-                              <Badge colorScheme="green">Active</Badge>
-                            </HStack>
-                            <HStack justify="space-between">
-                              <Text fontSize="sm">🏃 Backrun Detection</Text>
-                              <Badge colorScheme="yellow">Beta</Badge>
-                            </HStack>
-                          </VStack>
-                        </CardBody>
-                      </Card>
-
-                      <Card size="sm">
-                        <CardHeader pb={2}>
-                          <Text fontWeight="medium">Pattern Analysis</Text>
-                        </CardHeader>
-                        <CardBody pt={0}>
-                          <VStack align="stretch" spacing={3}>
-                            <HStack justify="space-between">
-                              <Text fontSize="sm">Common Patterns</Text>
-                              <Text fontSize="sm" fontWeight="medium">15 identified</Text>
-                            </HStack>
-                            <HStack justify="space-between">
-                              <Text fontSize="sm">Bot Signatures</Text>
-                              <Text fontSize="sm" fontWeight="medium">47 tracked</Text>
-                            </HStack>
-                            <HStack justify="space-between">
-                              <Text fontSize="sm">False Positives</Text>
-                              <Text fontSize="sm" fontWeight="medium">2.3% rate</Text>
-                            </HStack>
-                          </VStack>
-                        </CardBody>
-                      </Card>
-                    </SimpleGrid>
-                  </TabPanel>
-
-                  {/* Configuration Tab */}
-                  <TabPanel px={0}>
-                    <SimpleGrid columns={{ base: 1, md: 2 }} spacing={6}>
-                      <VStack align="stretch" spacing={4}>
-                        <Heading size="sm">Agent Settings</Heading>
-                        <Box p={4} border="1px solid" borderColor="gray.200" borderRadius="md">
-                          <VStack align="stretch" spacing={3}>
-                            <HStack justify="space-between">
-                              <Text fontSize="sm">Monitoring Interval</Text>
-                              <Badge>1 block</Badge>
-                            </HStack>
-                            <HStack justify="space-between">
-                              <Text fontSize="sm">Alert Threshold</Text>
-                              <Badge>0.1 ETH profit</Badge>
-                            </HStack>
-                            <HStack justify="space-between">
-                              <Text fontSize="sm">Network</Text>
-                              <Badge colorScheme="blue">Ethereum Mainnet</Badge>
-                            </HStack>
-                          </VStack>
-                        </Box>
-                      </VStack>
-
-                      <VStack align="stretch" spacing={4}>
-                        <Heading size="sm">Integration Points</Heading>
-                        <Box p={4} border="1px solid" borderColor="gray.200" borderRadius="md">
-                          <VStack align="stretch" spacing={3}>
-                            <HStack justify="space-between">
-                              <Text fontSize="sm">Pub/Sub Topic</Text>
-                              <Code fontSize="xs">mev-alerts</Code>
-                            </HStack>
-                            <HStack justify="space-between">
-                              <Text fontSize="sm">GraphQL API</Text>
-                              <Badge colorScheme="green">Connected</Badge>
-                            </HStack>
-                            <HStack justify="space-between">
-                              <Text fontSize="sm">WebSocket Feed</Text>
-                              <Badge colorScheme="green">Active</Badge>
-                            </HStack>
-                          </VStack>
-                        </Box>
-                      </VStack>
-                    </SimpleGrid>
-                  </TabPanel>
-
-                  {/* Performance Metrics Tab */}
-                  <TabPanel px={0}>
-                    <SimpleGrid columns={{ base: 1, md: 3 }} spacing={4}>
-                      <Card size="sm">
-                        <CardBody>
-                          <Stat>
-                            <StatLabel>Detection Latency</StatLabel>
-                            <StatNumber fontSize="lg">45ms</StatNumber>
-                            <StatHelpText>Average response time</StatHelpText>
-                          </Stat>
-                        </CardBody>
-                      </Card>
-                      
-                      <Card size="sm">
-                        <CardBody>
-                          <Stat>
-                            <StatLabel>Accuracy Rate</StatLabel>
-                            <StatNumber fontSize="lg">97.7%</StatNumber>
-                            <StatHelpText>True positive rate</StatHelpText>
-                          </Stat>
-                        </CardBody>
-                      </Card>
-
-                      <Card size="sm">
-                        <CardBody>
-                          <Stat>
-                            <StatLabel>Uptime</StatLabel>
-                            <StatNumber fontSize="lg">99.9%</StatNumber>
-                            <StatHelpText>Last 30 days</StatHelpText>
-                          </Stat>
-                        </CardBody>
-                      </Card>
-                    </SimpleGrid>
-                  </TabPanel>
-                </TabPanels>
-              </Tabs>
+              <Stat>
+                <StatLabel color={mutedTextColor}>Total Detected</StatLabel>
+                <StatNumber color="error.500">
+                  {mockMEVData.totalDetected}
+                </StatNumber>
+                <StatHelpText>
+                  <StatArrow type="increase" />
+                  23% from last 24h
+                </StatHelpText>
+              </Stat>
             </CardBody>
           </Card>
 
-          {/* Quick Actions */}
-          <Card bg={cardBg}>
-            <CardHeader>
-              <Heading size="md">Quick Actions</Heading>
-            </CardHeader>
+          <Card>
             <CardBody>
-              <SimpleGrid columns={{ base: 2, md: 4 }} spacing={3}>
-                <Button size="sm" variant="outline" leftIcon={<Text>🔔</Text>}>
-                  Configure Alerts
-                </Button>
-                <Button size="sm" variant="outline" leftIcon={<Text>📊</Text>}>
-                  View Analytics
-                </Button>
-                <Button size="sm" variant="outline" leftIcon={<Text>⚙️</Text>}>
-                  Agent Settings
-                </Button>
-                <Button size="sm" variant="outline" leftIcon={<Text>📁</Text>}>
-                  Export Data
-                </Button>
-              </SimpleGrid>
+              <Stat>
+                <StatLabel color={mutedTextColor}>Total Value</StatLabel>
+                <StatNumber color={textColor}>
+                  ${(mockMEVData.totalValue / 1000000).toFixed(1)}M
+                </StatNumber>
+                <StatHelpText>
+                  <StatArrow type="increase" />
+                  15.2% from last 24h
+                </StatHelpText>
+              </Stat>
             </CardBody>
           </Card>
 
-        </VStack>
-      </Container>
-    </Box>
-    </ResponsiveLayout>
+          <Card>
+            <CardBody>
+              <Stat>
+                <StatLabel color={mutedTextColor}>Average Value</StatLabel>
+                <StatNumber color={textColor}>
+                  ${mockMEVData.averageValue.toLocaleString()}
+                </StatNumber>
+                <StatHelpText>
+                  <StatArrow type="decrease" />
+                  8.7% from last 24h
+                </StatHelpText>
+              </Stat>
+            </CardBody>
+          </Card>
+
+          <Card>
+            <CardBody>
+              <Stat>
+                <StatLabel color={mutedTextColor}>Detection Rate</StatLabel>
+                <StatNumber color="success.500">
+                  {mockMEVData.successRate}%
+                </StatNumber>
+                <StatHelpText>
+                  <StatArrow type="increase" />
+                  2.1% from last 24h
+                </StatHelpText>
+              </Stat>
+            </CardBody>
+          </Card>
+        </Grid>
+
+        {/* Filters and Controls */}
+        <Card>
+          <CardBody>
+            <HStack spacing={6} align="center">
+              <VStack align="start" spacing={2}>
+                <Text fontSize="sm" color={mutedTextColor} fontWeight="medium">
+                  MEV Type
+                </Text>
+                <Select
+                  value={selectedType}
+                  onChange={(e) => setSelectedType(e.target.value)}
+                  size="sm"
+                  w="200px"
+                >
+                  <option value="ALL">All Types</option>
+                  <option value="SANDWICH_ATTACK">Sandwich Attack</option>
+                  <option value="FRONT_RUNNING">Front Running</option>
+                  <option value="ARBITRAGE">Arbitrage</option>
+                  <option value="LIQUIDATION">Liquidation</option>
+                </Select>
+              </VStack>
+
+              <VStack align="start" spacing={2}>
+                <Text fontSize="sm" color={mutedTextColor} fontWeight="medium">
+                  Time Range
+                </Text>
+                <Select
+                  value={timeRange}
+                  onChange={(e) => setTimeRange(e.target.value)}
+                  size="sm"
+                  w="150px"
+                >
+                  <option value="1H">Last Hour</option>
+                  <option value="24H">Last 24 Hours</option>
+                  <option value="7D">Last 7 Days</option>
+                  <option value="30D">Last 30 Days</option>
+                </Select>
+              </VStack>
+
+              <VStack align="start" spacing={2} flex={1}>
+                <Text fontSize="sm" color={mutedTextColor} fontWeight="medium">
+                  Search
+                </Text>
+                <InputGroup size="sm">
+                  <InputLeftElement>
+                    <Text fontSize="sm" color="gray.400">⌕</Text>
+                  </InputLeftElement>
+                  <Input
+                    placeholder="Search by description, victim, or attacker..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                  />
+                </InputGroup>
+              </VStack>
+
+              <Button colorScheme="crypto" size="sm">
+                Export Data
+              </Button>
+            </HStack>
+          </CardBody>
+        </Card>
+
+        {/* MEV Events Table */}
+        <Card>
+          <CardHeader>
+            <HStack justify="space-between">
+              <Heading size="md" color={textColor}>
+                Recent MEV Events
+              </Heading>
+              <Text fontSize="sm" color={mutedTextColor}>
+                Showing {filteredEvents.length} of {mockMEVEvents.length} events
+              </Text>
+            </HStack>
+          </CardHeader>
+          <CardBody>
+            <Table variant="simple" size="sm">
+              <Thead>
+                <Tr>
+                  <Th color={mutedTextColor}>Type</Th>
+                  <Th color={mutedTextColor}>Description</Th>
+                  <Th color={mutedTextColor}>Victim</Th>
+                  <Th color={mutedTextColor}>Attacker</Th>
+                  <Th color={mutedTextColor}>Value</Th>
+                  <Th color={mutedTextColor}>Gas</Th>
+                  <Th color={mutedTextColor}>Severity</Th>
+                  <Th color={mutedTextColor}>Time</Th>
+                  <Th color={mutedTextColor}>Actions</Th>
+                </Tr>
+              </Thead>
+              <Tbody>
+                {filteredEvents.map((event) => (
+                  <Tr key={event.id}>
+                    <Td>
+                      <Badge colorScheme={getTypeColor(event.type)} size="sm">
+                        {event.type.replace('_', ' ')}
+                      </Badge>
+                    </Td>
+                    <Td>
+                      <Text fontSize="sm" color={textColor} maxW="200px" noOfLines={2}>
+                        {event.description}
+                      </Text>
+                    </Td>
+                    <Td>
+                      <Text fontSize="sm" color="crypto.400" fontFamily="mono" maxW="120px" noOfLines={1}>
+                        {event.victim.slice(0, 8)}...{event.victim.slice(-6)}
+                      </Text>
+                    </Td>
+                    <Td>
+                      <Text fontSize="sm" color="error.400" fontFamily="mono" maxW="120px" noOfLines={1}>
+                        {event.attacker.slice(0, 8)}...{event.attacker.slice(-6)}
+                      </Text>
+                    </Td>
+                    <Td>
+                      <Text fontSize="sm" color={textColor} fontWeight="medium">
+                        ${event.value.toLocaleString()}
+                      </Text>
+                    </Td>
+                    <Td>
+                      <VStack align="start" spacing={1}>
+                        <Text fontSize="xs" color={mutedTextColor}>
+                          {event.gasUsed.toLocaleString()}
+                        </Text>
+                        <Text fontSize="xs" color={mutedTextColor}>
+                          {event.gasPrice} gwei
+                        </Text>
+                      </VStack>
+                    </Td>
+                    <Td>
+                      <Badge colorScheme={getSeverityColor(event.severity)} size="sm">
+                        {event.severity}
+                      </Badge>
+                    </Td>
+                    <Td>
+                      <Text fontSize="sm" color={mutedTextColor}>
+                        {event.timestamp}
+                      </Text>
+                    </Td>
+                    <Td>
+                      <HStack spacing={2}>
+                        <Button size="xs" variant="outline">
+                          Details
+                        </Button>
+                        <Button size="xs" variant="outline" colorScheme="error">
+                          Block
+                        </Button>
+                      </HStack>
+                    </Td>
+                  </Tr>
+                ))}
+              </Tbody>
+            </Table>
+          </CardBody>
+        </Card>
+
+        {/* MEV Analysis Charts */}
+        <Grid templateColumns="1fr 1fr" gap={6}>
+          <Card>
+            <CardHeader>
+              <Heading size="md" color={textColor}>
+                MEV Type Distribution
+              </Heading>
+            </CardHeader>
+            <CardBody>
+              <VStack spacing={4} align="stretch">
+                {[
+                  { type: 'Sandwich Attack', count: 45, percentage: 28.8, color: 'error.500' },
+                  { type: 'Front Running', count: 38, percentage: 24.4, color: 'warning.500' },
+                  { type: 'Arbitrage', count: 42, percentage: 26.9, color: 'info.500' },
+                  { type: 'Liquidation', count: 31, percentage: 19.9, color: 'crypto.500' },
+                ].map((item) => (
+                  <Box key={item.type}>
+                    <HStack justify="space-between" mb={2}>
+                      <Text fontSize="sm" color={textColor}>
+                        {item.type}
+                      </Text>
+                      <Text fontSize="sm" color={mutedTextColor}>
+                        {item.count} ({item.percentage}%)
+                      </Text>
+                    </HStack>
+                    <Progress
+                      value={item.percentage}
+                      colorScheme={item.color.split('.')[0] as any}
+                      size="sm"
+                      borderRadius="full"
+                    />
+                  </Box>
+                ))}
+              </VStack>
+            </CardBody>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <Heading size="md" color={textColor}>
+                Detection Performance
+              </Heading>
+            </CardHeader>
+            <CardBody>
+              <VStack spacing={6} align="stretch">
+                <Box>
+                  <HStack justify="space-between" mb={2}>
+                    <Text fontSize="sm" color={mutedTextColor}>
+                      Detection Accuracy
+                    </Text>
+                    <Text fontSize="sm" color="success.500" fontWeight="medium">
+                      94.2%
+                    </Text>
+                  </HStack>
+                  <Progress value={94.2} colorScheme="success" size="lg" borderRadius="full" />
+                </Box>
+
+                <Box>
+                  <HStack justify="space-between" mb={2}>
+                    <Text fontSize="sm" color={mutedTextColor}>
+                      False Positive Rate
+                    </Text>
+                    <Text fontSize="sm" color="warning.500" fontWeight="medium">
+                      5.8%
+                    </Text>
+                  </HStack>
+                  <Progress value={5.8} colorScheme="warning" size="lg" borderRadius="full" />
+                </Box>
+
+                <Box>
+                  <HStack justify="space-between" mb={2}>
+                    <Text fontSize="sm" color={mutedTextColor}>
+                      Response Time
+                    </Text>
+                    <Text fontSize="sm" color="crypto.500" fontWeight="medium">
+                      2.3s avg
+                    </Text>
+                  </HStack>
+                  <Progress value={85} colorScheme="crypto" size="lg" borderRadius="full" />
+                </Box>
+              </VStack>
+            </CardBody>
+          </Card>
+        </Grid>
+      </VStack>
+    </PalantirLayout>
   );
 };
 

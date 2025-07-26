@@ -38,37 +38,76 @@ class GraphAPIService:
         self.neo4j_user = os.getenv('NEO4J_USER')
         self.neo4j_password = os.getenv('NEO4J_PASSWORD')
         
-        # Initialize Neo4j driver
-        self.driver = GraphDatabase.driver(
-            self.neo4j_uri, 
-            auth=(self.neo4j_user, self.neo4j_password)
-        )
+        # Try to initialize Neo4j driver, fall back to mock mode
+        try:
+            self.driver = GraphDatabase.driver(
+                self.neo4j_uri, 
+                auth=(self.neo4j_user, self.neo4j_password)
+            )
+            # Test connection
+            with self.driver.session() as session:
+                session.run("RETURN 1")
+            self.mock_mode = False
+            logger.info("✅ Neo4j connected successfully")
+        except Exception as e:
+            logger.warning(f"⚠️ Neo4j connection failed: {e}")
+            logger.info("🔄 Running in mock mode with simulated data")
+            self.driver = None
+            self.mock_mode = True
         
         # Initialize BigQuery client
-        self.bq_client = bigquery.Client(project=os.getenv('GOOGLE_CLOUD_PROJECT'))
+        try:
+            self.bq_client = bigquery.Client(project=os.getenv('GOOGLE_CLOUD_PROJECT'))
+        except Exception as e:
+            logger.warning(f"⚠️ BigQuery connection failed: {e}")
+            self.bq_client = None
         
         # WebSocket connections
         self.connections = set()
         
+        # Mock data for demo
+        self.mock_entities = [
+            {"id": "ENT_001", "address": "0x742d35Cc6634C0532925a3b8D4C9db96C4b4d8b6", "entity_type": "WHALE", "risk_score": 0.8},
+            {"id": "ENT_002", "address": "0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D", "entity_type": "DEX", "risk_score": 0.2},
+            {"id": "ENT_003", "address": "0x7F367cC41522cE07553e823bf3be79A889DEbe1B", "entity_type": "SANCTIONED", "risk_score": 0.95},
+        ]
+        
     def query_neo4j(self, query, parameters=None):
-        """Execute Neo4j query"""
-        with self.driver.session() as session:
-            result = session.run(query, parameters or {})
-            return [record.data() for record in result]
+        """Execute Neo4j query or return mock data"""
+        if self.mock_mode:
+            logger.info(f"Mock query: {query}")
+            if "MATCH (e:Entity)" in query:
+                return self.mock_entities
+            return [{"test": 1}]
+        
+        try:
+            with self.driver.session() as session:
+                result = session.run(query, parameters or {})
+                return [record.data() for record in result]
+        except Exception as e:
+            logger.error(f"Neo4j query error: {e}")
+            return []
     
     def sync_to_neo4j(self, entity_data):
         """Sync data from BigQuery to Neo4j"""
-        with self.driver.session() as session:
-            # Create or update entity
-            query = """
-            MERGE (e:Entity {id: $entity_id})
-            SET e.address = $address,
-                e.entity_type = $entity_type,
-                e.updated_at = datetime()
-            RETURN e
-            """
-            session.run(query, entity_data)
-            logger.info(f"✅ Synced entity {entity_data.get('entity_id')} to Neo4j")
+        if self.mock_mode:
+            logger.info(f"Mock sync: {entity_data}")
+            return
+            
+        try:
+            with self.driver.session() as session:
+                # Create or update entity
+                query = """
+                MERGE (e:Entity {id: $entity_id})
+                SET e.address = $address,
+                    e.entity_type = $entity_type,
+                    e.updated_at = datetime()
+                RETURN e
+                """
+                session.run(query, entity_data)
+                logger.info(f"✅ Synced entity {entity_data.get('entity_id')} to Neo4j")
+        except Exception as e:
+            logger.error(f"Neo4j sync error: {e}")
     
     async def broadcast_update(self, data):
         """Broadcast updates to all WebSocket connections"""
@@ -86,23 +125,46 @@ graph_service = GraphAPIService()
 async def health_check():
     """Health check endpoint"""
     try:
-        # Test Neo4j connection
+        # In mock mode, just return healthy status
+        if graph_service.mock_mode:
+            return {
+                "status": "healthy", 
+                "neo4j": "mock_mode", 
+                "timestamp": datetime.now().isoformat(),
+                "mock_mode": True
+            }
+        
+        # Test Neo4j connection only if not in mock mode
         result = graph_service.query_neo4j("RETURN 1 as test")
-        return {"status": "healthy", "neo4j": "connected", "timestamp": datetime.now().isoformat()}
+        return {
+            "status": "healthy", 
+            "neo4j": "connected", 
+            "timestamp": datetime.now().isoformat(),
+            "mock_mode": False
+        }
     except Exception as e:
         return {"status": "unhealthy", "error": str(e)}
 
 @app.get("/api/graph/entities")
 async def get_entities():
-    """Get all entities from Neo4j"""
+    """Get all entities from Neo4j or mock data"""
     try:
-        query = """
-        MATCH (e:Entity)
-        RETURN e.id as entity_id, e.address as address, e.entity_type as type, e.updated_at as updated
-        LIMIT 100
-        """
-        entities = graph_service.query_neo4j(query)
-        return {"entities": entities, "count": len(entities)}
+        if graph_service.mock_mode:
+            # Return mock entities
+            entities = graph_service.mock_entities
+        else:
+            query = """
+            MATCH (e:Entity)
+            RETURN e.id as entity_id, e.address as address, e.entity_type as type, e.updated_at as updated
+            LIMIT 100
+            """
+            entities = graph_service.query_neo4j(query)
+        
+        return {
+            "entities": entities, 
+            "count": len(entities),
+            "mock_mode": graph_service.mock_mode
+        }
     except Exception as e:
         return {"error": str(e)}
 

@@ -349,8 +349,7 @@ const StatusDashboardPage: NextPage = () => {
                             <VStack align="stretch" spacing={3}>
                               <HStack justify="space-between">
                                 <HStack spacing={2}>
-                                  <ListIcon 
-                                    as={getStatusIcon(service.status)} 
+                                  <Box as={getStatusIcon(service.status)} 
                                     color={`${getStatusColor(service.status)}.500`} 
                                   />
                                   <Text fontWeight="medium">{service.name}</Text>
@@ -395,7 +394,7 @@ const StatusDashboardPage: NextPage = () => {
                       <List spacing={3}>
                         <ListItem>
                           <HStack spacing={3}>
-                            <ListIcon as={WarningIcon} color="yellow.500" />
+                            <Box as={WarningIcon} color="yellow.500" />
                             <VStack align="start" spacing={1} flex={1}>
                               <HStack justify="space-between" width="100%">
                                 <Text fontWeight="medium">API Gateway Degradation</Text>
@@ -410,7 +409,7 @@ const StatusDashboardPage: NextPage = () => {
 
                         <ListItem>
                           <HStack spacing={3}>
-                            <ListIcon as={TimeIcon} color="red.500" />
+                            <Box as={TimeIcon} color="red.500" />
                             <VStack align="start" spacing={1} flex={1}>
                               <HStack justify="space-between" width="100%">
                                 <Text fontWeight="medium">VoiceOps Service Outage</Text>
@@ -425,7 +424,7 @@ const StatusDashboardPage: NextPage = () => {
 
                         <ListItem>
                           <HStack spacing={3}>
-                            <ListIcon as={CheckCircleIcon} color="green.500" />
+                            <Box as={CheckCircleIcon} color="green.500" />
                             <VStack align="start" spacing={1} flex={1}>
                               <HStack justify="space-between" width="100%">
                                 <Text fontWeight="medium">Database Maintenance Completed</Text>

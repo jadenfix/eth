@@ -28,7 +28,8 @@ import {
 } from '@chakra-ui/react';
 import { WarningIcon, CheckCircleIcon, InfoIcon } from '@chakra-ui/icons';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area } from 'recharts';
-import { io, Socket } from 'socket.io-client';
+// import { io } from 'socket.io-client';
+// import type { Socket } from 'socket.io-client';
 
 interface AISignal {
   signal_id: string;
@@ -61,7 +62,7 @@ const Dashboard: React.FC = () => {
   const [metrics, setMetrics] = useState<MetricData[]>([]);
   const [systemHealth, setSystemHealth] = useState<SystemHealth | null>(null);
   const [isConnected, setIsConnected] = useState(false);
-  const [socket, setSocket] = useState<Socket | null>(null);
+  const [socket, setSocket] = useState<any | null>(null);
   
   const toast = useToast();
   const bgColor = useColorModeValue('gray.50', 'gray.900');
@@ -69,51 +70,51 @@ const Dashboard: React.FC = () => {
 
   useEffect(() => {
     // Initialize WebSocket connection
-    const newSocket = io(process.env.NEXT_PUBLIC_WS_URL || 'ws://localhost:8081');
+    // const newSocket = io(process.env.NEXT_PUBLIC_WS_URL || 'ws://localhost:8081');
     
-    newSocket.on('connect', () => {
-      setIsConnected(true);
-      console.log('Connected to real-time feed');
-    });
+    // newSocket.on('connect', () => {
+    //   setIsConnected(true);
+    //   console.log('Connected to real-time feed');
+    // });
 
-    newSocket.on('disconnect', () => {
-      setIsConnected(false);
-    });
+    // newSocket.on('disconnect', () => {
+    //   setIsConnected(false);
+    // });
 
-    // Listen for new AI signals
-    newSocket.on('ai_signal', (signal: AISignal) => {
-      setSignals(prev => [signal, ...prev.slice(0, 49)]); // Keep last 50
+    // // Listen for new AI signals
+    // newSocket.on('ai_signal', (signal: AISignal) => {
+    //   setSignals(prev => [signal, ...prev.slice(0, 49)]); // Keep last 50
       
-      // Show toast for high severity signals
-      if (['HIGH', 'CRITICAL'].includes(signal.severity)) {
-        toast({
-          title: `${signal.severity} Alert`,
-          description: signal.description,
-          status: signal.severity === 'CRITICAL' ? 'error' : 'warning',
-          duration: 5000,
-          isClosable: true,
-        });
-      }
-    });
+    //   // Show toast for high severity signals
+    //   if (['HIGH', 'CRITICAL'].includes(signal.severity)) {
+    //   toast({
+    //     title: `${signal.severity} Alert`,
+    //     description: signal.description,
+    //     status: signal.severity === 'CRITICAL' ? 'error' : 'warning',
+    //     duration: 5000,
+    //     isClosable: true,
+    //   });
+    //   }
+    // });
 
-    // Listen for metrics updates
-    newSocket.on('metrics', (metricsData: MetricData[]) => {
-      setMetrics(metricsData);
-    });
+    // // Listen for metrics updates
+    // newSocket.on('metrics', (metricsData: MetricData[]) => {
+    //   setMetrics(metricsData);
+    // });
 
-    // Listen for system health
-    newSocket.on('system_health', (health: SystemHealth) => {
-      setSystemHealth(health);
-    });
+    // // Listen for system health
+    // newSocket.on('system_health', (health: SystemHealth) => {
+    //   setSystemHealth(health);
+    // });
 
-    setSocket(newSocket);
+    // setSocket(newSocket);
 
     // Fetch initial data
     fetchInitialData();
 
-    return () => {
-      newSocket.close();
-    };
+    // return () => {
+    //   newSocket.close();
+    // };
   }, [toast]);
 
   const fetchInitialData = async () => {

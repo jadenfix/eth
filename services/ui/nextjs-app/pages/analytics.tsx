@@ -1,21 +1,25 @@
 import React, { useState, useEffect } from 'react';
 import { NextPage } from 'next';
 import Head from 'next/head';
-import Link from 'next/link';
 import {
   Box,
-  Container,
+  Grid,
   VStack,
   HStack,
   Heading,
   Text,
-  Button,
-  useColorModeValue,
-  SimpleGrid,
   Card,
   CardBody,
   CardHeader,
   Badge,
+  Button,
+  useColorModeValue,
+  Table,
+  Thead,
+  Tbody,
+  Tr,
+  Th,
+  Td,
   Progress,
   Stat,
   StatLabel,
@@ -23,381 +27,469 @@ import {
   StatHelpText,
   StatArrow,
   Select,
-  Tab,
-  Tabs,
-  TabList,
-  TabPanels,
-  TabPanel,
+  Input,
+  InputGroup,
+  InputLeftElement,
+  Divider,
+  Flex,
+  SimpleGrid,
 } from '@chakra-ui/react';
-import { LineChart, Line, AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
+import PalantirLayout from '../src/components/layout/PalantirLayout';
 
-interface AnalyticsMetric {
-  name: string;
-  value: number;
-  change: number;
-  trend: 'up' | 'down' | 'stable';
-}
+// Mock analytics data
+const mockAnalyticsData = {
+  totalTransactions: 1247503,
+  uniqueAddresses: 89234,
+  averageTransactionValue: 0.85,
+  totalVolume: 2345000,
+  riskScore: 23,
+  anomalyDetected: 156,
+  complianceScore: 94.2,
+};
+
+const mockRiskMetrics = [
+  {
+    category: 'High Risk Addresses',
+    count: 234,
+    percentage: 0.26,
+    trend: 'increase',
+    change: 12.5,
+  },
+  {
+    category: 'Suspicious Transactions',
+    count: 1567,
+    percentage: 0.13,
+    trend: 'decrease',
+    change: 8.3,
+  },
+  {
+    category: 'MEV Attacks',
+    count: 89,
+    percentage: 0.007,
+    trend: 'increase',
+    change: 23.1,
+  },
+  {
+    category: 'Sanctions Violations',
+    count: 12,
+    percentage: 0.001,
+    trend: 'decrease',
+    change: 45.2,
+  },
+];
+
+const mockTopAddresses = [
+  {
+    address: '0x742d35Cc6634C0532925a3b8D6Ac492395d8',
+    type: 'Whale',
+    balance: 1250.5,
+    riskScore: 85,
+    transactions: 1247,
+    lastActivity: '2 minutes ago',
+  },
+  {
+    address: '0x8ba1f109551bD432803012645Hac136c82',
+    type: 'MEV Bot',
+    balance: 89.2,
+    riskScore: 92,
+    transactions: 3456,
+    lastActivity: '5 minutes ago',
+  },
+  {
+    address: '0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D',
+    type: 'Contract',
+    balance: 0,
+    riskScore: 15,
+    transactions: 125000,
+    lastActivity: '1 hour ago',
+  },
+  {
+    address: '0xabc123def456789ghi0123456789jklmnop',
+    type: 'Exchange',
+    balance: 567.8,
+    riskScore: 45,
+    transactions: 892,
+    lastActivity: '30 minutes ago',
+  },
+];
 
 const AnalyticsPage: NextPage = () => {
-  const [timeRange, setTimeRange] = useState('24h');
-  const [metrics, setMetrics] = useState<AnalyticsMetric[]>([
-    { name: 'Transaction Volume', value: 2456789, change: 12.3, trend: 'up' },
-    { name: 'Active Addresses', value: 145678, change: -3.2, trend: 'down' },
-    { name: 'Gas Usage', value: 89234567, change: 8.7, trend: 'up' },
-    { name: 'MEV Detected', value: 123456, change: 15.8, trend: 'up' },
-  ]);
+  const [selectedTimeframe, setSelectedTimeframe] = useState('24H');
+  const [selectedMetric, setSelectedMetric] = useState('ALL');
+  const [searchQuery, setSearchQuery] = useState('');
 
-  // Sample data for charts
-  const transactionData = [
-    { time: '00:00', volume: 45000, count: 2300 },
-    { time: '04:00', volume: 52000, count: 2800 },
-    { time: '08:00', volume: 78000, count: 4200 },
-    { time: '12:00', volume: 95000, count: 5100 },
-    { time: '16:00', volume: 88000, count: 4800 },
-    { time: '20:00', volume: 67000, count: 3600 },
-  ];
+  const bg = useColorModeValue('white', 'dark.800');
+  const borderColor = useColorModeValue('gray.200', 'dark.700');
+  const textColor = useColorModeValue('gray.800', 'gray.100');
+  const mutedTextColor = useColorModeValue('gray.600', 'gray.400');
 
-  const gasData = [
-    { time: '00:00', price: 25, usage: 8500000 },
-    { time: '04:00', price: 32, usage: 12000000 },
-    { time: '08:00', price: 45, usage: 18000000 },
-    { time: '12:00', price: 38, usage: 15000000 },
-    { time: '16:00', price: 42, usage: 16500000 },
-    { time: '20:00', price: 29, usage: 11000000 },
-  ];
+  const getRiskColor = (score: number) => {
+    if (score >= 80) return 'error';
+    if (score >= 60) return 'warning';
+    if (score >= 40) return 'info';
+    return 'success';
+  };
 
-  const protocolData = [
-    { name: 'Uniswap', value: 35, color: '#FF6B6B' },
-    { name: 'OpenSea', value: 22, color: '#4ECDC4' },
-    { name: 'Compound', value: 18, color: '#45B7D1' },
-    { name: 'Aave', value: 15, color: '#96CEB4' },
-    { name: 'Others', value: 10, color: '#FFEAA7' },
-  ];
-
-  const bgColor = useColorModeValue('gray.100', 'gray.900');
-  const cardBg = useColorModeValue('white', 'gray.800');
-
-  // Simulate real-time updates
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setMetrics(prev => prev.map(metric => ({
-        ...metric,
-        value: metric.value + Math.floor(Math.random() * 1000 - 500),
-        change: metric.change + (Math.random() - 0.5) * 2,
-      })));
-    }, 10000);
-
-    return () => clearInterval(interval);
-  }, []);
+  const getTypeColor = (type: string) => {
+    switch (type) {
+      case 'Whale': return 'crypto';
+      case 'MEV Bot': return 'error';
+      case 'Contract': return 'info';
+      case 'Exchange': return 'warning';
+      default: return 'gray';
+    }
+  };
 
   return (
-    <Box bg={bgColor} minH="100vh">
+    <PalantirLayout>
       <Head>
-        <title>Analytics Dashboard | Blockchain Intelligence</title>
-        <meta name="description" content="Real-time blockchain analytics and insights" />
+        <title>Risk Analytics - Onchain Command Center</title>
       </Head>
 
-      {/* Header */}
-      <Box bg={cardBg} borderBottom="1px solid" borderColor="gray.200" py={4} shadow="sm">
-        <Container maxW="7xl" px={6}>
+      <VStack spacing={6} align="stretch">
+        {/* Header Section */}
+        <Box>
           <HStack justify="space-between" align="center">
+            <VStack align="start" spacing={1}>
+              <Heading size="lg" color={textColor}>
+                Risk Analytics Dashboard
+              </Heading>
+              <Text color={mutedTextColor} fontSize="sm">
+                Comprehensive risk assessment and threat intelligence
+              </Text>
+            </VStack>
             <HStack spacing={4}>
-              <Link href="/services">
-                <Button variant="ghost" size="sm">← All Services</Button>
-              </Link>
-              <Text fontSize="2xl">📊</Text>
-              <VStack align="start" spacing={0}>
-                <Heading size="lg">Analytics Dashboard</Heading>
-                <Text color="gray.600">Real-time Blockchain Intelligence</Text>
-              </VStack>
-            </HStack>
-
-            <HStack spacing={3}>
-              <Select value={timeRange} onChange={(e) => setTimeRange(e.target.value)} size="sm" w="auto">
-                <option value="1h">Last Hour</option>
-                <option value="24h">Last 24h</option>
-                <option value="7d">Last 7 days</option>
-                <option value="30d">Last 30 days</option>
-              </Select>
-              <Badge colorScheme="green" variant="solid" px={3} py={1}>
-                LIVE
+              <Badge colorScheme="success" size="lg">
+                LOW RISK
               </Badge>
-              <Link href="/workspace">
-                <Button colorScheme="blue">Open in Workspace</Button>
-              </Link>
             </HStack>
           </HStack>
-        </Container>
-      </Box>
+        </Box>
 
-      <Container maxW="7xl" py={8} px={6}>
-        <VStack spacing={8} align="stretch">
-          
-          {/* Key Metrics */}
-          <SimpleGrid columns={{ base: 2, md: 4 }} spacing={4}>
-            {metrics.map((metric, idx) => (
-              <Card key={idx} bg={cardBg}>
-                <CardBody>
-                  <Stat>
-                    <StatLabel color="gray.600">{metric.name}</StatLabel>
-                    <StatNumber fontSize="xl">
-                      {metric.name.includes('Volume') || metric.name.includes('Gas') 
-                        ? (metric.value / 1000000).toFixed(1) + 'M'
-                        : metric.value.toLocaleString()}
-                    </StatNumber>
-                    <StatHelpText>
-                      <StatArrow type={metric.trend === 'up' ? 'increase' : metric.trend === 'down' ? 'decrease' : undefined} />
-                      {Math.abs(metric.change).toFixed(1)}% from yesterday
-                    </StatHelpText>
-                  </Stat>
-                </CardBody>
-              </Card>
-            ))}
-          </SimpleGrid>
-
-          {/* Charts Section */}
-          <Card bg={cardBg}>
-            <CardHeader>
-              <Heading size="md">Analytics Dashboard</Heading>
-            </CardHeader>
+        {/* Key Metrics Grid */}
+        <Grid templateColumns="repeat(auto-fit, minmax(200px, 1fr))" gap={6}>
+          <Card>
             <CardBody>
-              <Tabs variant="enclosed">
-                <TabList>
-                  <Tab>Transaction Analytics</Tab>
-                  <Tab>Gas Analytics</Tab>
-                  <Tab>Protocol Distribution</Tab>
-                  <Tab>Risk Metrics</Tab>
-                </TabList>
-
-                <TabPanels>
-                  {/* Transaction Analytics */}
-                  <TabPanel px={0}>
-                    <VStack spacing={6} align="stretch">
-                      <Box>
-                        <Text mb={4} fontWeight="medium">Transaction Volume Over Time</Text>
-                        <Box height="300px">
-                          <ResponsiveContainer width="100%" height="100%">
-                            <AreaChart data={transactionData}>
-                              <CartesianGrid strokeDasharray="3 3" />
-                              <XAxis dataKey="time" />
-                              <YAxis />
-                              <Tooltip />
-                              <Area 
-                                type="monotone" 
-                                dataKey="volume" 
-                                stroke="#4299E1" 
-                                fill="#4299E1" 
-                                fillOpacity={0.3} 
-                              />
-                            </AreaChart>
-                          </ResponsiveContainer>
-                        </Box>
-                      </Box>
-
-                      <Box>
-                        <Text mb={4} fontWeight="medium">Transaction Count</Text>
-                        <Box height="250px">
-                          <ResponsiveContainer width="100%" height="100%">
-                            <LineChart data={transactionData}>
-                              <CartesianGrid strokeDasharray="3 3" />
-                              <XAxis dataKey="time" />
-                              <YAxis />
-                              <Tooltip />
-                              <Line 
-                                type="monotone" 
-                                dataKey="count" 
-                                stroke="#48BB78" 
-                                strokeWidth={2}
-                                dot={{ r: 4 }}
-                              />
-                            </LineChart>
-                          </ResponsiveContainer>
-                        </Box>
-                      </Box>
-                    </VStack>
-                  </TabPanel>
-
-                  {/* Gas Analytics */}
-                  <TabPanel px={0}>
-                    <VStack spacing={6} align="stretch">
-                      <SimpleGrid columns={{ base: 1, md: 2 }} spacing={6}>
-                        <Box>
-                          <Text mb={4} fontWeight="medium">Gas Price (Gwei)</Text>
-                          <Box height="250px">
-                            <ResponsiveContainer width="100%" height="100%">
-                              <LineChart data={gasData}>
-                                <CartesianGrid strokeDasharray="3 3" />
-                                <XAxis dataKey="time" />
-                                <YAxis />
-                                <Tooltip />
-                                <Line 
-                                  type="monotone" 
-                                  dataKey="price" 
-                                  stroke="#F56565" 
-                                  strokeWidth={3}
-                                />
-                              </LineChart>
-                            </ResponsiveContainer>
-                          </Box>
-                        </Box>
-
-                        <Box>
-                          <Text mb={4} fontWeight="medium">Gas Usage</Text>
-                          <Box height="250px">
-                            <ResponsiveContainer width="100%" height="100%">
-                              <BarChart data={gasData}>
-                                <CartesianGrid strokeDasharray="3 3" />
-                                <XAxis dataKey="time" />
-                                <YAxis />
-                                <Tooltip />
-                                <Bar dataKey="usage" fill="#9F7AEA" />
-                              </BarChart>
-                            </ResponsiveContainer>
-                          </Box>
-                        </Box>
-                      </SimpleGrid>
-                    </VStack>
-                  </TabPanel>
-
-                  {/* Protocol Distribution */}
-                  <TabPanel px={0}>
-                    <SimpleGrid columns={{ base: 1, md: 2 }} spacing={6}>
-                      <Box>
-                        <Text mb={4} fontWeight="medium">Top Protocols by Volume</Text>
-                        <Box height="300px">
-                          <ResponsiveContainer width="100%" height="100%">
-                            <PieChart>
-                              <Pie
-                                data={protocolData}
-                                cx="50%"
-                                cy="50%"
-                                innerRadius={60}
-                                outerRadius={120}
-                                paddingAngle={5}
-                                dataKey="value"
-                              >
-                                {protocolData.map((entry, index) => (
-                                  <Cell key={`cell-${index}`} fill={entry.color} />
-                                ))}
-                              </Pie>
-                              <Tooltip />
-                            </PieChart>
-                          </ResponsiveContainer>
-                        </Box>
-                      </Box>
-
-                      <Box>
-                        <Text mb={4} fontWeight="medium">Protocol Statistics</Text>
-                        <VStack spacing={3} align="stretch">
-                          {protocolData.map((protocol, idx) => (
-                            <HStack key={idx} justify="space-between" p={3} border="1px solid" borderColor="gray.200" borderRadius="md">
-                              <HStack spacing={3}>
-                                <Box w={3} h={3} bg={protocol.color} borderRadius="full" />
-                                <Text fontWeight="medium">{protocol.name}</Text>
-                              </HStack>
-                              <VStack align="end" spacing={1}>
-                                <Text fontWeight="bold">{protocol.value}%</Text>
-                                <Progress value={protocol.value} size="sm" width="60px" />
-                              </VStack>
-                            </HStack>
-                          ))}
-                        </VStack>
-                      </Box>
-                    </SimpleGrid>
-                  </TabPanel>
-
-                  {/* Risk Metrics */}
-                  <TabPanel px={0}>
-                    <SimpleGrid columns={{ base: 1, md: 2 }} spacing={6}>
-                      <Card size="sm">
-                        <CardHeader pb={2}>
-                          <Text fontWeight="medium">Risk Distribution</Text>
-                        </CardHeader>
-                        <CardBody pt={0}>
-                          <VStack spacing={3}>
-                            <HStack justify="space-between" w="100%">
-                              <Text fontSize="sm">Low Risk</Text>
-                              <HStack spacing={2}>
-                                <Progress value={75} size="sm" width="100px" colorScheme="green" />
-                                <Text fontSize="sm" fontWeight="medium">75%</Text>
-                              </HStack>
-                            </HStack>
-                            <HStack justify="space-between" w="100%">
-                              <Text fontSize="sm">Medium Risk</Text>
-                              <HStack spacing={2}>
-                                <Progress value={20} size="sm" width="100px" colorScheme="yellow" />
-                                <Text fontSize="sm" fontWeight="medium">20%</Text>
-                              </HStack>
-                            </HStack>
-                            <HStack justify="space-between" w="100%">
-                              <Text fontSize="sm">High Risk</Text>
-                              <HStack spacing={2}>
-                                <Progress value={5} size="sm" width="100px" colorScheme="red" />
-                                <Text fontSize="sm" fontWeight="medium">5%</Text>
-                              </HStack>
-                            </HStack>
-                          </VStack>
-                        </CardBody>
-                      </Card>
-
-                      <Card size="sm">
-                        <CardHeader pb={2}>
-                          <Text fontWeight="medium">Anomaly Detection</Text>
-                        </CardHeader>
-                        <CardBody pt={0}>
-                          <VStack spacing={3} align="stretch">
-                            <HStack justify="space-between">
-                              <Text fontSize="sm">Suspicious Transactions</Text>
-                              <Badge colorScheme="red" variant="solid">234</Badge>
-                            </HStack>
-                            <HStack justify="space-between">
-                              <Text fontSize="sm">Large Transfers</Text>
-                              <Badge colorScheme="orange" variant="solid">89</Badge>
-                            </HStack>
-                            <HStack justify="space-between">
-                              <Text fontSize="sm">MEV Activities</Text>
-                              <Badge colorScheme="purple" variant="solid">156</Badge>
-                            </HStack>
-                            <HStack justify="space-between">
-                              <Text fontSize="sm">Flash Loans</Text>
-                              <Badge colorScheme="blue" variant="solid">45</Badge>
-                            </HStack>
-                          </VStack>
-                        </CardBody>
-                      </Card>
-                    </SimpleGrid>
-                  </TabPanel>
-                </TabPanels>
-              </Tabs>
+              <Stat>
+                <StatLabel color={mutedTextColor}>Overall Risk Score</StatLabel>
+                <StatNumber color={getRiskColor(mockAnalyticsData.riskScore) + '.500'}>
+                  {mockAnalyticsData.riskScore}/100
+                </StatNumber>
+                <StatHelpText>
+                  <StatArrow type="decrease" />
+                  5.2% from last 24h
+                </StatHelpText>
+              </Stat>
             </CardBody>
           </Card>
 
-          {/* Quick Actions */}
-          <Card bg={cardBg}>
-            <CardHeader>
-              <Heading size="md">Quick Actions</Heading>
-            </CardHeader>
+          <Card>
             <CardBody>
-              <SimpleGrid columns={{ base: 2, md: 4 }} spacing={3}>
-                <Button size="sm" variant="outline" leftIcon={<Text>📈</Text>}>
-                  Export Data
-                </Button>
-                <Button size="sm" variant="outline" leftIcon={<Text>⚙️</Text>}>
-                  Configure Alerts
-                </Button>
-                <Button size="sm" variant="outline" leftIcon={<Text>🔍</Text>}>
-                  Deep Dive Analysis
-                </Button>
-                <Button size="sm" variant="outline" leftIcon={<Text>📊</Text>}>
-                  Create Report
-                </Button>
-              </SimpleGrid>
+              <Stat>
+                <StatLabel color={mutedTextColor}>Anomalies Detected</StatLabel>
+                <StatNumber color="warning.500">
+                  {mockAnalyticsData.anomalyDetected}
+                </StatNumber>
+                <StatHelpText>
+                  <StatArrow type="increase" />
+                  12.3% from last 24h
+                </StatHelpText>
+              </Stat>
             </CardBody>
           </Card>
 
-        </VStack>
-      </Container>
-    </Box>
+          <Card>
+            <CardBody>
+              <Stat>
+                <StatLabel color={mutedTextColor}>Compliance Score</StatLabel>
+                <StatNumber color="success.500">
+                  {mockAnalyticsData.complianceScore}%
+                </StatNumber>
+                <StatHelpText>
+                  <StatArrow type="increase" />
+                  1.8% from last 24h
+                </StatHelpText>
+              </Stat>
+            </CardBody>
+          </Card>
+
+          <Card>
+            <CardBody>
+              <Stat>
+                <StatLabel color={mutedTextColor}>Total Volume</StatLabel>
+                <StatNumber color={textColor}>
+                  ${(mockAnalyticsData.totalVolume / 1000000).toFixed(1)}M
+                </StatNumber>
+                <StatHelpText>
+                  <StatArrow type="increase" />
+                  8.7% from last 24h
+                </StatHelpText>
+              </Stat>
+            </CardBody>
+          </Card>
+        </Grid>
+
+        {/* Filters and Controls */}
+        <Card>
+          <CardBody>
+            <HStack spacing={6} align="center">
+              <VStack align="start" spacing={2}>
+                <Text fontSize="sm" color={mutedTextColor} fontWeight="medium">
+                  Timeframe
+                </Text>
+                <Select
+                  value={selectedTimeframe}
+                  onChange={(e) => setSelectedTimeframe(e.target.value)}
+                  size="sm"
+                  w="150px"
+                >
+                  <option value="1H">Last Hour</option>
+                  <option value="24H">Last 24 Hours</option>
+                  <option value="7D">Last 7 Days</option>
+                  <option value="30D">Last 30 Days</option>
+                </Select>
+              </VStack>
+
+              <VStack align="start" spacing={2}>
+                <Text fontSize="sm" color={mutedTextColor} fontWeight="medium">
+                  Risk Category
+                </Text>
+                <Select
+                  value={selectedMetric}
+                  onChange={(e) => setSelectedMetric(e.target.value)}
+                  size="sm"
+                  w="200px"
+                >
+                  <option value="ALL">All Categories</option>
+                  <option value="HIGH_RISK">High Risk Addresses</option>
+                  <option value="SUSPICIOUS">Suspicious Transactions</option>
+                  <option value="MEV">MEV Attacks</option>
+                  <option value="SANCTIONS">Sanctions Violations</option>
+                </Select>
+              </VStack>
+
+              <VStack align="start" spacing={2} flex={1}>
+                <Text fontSize="sm" color={mutedTextColor} fontWeight="medium">
+                  Search Addresses
+                </Text>
+                <InputGroup size="sm">
+                  <InputLeftElement>
+                    <Text fontSize="sm" color="gray.400">⌕</Text>
+                  </InputLeftElement>
+                  <Input
+                    placeholder="Search by address or type..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                  />
+                </InputGroup>
+              </VStack>
+
+              <Button colorScheme="crypto" size="sm">
+                Generate Report
+              </Button>
+            </HStack>
+          </CardBody>
+        </Card>
+
+        {/* Risk Metrics */}
+        <Card>
+          <CardHeader>
+            <Heading size="md" color={textColor}>
+              Risk Metrics Breakdown
+            </Heading>
+          </CardHeader>
+          <CardBody>
+            <SimpleGrid columns={{ base: 1, md: 2, lg: 4 }} spacing={6}>
+              {mockRiskMetrics.map((metric) => (
+                <Box key={metric.category} p={4} border="1px solid" borderColor={borderColor} borderRadius="md">
+                  <VStack align="stretch" spacing={3}>
+                    <HStack justify="space-between">
+                      <Text fontSize="sm" color={textColor} fontWeight="medium">
+                        {metric.category}
+                      </Text>
+                      <Badge colorScheme={metric.trend === 'increase' ? 'error' : 'success'} size="sm">
+                        {metric.trend === 'increase' ? '+' : '-'}{metric.change}%
+                      </Badge>
+                    </HStack>
+                    
+                    <Stat>
+                      <StatNumber fontSize="2xl" color={textColor}>
+                        {metric.count.toLocaleString()}
+                      </StatNumber>
+                      <StatHelpText color={mutedTextColor}>
+                        {metric.percentage}% of total
+                      </StatHelpText>
+                    </Stat>
+
+                    <Progress
+                      value={metric.percentage * 100}
+                      colorScheme={metric.trend === 'increase' ? 'error' : 'success'}
+                      size="sm"
+                      borderRadius="full"
+                    />
+                  </VStack>
+                </Box>
+              ))}
+            </SimpleGrid>
+          </CardBody>
+        </Card>
+
+        {/* Top Risk Addresses */}
+        <Card>
+          <CardHeader>
+            <Heading size="md" color={textColor}>
+              High-Risk Addresses
+            </Heading>
+          </CardHeader>
+          <CardBody>
+            <Table variant="simple" size="sm">
+              <Thead>
+                <Tr>
+                  <Th color={mutedTextColor}>Address</Th>
+                  <Th color={mutedTextColor}>Type</Th>
+                  <Th color={mutedTextColor}>Balance (ETH)</Th>
+                  <Th color={mutedTextColor}>Risk Score</Th>
+                  <Th color={mutedTextColor}>Transactions</Th>
+                  <Th color={mutedTextColor}>Last Activity</Th>
+                  <Th color={mutedTextColor}>Actions</Th>
+                </Tr>
+              </Thead>
+              <Tbody>
+                {mockTopAddresses.map((address) => (
+                  <Tr key={address.address}>
+                    <Td>
+                      <Text fontSize="sm" color="crypto.400" fontFamily="mono">
+                        {address.address.slice(0, 8)}...{address.address.slice(-6)}
+                      </Text>
+                    </Td>
+                    <Td>
+                      <Badge colorScheme={getTypeColor(address.type)} size="sm">
+                        {address.type}
+                      </Badge>
+                    </Td>
+                    <Td>
+                      <Text fontSize="sm" color={textColor} fontWeight="medium">
+                        {address.balance.toLocaleString()}
+                      </Text>
+                    </Td>
+                    <Td>
+                      <Badge colorScheme={getRiskColor(address.riskScore)} size="sm">
+                        {address.riskScore}
+                      </Badge>
+                    </Td>
+                    <Td>
+                      <Text fontSize="sm" color={textColor}>
+                        {address.transactions.toLocaleString()}
+                      </Text>
+                    </Td>
+                    <Td>
+                      <Text fontSize="sm" color={mutedTextColor}>
+                        {address.lastActivity}
+                      </Text>
+                    </Td>
+                    <Td>
+                      <HStack spacing={2}>
+                        <Button size="xs" variant="outline">
+                          Monitor
+                        </Button>
+                        <Button size="xs" variant="outline" colorScheme="error">
+                          Block
+                        </Button>
+                      </HStack>
+                    </Td>
+                  </Tr>
+                ))}
+              </Tbody>
+            </Table>
+          </CardBody>
+        </Card>
+
+        {/* Risk Analysis Charts */}
+        <Grid templateColumns="1fr 1fr" gap={6}>
+          <Card>
+            <CardHeader>
+              <Heading size="md" color={textColor}>
+                Risk Distribution
+              </Heading>
+            </CardHeader>
+            <CardBody>
+              <VStack spacing={4} align="stretch">
+                {[
+                  { label: 'Low Risk (0-30)', percentage: 65, color: 'success.500' },
+                  { label: 'Medium Risk (31-60)', percentage: 25, color: 'warning.500' },
+                  { label: 'High Risk (61-80)', percentage: 8, color: 'error.500' },
+                  { label: 'Critical Risk (81-100)', percentage: 2, color: 'error.600' },
+                ].map((item) => (
+                  <Box key={item.label}>
+                    <HStack justify="space-between" mb={2}>
+                      <Text fontSize="sm" color={textColor}>
+                        {item.label}
+                      </Text>
+                      <Text fontSize="sm" color={mutedTextColor}>
+                        {item.percentage}%
+                      </Text>
+                    </HStack>
+                    <Progress
+                      value={item.percentage}
+                      colorScheme={item.color.split('.')[0] as any}
+                      size="sm"
+                      borderRadius="full"
+                    />
+                  </Box>
+                ))}
+              </VStack>
+            </CardBody>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <Heading size="md" color={textColor}>
+                Threat Intelligence
+              </Heading>
+            </CardHeader>
+            <CardBody>
+              <VStack spacing={6} align="stretch">
+                <Box>
+                  <HStack justify="space-between" mb={2}>
+                    <Text fontSize="sm" color={mutedTextColor}>
+                      Known Threats
+                    </Text>
+                    <Text fontSize="sm" color="error.500" fontWeight="medium">
+                      47 detected
+                    </Text>
+                  </HStack>
+                  <Progress value={47} colorScheme="error" size="lg" borderRadius="full" />
+                </Box>
+
+                <Box>
+                  <HStack justify="space-between" mb={2}>
+                    <Text fontSize="sm" color={mutedTextColor}>
+                      Suspicious Patterns
+                    </Text>
+                    <Text fontSize="sm" color="warning.500" fontWeight="medium">
+                      156 identified
+                    </Text>
+                  </HStack>
+                  <Progress value={156} colorScheme="warning" size="lg" borderRadius="full" />
+                </Box>
+
+                <Box>
+                  <HStack justify="space-between" mb={2}>
+                    <Text fontSize="sm" color={mutedTextColor}>
+                      Sanctions Compliance
+                    </Text>
+                    <Text fontSize="sm" color="success.500" fontWeight="medium">
+                      99.8% compliant
+                    </Text>
+                  </HStack>
+                  <Progress value={99.8} colorScheme="success" size="lg" borderRadius="full" />
+                </Box>
+              </VStack>
+            </CardBody>
+          </Card>
+        </Grid>
+      </VStack>
+    </PalantirLayout>
   );
 };
 

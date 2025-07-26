@@ -14,7 +14,7 @@ from dagster import (
     resource, sensor, schedule, asset, AssetMaterialization,
     get_dagster_logger, OpExecutionContext, JobDefinition
 )
-from dagster_gcp import BigQueryResource, gcp_gcs_resource
+from dagster_gcp import BigQueryResource
 import pandas as pd
 import numpy as np
 

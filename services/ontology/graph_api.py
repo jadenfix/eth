@@ -37,7 +37,7 @@ logger = structlog.get_logger()
 type_defs = """
     type Query {
         entity(id: String!): Entity
-        entities(filter: EntityFilter): [Entity!]!
+        entities(filter: EntityFilter, limit: Int): [Entity!]!
         relationship(id: String!): Relationship
         relationships(from: String, to: String, type: String): [Relationship!]!
         searchEntities(query: String!): [Entity!]!
@@ -55,11 +55,13 @@ type_defs = """
         id: String!
         type: EntityType!
         address: String
+        addresses: [String!]!
         name: String
         labels: [String!]!
         properties: JSON
         relationships: [Relationship!]!
         riskScore: Float
+        confidence: Float
         createdAt: String!
         updatedAt: String!
     }
@@ -79,6 +81,30 @@ type_defs = """
         nodes: [Entity!]!
         edges: [Relationship!]!
         depth: Int!
+    }
+    
+    type Address {
+        id: String!
+        address: String!
+        entity: Entity
+        labels: [String!]!
+        properties: JSON
+        createdAt: String!
+        updatedAt: String!
+    }
+    
+    type Transaction {
+        id: String!
+        hash: String!
+        fromAddress: Address!
+        toAddress: Address!
+        value: Float!
+        gasPrice: Float!
+        gasUsed: Int!
+        blockNumber: Int!
+        timestamp: String!
+        status: Int!
+        properties: JSON
     }
     
     enum EntityType {
@@ -228,7 +254,14 @@ class OntologyService:
         
         with self.driver.session() as session:
             result = session.run(" ".join(query_parts), **params)
-            return [dict(record['e']) for record in result]
+            entities = []
+            for record in result:
+                entity = dict(record['e'])
+                # Add missing fields for GraphQL compatibility
+                entity['addresses'] = [entity.get('address')] if entity.get('address') else []
+                entity['confidence'] = entity.get('confidence', 0.95)  # Default confidence
+                entities.append(entity)
+            return entities
     
     def create_relationship(self, rel_data: Dict[str, Any]) -> Dict[str, Any]:
         """Create relationship between entities."""
@@ -300,8 +333,11 @@ def resolve_entity(_, info, id):
 
 
 @query.field("entities")  
-def resolve_entities(_, info, filter=None):
-    return ontology_service.get_entities(filter or {})
+def resolve_entities(_, info, filter=None, limit=None):
+    entities = ontology_service.get_entities(filter or {})
+    if limit:
+        entities = entities[:limit]
+    return entities
 
 
 @query.field("getEntityNetwork")

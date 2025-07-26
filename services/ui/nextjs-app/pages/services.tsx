@@ -18,7 +18,7 @@ import {
   Divider,
   useColorModeValue,
 } from '@chakra-ui/react';
-import { ThemeProvider } from '../src/components';
+import PalantirLayout from '../src/components/layout/PalantirLayout';
 import Link from 'next/link';
 
 interface ServiceCard {
@@ -99,156 +99,119 @@ const services: ServiceCard[] = [
     features: ['MEV detection', 'Arbitrage alerts', 'Sandwich monitoring', 'Liquidation tracking']
   },
   {
-    id: 'mev-watch',
-    title: 'MEV Watch Service',
-    description: 'Dedicated MEV monitoring agent with advanced detection algorithms',
+    id: 'whale-tracker',
+    title: 'Whale Tracker',
+    description: 'Large transaction monitoring and whale movement analysis',
     status: 'active',
     category: 'intelligence',
-    route: '/mev/watch',
-    icon: '👁️',
-    features: ['Advanced algorithms', 'Real-time detection', 'Pattern recognition', 'Alert system']
+    route: '/intelligence/whales',
+    icon: '🐋',
+    features: ['Whale detection', 'Movement tracking', 'Impact analysis', 'Alert system']
   },
   {
-    id: 'analytics',
-    title: 'Analytics Dashboard',
-    description: 'Real-time blockchain analytics with comprehensive metrics and insights',
+    id: 'sanctions-alert',
+    title: 'Sanctions Alert',
+    description: 'OFAC compliance monitoring and sanctions screening service',
     status: 'active',
-    category: 'intelligence',
-    route: '/analytics',
-    icon: '📊',
-    features: ['Real-time metrics', 'Interactive charts', 'Protocol analysis', 'Risk distribution']
+    category: 'security',
+    route: '/security/sanctions',
+    icon: '🚨',
+    features: ['OFAC screening', 'Compliance alerts', 'Risk assessment', 'Audit trail']
   },
   
   // Layer 4: API & VoiceOps Layer
   {
-    id: 'api-gateway',
-    title: 'API Gateway',
-    description: 'Unified API access with gRPC, REST, and WebSocket support',
-    status: 'active',
-    category: 'api',
-    route: '/api/docs',
-    icon: '🚪',
-    features: ['gRPC + REST', 'WebSocket streams', 'Authentication', 'Rate limiting']
-  },
-  {
-    id: 'voiceops',
-    title: 'VoiceOps Service',
-    description: 'Voice-powered operations with ElevenLabs TTS/STT integration',
+    id: 'voice-ops',
+    title: 'Voice Operations',
+    description: 'ElevenLabs-powered voice commands and TTS alerts for hands-free operation',
     status: 'active',
     category: 'api',
     route: '/voice',
     icon: '🎤',
-    features: ['Voice commands', 'ElevenLabs integration', 'TTS alerts', 'STT commands']
+    features: ['Voice commands', 'TTS alerts', 'STT processing', 'Natural language']
   },
-  
-  // Layer 5: Visualization Layer
   {
-    id: 'deckgl-explorer',
-    title: 'DeckGL Explorer',
-    description: 'WebGL-based network graphs for entity relationships using Deck.GL',
+    id: 'api-gateway',
+    title: 'API Gateway',
+    description: 'Unified REST and GraphQL API gateway with authentication and rate limiting',
     status: 'active',
-    category: 'visualization',
-    route: '/explorer/deckgl',
+    category: 'api',
+    route: '/api/gateway',
     icon: '🌐',
-    features: ['WebGL rendering', 'Force-directed layout', 'Interactive exploration', 'High performance']
-  },
-  {
-    id: 'timeseries-canvas',
-    title: 'Time Series Canvas',
-    description: 'High-performance time series charting with Plotly.js and D3',
-    status: 'active',
-    category: 'visualization',
-    route: '/canvas',
-    icon: '�',
-    features: ['Real-time charts', 'Canvas rendering', 'Multi-metric overlay', 'Export capabilities']
-  },
-  {
-    id: 'compliance-map',
-    title: 'Compliance Mapping',
-    description: 'Choropleth maps and Sankey diagrams for regulatory compliance',
-    status: 'active',
-    category: 'visualization',
-    route: '/compliance',
-    icon: '🗺️',
-    features: ['Choropleth maps', 'Sankey diagrams', 'Fund flow analysis', 'Sanctions highlighting']
-  },
-  {
-    id: 'workspace',
-    title: 'Foundry Workspace',
-    description: 'Palantir Foundry-style drag-and-drop dashboard builder',
-    status: 'active',
-    category: 'visualization',
-    route: '/workspace',
-    icon: '🏗️',
-    features: ['Drag-and-drop panels', 'Foundry-style interface', 'Layout persistence', 'Real-time data']
+    features: ['REST API', 'GraphQL', 'Authentication', 'Rate limiting']
   },
   
-  // Layer 6: UX & Workflow
-  {
-    id: 'dashboard',
-    title: 'Status Dashboard',
-    description: 'Real-time system status and operational metrics dashboard',
-    status: 'active',
-    category: 'workflow',
-    route: '/dashboard/status',
-    icon: '�',
-    features: ['System health', 'Operational metrics', 'WebSocket updates', 'Status monitoring']
-  },
+  // Layer 5: UX & Workflow Builder
   {
     id: 'workflow-builder',
     title: 'Workflow Builder',
-    description: 'Visual workflow and signal composition using Dagster integration',
-    status: 'active',
+    description: 'Dagster-powered visual workflow builder for custom signal creation',
+    status: 'beta',
     category: 'workflow',
-    route: '/workflows',
+    route: '/workflows/dagster',
     icon: '⚙️',
-    features: ['Dagster integration', 'Visual builder', 'Signal composition', 'Automated workflows']
+    features: ['Visual builder', 'Custom signals', 'Dagster integration', 'Low-code']
+  },
+  {
+    id: 'signal-marketplace',
+    title: 'Signal Marketplace',
+    description: 'Community-driven marketplace for trading and sharing blockchain signals',
+    status: 'coming-soon',
+    category: 'workflow',
+    route: '/marketplace',
+    icon: '🏪',
+    features: ['Signal trading', 'Community sharing', 'Revenue sharing', 'Quality control']
   },
   
-  // Security & Monitoring
+  // Layer 6: Launch & Growth
   {
-    id: 'access-control',
-    title: 'Access Control',
-    description: 'Fine-grained access control with audit logging and DLP integration',
+    id: 'billing-metering',
+    title: 'Billing & Metering',
+    description: 'Stripe-powered usage-based billing and metering system',
     status: 'active',
+    category: 'api',
+    route: '/billing',
+    icon: '💳',
+    features: ['Usage metering', 'Stripe integration', 'Usage analytics', 'Billing automation']
+  },
+  {
+    id: 'token-gate',
+    title: 'Token Gate',
+    description: 'Pond Markets integration for token-gated access control',
+    status: 'coming-soon',
     category: 'security',
-    route: '/security/access',
+    route: '/security/token-gate',
     icon: '🔐',
-    features: ['Role-based access', 'Audit logging', 'DLP integration', 'Cloud IAM']
-  },
-  {
-    id: 'monitoring',
-    title: 'Health Monitoring',
-    description: 'Comprehensive system health monitoring and observability service',
-    status: 'active',
-    category: 'security',
-    route: '/monitoring',
-    icon: '📡',
-    features: ['Health checks', 'Performance metrics', 'Alert management', 'System observability']
-  },
+    features: ['Token verification', 'Access control', 'Pond Markets', 'NFT gating']
+  }
 ];
-
-const categoryColors = {
-  ingestion: 'blue',
-  intelligence: 'purple',
-  visualization: 'green',
-  api: 'orange',
-  security: 'red',
-  workflow: 'teal',
-};
 
 const categoryIcons = {
   ingestion: '📥',
   intelligence: '🧠',
-  visualization: '📈',
-  api: '🔗',
-  security: '🛡️',
-  workflow: '🔄',
+  visualization: '📊',
+  api: '🔌',
+  security: '🔒',
+  workflow: '⚙️'
+};
+
+const categoryColors = {
+  ingestion: 'blue',
+  intelligence: 'purple',
+  visualization: 'cyan',
+  api: 'green',
+  security: 'red',
+  workflow: 'orange'
 };
 
 const ServicesPage: NextPage = () => {
-  const bgColor = useColorModeValue('gray.50', 'gray.900');
-  const cardBg = useColorModeValue('white', 'gray.800');
+  // Enhanced color mode values with better contrast
+  const bgColor = useColorModeValue('gray.50', 'palantir.navy');
+  const cardBg = useColorModeValue('white', 'palantir.navy-light');
+  const textColor = useColorModeValue('gray.900', 'white');
+  const mutedTextColor = useColorModeValue('gray.700', 'gray.300');
+  const subtleTextColor = useColorModeValue('gray.600', 'gray.400');
+  const cardBorderColor = useColorModeValue('gray.200', 'gray.600');
 
   const servicesByCategory = services.reduce((acc, service) => {
     if (!acc[service.category]) {
@@ -259,149 +222,130 @@ const ServicesPage: NextPage = () => {
   }, {} as Record<string, ServiceCard[]>);
 
   return (
-    <ThemeProvider>
-      <Box bg={bgColor} minH="100vh">
-        <Head>
-          <title>Services Overview | Onchain Command Center</title>
-          <meta name="description" content="Comprehensive overview of all available services in the Onchain Command Center platform" />
-        </Head>
+    <PalantirLayout>
+      <Head>
+        <title>Services Overview | Onchain Command Center</title>
+        <meta name="description" content="Comprehensive overview of all available services in the Onchain Command Center platform" />
+      </Head>
 
-        <Container maxW="7xl" py={8}>
-          <VStack spacing={8} align="stretch">
-            {/* Header */}
-            <Box textAlign="center" py={8}>
-              <Heading size="2xl" mb={4}>
-                Platform Services
-              </Heading>
-              <Text fontSize="xl" color="gray.600" maxW="3xl" mx="auto">
-                Explore our comprehensive suite of blockchain intelligence and analytics services. 
-                From real-time data ingestion to AI-powered insights and interactive visualizations.
-              </Text>
-            </Box>
+      <Container maxW="7xl" px={{ base: 4, md: 6, lg: 8 }}>
+        <VStack spacing={8} align="stretch">
+          {/* Header */}
+          <Box textAlign="center" py={8}>
+            <Heading size="2xl" mb={4} color={textColor} fontWeight="bold">
+              Platform Services
+            </Heading>
+            <Text fontSize="xl" color={mutedTextColor} maxW="3xl" mx="auto" fontWeight="medium">
+              Explore our comprehensive suite of blockchain intelligence and analytics services. 
+              From real-time data ingestion to AI-powered insights and interactive visualizations.
+            </Text>
+          </Box>
 
-            {/* Service Categories */}
-            {Object.entries(servicesByCategory).map(([category, categoryServices]) => (
-              <Box key={category}>
-                <HStack mb={6} align="center">
-                  <Text fontSize="3xl">{categoryIcons[category as keyof typeof categoryIcons]}</Text>
-                  <Heading size="lg" textTransform="capitalize">
-                    {category.replace('-', ' ')} Layer
-                  </Heading>
-                  <Badge colorScheme={categoryColors[category as keyof typeof categoryColors]} size="lg">
-                    {categoryServices.length} services
-                  </Badge>
-                </HStack>
+          {/* Service Categories */}
+          {Object.entries(servicesByCategory).map(([category, categoryServices]) => (
+            <Box key={category}>
+              <HStack mb={6} align="center">
+                <Text fontSize="3xl">{categoryIcons[category as keyof typeof categoryIcons]}</Text>
+                <Heading size="lg" textTransform="capitalize" color={textColor} fontWeight="bold">
+                  {category.replace('-', ' ')} Layer
+                </Heading>
+                <Badge colorScheme={categoryColors[category as keyof typeof categoryColors]} size="lg" px={3} py={1}>
+                  {categoryServices.length} services
+                </Badge>
+              </HStack>
 
-                <SimpleGrid columns={{ base: 1, md: 2, lg: 3 }} spacing={6} mb={8}>
-                  {categoryServices.map((service) => (
-                    <Card key={service.id} bg={cardBg} shadow="md" _hover={{ shadow: 'lg', transform: 'translateY(-2px)' }} transition="all 0.2s">
-                      <CardHeader pb={3}>
-                        <HStack justify="space-between" align="start">
-                          <HStack>
-                            <Text fontSize="2xl">{service.icon}</Text>
-                            <VStack align="start" spacing={1}>
-                              <Heading size="md">{service.title}</Heading>
-                              <Badge 
-                                colorScheme={service.status === 'active' ? 'green' : service.status === 'beta' ? 'yellow' : 'gray'}
-                                size="sm"
-                              >
-                                {service.status.replace('-', ' ')}
-                              </Badge>
-                            </VStack>
-                          </HStack>
-                        </HStack>
-                      </CardHeader>
-
-                      <CardBody pt={0}>
-                        <Text fontSize="sm" color="gray.600" mb={4} noOfLines={3}>
-                          {service.description}
-                        </Text>
-
-                        <VStack align="stretch" spacing={3}>
-                          <Box>
-                            <Text fontSize="xs" fontWeight="semibold" color="gray.500" mb={2}>
-                              KEY FEATURES
-                            </Text>
-                            <VStack align="stretch" spacing={1}>
-                              {service.features.slice(0, 3).map((feature, idx) => (
-                                <HStack key={idx} fontSize="xs">
-                                  <Text color="green.500">✓</Text>
-                                  <Text>{feature}</Text>
-                                </HStack>
-                              ))}
-                              {service.features.length > 3 && (
-                                <Text fontSize="xs" color="gray.500">
-                                  +{service.features.length - 3} more features
-                                </Text>
-                              )}
-                            </VStack>
-                          </Box>
-
-                          <Divider />
-
-                          <HStack justify="space-between">
-                            {service.route && service.status === 'active' ? (
-                              <Link href={service.route}>
-                                <Button size="sm" colorScheme="blue" variant="solid">
-                                  Access Service
-                                </Button>
-                              </Link>
-                            ) : service.status === 'beta' ? (
-                              <Button size="sm" colorScheme="yellow" variant="outline" isDisabled>
-                                Beta Access
-                              </Button>
-                            ) : (
-                              <Button size="sm" variant="ghost" isDisabled>
-                                Coming Soon
-                              </Button>
-                            )}
-                            
-                            <Badge colorScheme={categoryColors[service.category as keyof typeof categoryColors]} variant="subtle">
-                              {service.category}
+              <SimpleGrid columns={{ base: 1, md: 2, lg: 3 }} spacing={6} mb={8}>
+                {categoryServices.map((service) => (
+                  <Card 
+                    key={service.id} 
+                    bg={cardBg} 
+                    border="1px solid" 
+                    borderColor={cardBorderColor}
+                    shadow="md" 
+                    _hover={{ 
+                      shadow: 'lg', 
+                      transform: 'translateY(-2px)',
+                      borderColor: useColorModeValue('gray.300', 'gray.500')
+                    }} 
+                    transition="all 0.2s"
+                  >
+                    <CardHeader pb={3}>
+                      <HStack justify="space-between" align="start">
+                        <HStack>
+                          <Text fontSize="2xl">{service.icon}</Text>
+                          <VStack align="start" spacing={1}>
+                            <Heading size="md" color={textColor} fontWeight="bold">{service.title}</Heading>
+                            <Badge 
+                              colorScheme={service.status === 'active' ? 'success' : service.status === 'beta' ? 'warning' : 'gray'}
+                              size="sm"
+                              px={2}
+                              py={1}
+                            >
+                              {service.status.replace('-', ' ')}
                             </Badge>
-                          </HStack>
-                        </VStack>
-                      </CardBody>
-                    </Card>
-                  ))}
-                </SimpleGrid>
-                
-                <Divider />
-              </Box>
-            ))}
+                          </VStack>
+                        </HStack>
+                      </HStack>
+                    </CardHeader>
 
-            {/* Quick Stats */}
-            <Box bg={cardBg} p={6} rounded="lg" shadow="md">
-              <Heading size="md" mb={4}>Platform Overview</Heading>
-              <SimpleGrid columns={{ base: 2, md: 4 }} spacing={4}>
-                <VStack>
-                  <Text fontSize="2xl" fontWeight="bold" color="blue.500">{services.length}</Text>
-                  <Text fontSize="sm" color="gray.600">Total Services</Text>
-                </VStack>
-                <VStack>
-                  <Text fontSize="2xl" fontWeight="bold" color="green.500">
-                    {services.filter(s => s.status === 'active').length}
-                  </Text>
-                  <Text fontSize="sm" color="gray.600">Active Services</Text>
-                </VStack>
-                <VStack>
-                  <Text fontSize="2xl" fontWeight="bold" color="yellow.500">
-                    {services.filter(s => s.status === 'beta').length}
-                  </Text>
-                  <Text fontSize="sm" color="gray.600">Beta Services</Text>
-                </VStack>
-                <VStack>
-                  <Text fontSize="2xl" fontWeight="bold" color="purple.500">
-                    {Object.keys(servicesByCategory).length}
-                  </Text>
-                  <Text fontSize="sm" color="gray.600">Service Categories</Text>
-                </VStack>
+                    <CardBody pt={0}>
+                      <Text fontSize="sm" color={mutedTextColor} mb={4} noOfLines={3} fontWeight="medium">
+                        {service.description}
+                      </Text>
+
+                      <VStack align="stretch" spacing={3}>
+                        <Box>
+                          <Text fontSize="xs" fontWeight="semibold" color={subtleTextColor} mb={2} textTransform="uppercase">
+                            Key Features
+                          </Text>
+                          <VStack align="stretch" spacing={1}>
+                            {service.features.slice(0, 3).map((feature, idx) => (
+                              <HStack key={idx} fontSize="xs">
+                                <Text color="success.500" fontWeight="bold">✓</Text>
+                                <Text color={mutedTextColor}>{feature}</Text>
+                              </HStack>
+                            ))}
+                            {service.features.length > 3 && (
+                              <Text fontSize="xs" color={subtleTextColor}>
+                                +{service.features.length - 3} more features
+                              </Text>
+                            )}
+                          </VStack>
+                        </Box>
+
+                        <Divider borderColor={useColorModeValue('gray.200', 'gray.600')} />
+
+                        <HStack justify="space-between">
+                          {service.route && service.status === 'active' ? (
+                            <Link href={service.route}>
+                              <Button size="sm" colorScheme="brand" variant="solid">
+                                Access Service
+                              </Button>
+                            </Link>
+                          ) : (
+                            <Button size="sm" variant="outline" colorScheme="gray" isDisabled>
+                              {service.status === 'beta' ? 'Coming Soon' : 'In Development'}
+                            </Button>
+                          )}
+                          
+                          <Badge 
+                            colorScheme={categoryColors[category as keyof typeof categoryColors]} 
+                            variant="subtle"
+                            size="sm"
+                          >
+                            {category}
+                          </Badge>
+                        </HStack>
+                      </VStack>
+                    </CardBody>
+                  </Card>
+                ))}
               </SimpleGrid>
             </Box>
-          </VStack>
-        </Container>
-      </Box>
-    </ThemeProvider>
+          ))}
+        </VStack>
+      </Container>
+    </PalantirLayout>
   );
 };
 
