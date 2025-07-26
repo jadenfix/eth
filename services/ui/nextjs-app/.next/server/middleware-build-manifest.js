@@ -29,15 +29,45 @@ self.__BUILD_MANIFEST = {
       "static/chunks/main.js",
       "static/chunks/pages/analytics.js"
     ],
+    "/canvas": [
+      "static/chunks/webpack.js",
+      "static/chunks/main.js",
+      "static/chunks/pages/canvas.js"
+    ],
+    "/compliance": [
+      "static/chunks/webpack.js",
+      "static/chunks/main.js",
+      "static/chunks/pages/compliance.js"
+    ],
+    "/intelligence/entities": [
+      "static/chunks/webpack.js",
+      "static/chunks/main.js",
+      "static/chunks/pages/intelligence/entities.js"
+    ],
     "/live-data": [
       "static/chunks/webpack.js",
       "static/chunks/main.js",
       "static/chunks/pages/live-data.js"
     ],
-    "/services": [
+    "/mev": [
       "static/chunks/webpack.js",
       "static/chunks/main.js",
-      "static/chunks/pages/services.js"
+      "static/chunks/pages/mev.js"
+    ],
+    "/monitoring": [
+      "static/chunks/webpack.js",
+      "static/chunks/main.js",
+      "static/chunks/pages/monitoring.js"
+    ],
+    "/voice": [
+      "static/chunks/webpack.js",
+      "static/chunks/main.js",
+      "static/chunks/pages/voice.js"
+    ],
+    "/workspace": [
+      "static/chunks/webpack.js",
+      "static/chunks/main.js",
+      "static/chunks/pages/workspace.js"
     ]
   },
   "ampFirstPages": []

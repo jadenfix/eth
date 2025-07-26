@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useRouter } from 'next/router';
 import {
   Box,
   Flex,
@@ -84,14 +85,14 @@ const navigationItems: NavigationItem[] = [
   },
   {
     name: 'Entity Resolution',
-    path: '/entities',
+    path: '/intelligence/entities',
     icon: FiUsers,
     description: 'AI-powered address clustering',
     color: 'purple',
   },
   {
     name: 'Security & Compliance',
-    path: '/security',
+    path: '/compliance',
     icon: FiShield,
     description: 'OFAC screening and audit trails',
     color: 'red',
@@ -105,7 +106,7 @@ const navigationItems: NavigationItem[] = [
   },
   {
     name: 'Visualization',
-    path: '/visualization',
+    path: '/canvas',
     icon: FiGlobe,
     description: '3D graphs and interactive charts',
     color: 'cyan',
@@ -126,7 +127,7 @@ const navigationItems: NavigationItem[] = [
   },
   {
     name: 'Settings',
-    path: '/settings',
+    path: '/workspace',
     icon: FiSettings,
     description: 'Configuration and preferences',
     color: 'gray',
@@ -137,6 +138,7 @@ const CleanNavigation: React.FC = () => {
   const [isOpen, setIsOpen] = useState(false);
   const { isOpen: isDrawerOpen, onOpen: onDrawerOpen, onClose: onDrawerClose } = useDisclosure();
   const toast = useToast();
+  const router = useRouter();
 
   const bg = useColorModeValue('white', 'palantir.navy');
   const borderColor = useColorModeValue('gray.200', 'gray.600');
@@ -145,16 +147,8 @@ const CleanNavigation: React.FC = () => {
   const hoverBg = useColorModeValue('gray.50', 'palantir.navy-light');
 
   const handleNavigation = (item: NavigationItem) => {
-    // For demo purposes, show a toast instead of actual navigation
-    toast({
-      title: `Navigating to ${item.name}`,
-      description: item.description,
-      status: 'info',
-      duration: 2000,
-      isClosable: true,
-    });
-    
-    // In production, this would be: router.push(item.path);
+    // Navigate to the actual page
+    router.push(item.path);
     onDrawerClose();
   };
 

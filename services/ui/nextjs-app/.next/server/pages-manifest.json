@@ -2,9 +2,14 @@
   "/_app": "pages/_app.js",
   "/_error": "pages/_error.js",
   "/_document": "pages/_document.js",
-  "/live-data": "pages/live-data.js",
-  "/services": "pages/services.js",
-  "/api/real-data": "pages/api/real-data.js",
   "/": "pages/index.js",
-  "/analytics": "pages/analytics.js"
+  "/live-data": "pages/live-data.js",
+  "/mev": "pages/mev.js",
+  "/intelligence/entities": "pages/intelligence/entities.js",
+  "/compliance": "pages/compliance.js",
+  "/analytics": "pages/analytics.js",
+  "/canvas": "pages/canvas.js",
+  "/voice": "pages/voice.js",
+  "/monitoring": "pages/monitoring.js",
+  "/workspace": "pages/workspace.js"
 }
