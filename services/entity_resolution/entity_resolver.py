@@ -1,180 +1,241 @@
-import hashlib
-from typing import List, Dict, Any, Tuple
-from collections import defaultdict
 import numpy as np
+import pandas as pd
 from sklearn.cluster import DBSCAN
 from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.preprocessing import StandardScaler
 from sklearn.impute import SimpleImputer
 import logging
+from typing import List, Dict, Any, Tuple
+import re
 
 logger = logging.getLogger(__name__)
 
 class EntityResolver:
-    def __init__(self):
-        self.address_clusters = defaultdict(list)
-        self.entity_counter = 0
-    
-    def extract_features(self, address: str, transactions: List[Dict]) -> Dict[str, Any]:
-        """Extract features from address and its transactions"""
-        if not transactions:
-            return {
-                'address': address,
-                'transaction_count': 0,
-                'total_value_sent': 0.0,
-                'total_value_received': 0.0,
-                'unique_contracts': 0,
-                'avg_gas_price': 0.0,
-                'activity_pattern': '',
-                'time_between_txs': []
-            }
+    def __init__(self, eps=0.5, min_samples=2):
+        self.eps = eps
+        self.min_samples = min_samples
+        self.scaler = StandardScaler()
+        self.imputer = SimpleImputer(strategy='mean')
         
-        features = {
-            'address': address,
-            'transaction_count': len(transactions),
-            'total_value_sent': sum(tx.get('value', 0) for tx in transactions),
-            'total_value_received': sum(tx.get('value', 0) for tx in transactions if tx.get('to') == address),
-            'unique_contracts': len(set(tx.get('to') for tx in transactions if tx.get('input') != '0x')),
-            'avg_gas_price': np.mean([tx.get('gasPrice', 0) for tx in transactions]) if transactions else 0.0,
-            'activity_pattern': self._extract_activity_pattern(transactions),
-            'time_between_txs': self._calculate_time_intervals(transactions)
-        }
-        return features
-    
-    def _extract_activity_pattern(self, transactions: List[Dict]) -> str:
-        """Extract activity pattern as a string for similarity comparison"""
+    def extract_features(self, transactions: List[Dict[str, Any]]) -> List[float]:
+        """Extract numerical features from transactions"""
         if not transactions:
-            return ''
+            # Return default features for empty transaction list
+            return [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
         
-        patterns = []
-        for tx in transactions:
-            if tx.get('input') == '0x':
-                patterns.append('transfer')
-            elif tx.get('to') in ['0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D']:  # Uniswap
-                patterns.append('swap')
-            else:
-                patterns.append('contract')
-        return ' '.join(patterns)
+        try:
+            # Initialize features with safe defaults
+            total_value_sent = 0.0
+            total_value_received = 0.0
+            avg_gas_price = 0.0
+            total_transactions = len(transactions)
+            unique_contracts = set()
+            time_intervals = []
+            
+            for tx in transactions:
+                # Safe value extraction
+                value = float(tx.get('value', 0))
+                if tx.get('from') and tx.get('to'):
+                    if tx['from'] == tx.get('address', ''):
+                        total_value_sent += value
+                    else:
+                        total_value_received += value
+                
+                # Safe gas price extraction
+                gas_price = float(tx.get('gasPrice', 0))
+                avg_gas_price += gas_price
+                
+                # Contract interaction detection
+                if tx.get('input') and tx['input'] != '0x':
+                    unique_contracts.add(tx.get('to', ''))
+            
+            # Calculate averages safely
+            avg_gas_price = avg_gas_price / total_transactions if total_transactions > 0 else 0.0
+            
+            # Extract time patterns
+            time_intervals = self._calculate_time_intervals(transactions)
+            
+            # Extract activity patterns
+            activity_pattern = self._extract_activity_pattern(transactions)
+            
+            # Create feature vector with explicit float conversion
+            features = [
+                float(total_value_sent),
+                float(total_value_received),
+                float(avg_gas_price),
+                float(total_transactions),
+                float(len(unique_contracts)),
+                float(len(time_intervals)),
+                float(np.mean(time_intervals) if time_intervals else 0.0),
+                float(np.std(time_intervals) if time_intervals else 0.0),
+                float(activity_pattern.get('frequency', 0.0)),
+                float(activity_pattern.get('regularity', 0.0))
+            ]
+            
+            # Ensure all features are finite numbers
+            features = [float(f) if np.isfinite(f) else 0.0 for f in features]
+            
+            return features
+            
+        except Exception as e:
+            logger.error(f"Error extracting features: {e}")
+            # Return safe default features
+            return [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
     
-    def _calculate_time_intervals(self, transactions: List[Dict]) -> List[float]:
+    def _calculate_time_intervals(self, transactions: List[Dict[str, Any]]) -> List[float]:
         """Calculate time intervals between transactions"""
-        if len(transactions) < 2:
+        if not transactions or len(transactions) < 2:
             return []
         
-        timestamps = sorted([tx.get('timestamp', 0) for tx in transactions])
-        intervals = []
-        for i in range(1, len(timestamps)):
-            intervals.append(timestamps[i] - timestamps[i-1])
-        return intervals
-    
-    def cluster_addresses(self, addresses_data: Dict[str, List[Dict]]) -> Dict[str, List[str]]:
-        """Cluster addresses based on behavioral similarity"""
-        if not addresses_data:
-            return {}
-        
-        # Extract features for all addresses
-        features_list = []
-        address_list = []
-        
-        for address, transactions in addresses_data.items():
-            features = self.extract_features(address, transactions)
-            features_list.append(features)
-            address_list.append(address)
-        
-        # Create feature matrix for clustering
-        feature_matrix = []
-        for features in features_list:
-            feature_vector = [
-                float(features['transaction_count']),
-                float(features['total_value_sent']),
-                float(features['total_value_received']),
-                float(features['unique_contracts']),
-                float(features['avg_gas_price'])
-            ]
-            feature_matrix.append(feature_vector)
-        
-        # Handle NaN values
-        feature_matrix = np.array(feature_matrix)
-        
-        # Replace infinite values with large finite values
-        feature_matrix = np.nan_to_num(feature_matrix, nan=0.0, posinf=1e6, neginf=-1e6)
-        
-        # Normalize features safely
-        feature_means = np.mean(feature_matrix, axis=0)
-        feature_stds = np.std(feature_matrix, axis=0)
-        
-        # Avoid division by zero
-        feature_stds = np.where(feature_stds == 0, 1.0, feature_stds)
-        
-        feature_matrix = (feature_matrix - feature_means) / feature_stds
-        
-        # Perform clustering
         try:
-            clustering = DBSCAN(eps=0.5, min_samples=2).fit(feature_matrix)
+            timestamps = []
+            for tx in transactions:
+                timestamp = tx.get('timestamp', 0)
+                if timestamp:
+                    timestamps.append(float(timestamp))
             
-            # Group addresses by cluster
-            clusters = defaultdict(list)
-            for address, cluster_id in zip(address_list, clustering.labels_):
-                if cluster_id != -1:  # Not noise
-                    clusters[f"entity_{cluster_id}"].append(address)
+            if len(timestamps) < 2:
+                return []
             
-            return dict(clusters)
+            timestamps.sort()
+            intervals = [timestamps[i+1] - timestamps[i] for i in range(len(timestamps)-1)]
+            return [float(i) for i in intervals if np.isfinite(i)]
+            
+        except Exception as e:
+            logger.error(f"Error calculating time intervals: {e}")
+            return []
+    
+    def _extract_activity_pattern(self, transactions: List[Dict[str, Any]]) -> Dict[str, float]:
+        """Extract activity pattern features"""
+        if not transactions:
+            return {'frequency': 0.0, 'regularity': 0.0}
+        
+        try:
+            # Calculate transaction frequency
+            total_time = 0
+            if len(transactions) > 1:
+                timestamps = [float(tx.get('timestamp', 0)) for tx in transactions]
+                timestamps.sort()
+                total_time = timestamps[-1] - timestamps[0]
+            
+            frequency = len(transactions) / max(total_time, 1)
+            
+            # Calculate regularity (standard deviation of intervals)
+            intervals = self._calculate_time_intervals(transactions)
+            regularity = float(np.std(intervals)) if intervals else 0.0
+            
+            return {
+                'frequency': float(frequency) if np.isfinite(frequency) else 0.0,
+                'regularity': float(regularity) if np.isfinite(regularity) else 0.0
+            }
+            
+        except Exception as e:
+            logger.error(f"Error extracting activity pattern: {e}")
+            return {'frequency': 0.0, 'regularity': 0.0}
+    
+    def cluster_addresses(self, addresses: List[str], transactions_by_address: Dict[str, List[Dict[str, Any]]]) -> Dict[str, int]:
+        """Cluster addresses based on transaction patterns"""
+        if len(addresses) < 2:
+            return {addr: 0 for addr in addresses}
+        
+        try:
+            # Extract features for each address
+            feature_matrix = []
+            valid_addresses = []
+            
+            for addr in addresses:
+                transactions = transactions_by_address.get(addr, [])
+                features = self.extract_features(transactions)
+                
+                # Ensure all features are valid numbers
+                if all(np.isfinite(f) for f in features):
+                    feature_matrix.append(features)
+                    valid_addresses.append(addr)
+            
+            if len(feature_matrix) < 2:
+                return {addr: 0 for addr in addresses}
+            
+            # Convert to numpy array and handle NaN/Inf values
+            feature_matrix = np.array(feature_matrix, dtype=float)
+            feature_matrix = np.nan_to_num(feature_matrix, nan=0.0, posinf=0.0, neginf=0.0)
+            
+            # Normalize features safely
+            try:
+                # Check if we have any variance in the data
+                if feature_matrix.shape[1] > 0:
+                    std_devs = np.std(feature_matrix, axis=0)
+                    # Only normalize if we have non-zero standard deviation
+                    if np.any(std_devs > 1e-10):
+                        feature_matrix = (feature_matrix - np.mean(feature_matrix, axis=0)) / np.maximum(std_devs, 1e-10)
+            except Exception as e:
+                logger.warning(f"Normalization failed, using raw features: {e}")
+            
+            # Apply DBSCAN clustering
+            clustering = DBSCAN(eps=self.eps, min_samples=self.min_samples)
+            cluster_labels = clustering.fit_predict(feature_matrix)
+            
+            # Create result mapping
+            result = {}
+            for i, addr in enumerate(valid_addresses):
+                result[addr] = int(cluster_labels[i])
+            
+            # Add addresses that weren't processed
+            for addr in addresses:
+                if addr not in result:
+                    result[addr] = -1  # Noise points
+            
+            logger.info(f"Clustering completed: {len(set(cluster_labels))} clusters found")
+            return result
+            
         except Exception as e:
             logger.error(f"Clustering failed: {e}")
-            return {}
+            # Return individual clusters for each address
+            return {addr: i for i, addr in enumerate(addresses)}
     
-    def calculate_similarity_score(self, addr1_features: Dict, addr2_features: Dict) -> float:
+    def calculate_similarity_score(self, address1: str, address2: str, 
+                                 transactions_by_address: Dict[str, List[Dict[str, Any]]]) -> float:
         """Calculate similarity score between two addresses"""
         try:
-            # Simple cosine similarity for numerical features
-            features1 = np.array([
-                float(addr1_features['transaction_count']),
-                float(addr1_features['total_value_sent']),
-                float(addr1_features['total_value_received']),
-                float(addr1_features['unique_contracts']),
-                float(addr1_features['avg_gas_price'])
-            ])
+            transactions1 = transactions_by_address.get(address1, [])
+            transactions2 = transactions_by_address.get(address2, [])
             
-            features2 = np.array([
-                float(addr2_features['transaction_count']),
-                float(addr2_features['total_value_sent']),
-                float(addr2_features['total_value_received']),
-                float(addr2_features['unique_contracts']),
-                float(addr2_features['avg_gas_price'])
-            ])
+            features1 = self.extract_features(transactions1)
+            features2 = self.extract_features(transactions2)
+            
+            # Ensure features are valid
+            features1 = [float(f) if np.isfinite(f) else 0.0 for f in features1]
+            features2 = [float(f) if np.isfinite(f) else 0.0 for f in features2]
+            
+            # Convert to numpy arrays
+            features1 = np.array(features1, dtype=float)
+            features2 = np.array(features2, dtype=float)
             
             # Handle NaN values
             features1 = np.nan_to_num(features1, nan=0.0)
             features2 = np.nan_to_num(features2, nan=0.0)
             
-            # Normalize
+            # Calculate cosine similarity
             norm1 = np.linalg.norm(features1)
             norm2 = np.linalg.norm(features2)
             
             if norm1 == 0 or norm2 == 0:
-                similarity = 0.0
-            else:
-                features1 = features1 / norm1
-                features2 = features2 / norm2
-                similarity = np.dot(features1, features2)
+                return 0.0
             
-            # Add pattern similarity
-            pattern_similarity = self._calculate_pattern_similarity(
-                addr1_features['activity_pattern'],
-                addr2_features['activity_pattern']
-            )
+            similarity = np.dot(features1, features2) / (norm1 * norm2)
+            return float(np.clip(similarity, -1.0, 1.0))
             
-            return 0.7 * similarity + 0.3 * pattern_similarity
         except Exception as e:
-            logger.error(f"Similarity calculation failed: {e}")
+            logger.error(f"Error calculating similarity: {e}")
             return 0.0
     
     def _calculate_pattern_similarity(self, pattern1: str, pattern2: str) -> float:
-        """Calculate similarity between activity patterns"""
-        if not pattern1 or not pattern2:
-            return 0.0
-        
+        """Calculate similarity between transaction patterns"""
         try:
-            vectorizer = TfidfVectorizer()
+            if not pattern1 or not pattern2:
+                return 0.0
+            
+            # Create TF-IDF vectors
+            vectorizer = TfidfVectorizer(analyzer='char', ngram_range=(2, 3))
             tfidf_matrix = vectorizer.fit_transform([pattern1, pattern2])
             
             # Convert to dense array for similarity calculation
@@ -182,6 +243,7 @@ class EntityResolver:
             similarity = np.dot(tfidf_dense[0], tfidf_dense[1])
             
             return float(similarity)
+            
         except Exception as e:
             logger.error(f"Pattern similarity calculation failed: {e}")
             return 0.0

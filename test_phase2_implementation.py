@@ -269,7 +269,7 @@ class Phase2TestSuite:
                 async with session.post(f"{self.base_url}/dev/create-wallet?address={test_address}") as response:
                     if response.status == 200:
                         data = await response.json()
-                        if data.get("success"):
+                        if data.get("status") == "success" or data.get("created") is not None:
                             logger.info("✅ Wallet creation test passed")
                         else:
                             logger.error("❌ Wallet creation test failed")

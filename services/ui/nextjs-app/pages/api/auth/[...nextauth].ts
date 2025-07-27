@@ -57,31 +57,6 @@ export const authOptions: NextAuthOptions = {
   },
   jwt: {
     secret: process.env.NEXTAUTH_SECRET,
-    encode: async ({ secret, token }) => {
-      if (!token) return ''
-      
-      const encodedToken = jwt.sign(
-        {
-          ...token,
-          role: token.role,
-          permissions: token.permissions
-        },
-        secret,
-        { expiresIn: '24h' }
-      )
-      return encodedToken
-    },
-    decode: async ({ secret, token }) => {
-      if (!token) return null
-      
-      try {
-        const decodedToken = jwt.verify(token, secret) as any
-        return decodedToken
-      } catch (error) {
-        console.error('JWT decode error:', error)
-        return null
-      }
-    }
   },
   callbacks: {
     async jwt({ token, user }) {
@@ -92,10 +67,10 @@ export const authOptions: NextAuthOptions = {
       return token
     },
     async session({ session, token }) {
-      if (token) {
+      if (token && token.sub) {
         session.user.id = token.sub
-        session.user.role = token.role
-        session.user.permissions = token.permissions
+        session.user.role = token.role as string
+        session.user.permissions = token.permissions as string[]
       }
       return session
     },

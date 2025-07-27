@@ -22,6 +22,17 @@ class RealDataService:
         if self.session:
             await self.session.close()
     
+    async def initialize(self):
+        """Initialize the service"""
+        if not self.session:
+            self.session = aiohttp.ClientSession()
+    
+    async def cleanup(self):
+        """Cleanup resources"""
+        if self.session:
+            await self.session.close()
+            self.session = None
+    
     async def get_latest_transactions(self, limit: int = 100) -> List[Dict[str, Any]]:
         """Get latest transactions from Ethereum mainnet"""
         try:

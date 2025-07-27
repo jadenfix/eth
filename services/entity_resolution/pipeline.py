@@ -1,321 +1,20 @@
 """
-Entity Resolution Pipeline using Vertex AI.
+Entity Resolution Pipeline for Phase 2 Implementation.
 
 Matches and resolves blockchain addresses to known entities,
 enriching the data with semantic identity information.
 """
 
-import os
-import json
-import logging
-from typing import Dict, List, Optional, Any, Tuple
-from dataclasses import dataclass
-from datetime import datetime
-
-import structlog
-from google.cloud import aiplatform
-from google.cloud import bigquery
-from google.cloud import pubsub_v1
-import numpy as np
-import pandas as pd
-from sklearn.feature_extraction.text import TfidfVectorizer
-from sklearn.metrics.pairwise import cosine_similarity
-import joblib
-from neo4j import GraphDatabase
-
-try:
-    from google.cloud.aiplatform import PipelineJob
-except ImportError:
-    PipelineJob = None
-
-# Configure logging
-structlog.configure(
-    processors=[
-        structlog.stdlib.filter_by_level,
-        structlog.stdlib.add_logger_name,
-        structlog.stdlib.add_log_level,
-        structlog.processors.TimeStamper(fmt="iso"),
-        structlog.processors.JSONRenderer()
-    ],
-    wrapper_class=structlog.stdlib.BoundLogger,
-    logger_factory=structlog.stdlib.LoggerFactory(),
-    cache_logger_on_first_use=True,
-)
-
-logger = structlog.get_logger()
-
-# --- Robustification Patch ---
-# - Ensure db-dtypes is imported at the top
-# - Add error handling for missing 'address' and other required fields
-# - Log and skip problematic rows, but continue processing
-# - Document the robustification
-import db_dtypes  # Ensure this import is present
-
-
-@dataclass
-class EntityCandidate:
-    """Potential entity match candidate."""
-    entity_id: str
-    address: Optional[str]
-    confidence_score: float
-    match_reasons: List[str]
-
-
-@dataclass
-class EntityResolution:
-    """Entity resolution result."""
-    input_address: str
-    resolved_entity_id: Optional[str]
-    confidence_score: float
-    candidates: List[EntityCandidate]
-    resolution_method: str
-    timestamp: datetime
-
-
-class EntityMatcher:
-    """ML-based entity matching engine (patched for minimal schema)."""
-    
-    def __init__(self):
-        self.bigquery_client = bigquery.Client()
-        self.publisher = pubsub_v1.PublisherClient()
-        self.logger = logger.bind(service="entity-matcher")
-        # Load known entities (only available columns)
-        self.known_entities = self._load_known_entities()
-        # Disabled: address_vectorizer, label_vectorizer, Vertex AI (not used with minimal schema)
-        
-    def _load_known_entities(self) -> pd.DataFrame:
-        """Load known entities from BigQuery (patched for minimal schema)."""
-        try:
-            query = """
-            SELECT 
-                entity_id,
-                address,
-                entity_type,
-                updated_at
-            FROM `{project}.onchain_data.entities`
-            WHERE address IS NOT NULL
-            """.format(project=os.getenv('GOOGLE_CLOUD_PROJECT'))
-            return self.bigquery_client.query(query).to_dataframe()
-        except Exception as e:
-            self.logger.error("Error loading known entities", error=str(e))
-            return pd.DataFrame()
-    
-    def resolve_address(self, address: str, context: Dict[str, Any] = None) -> EntityResolution:
-        """Resolve an address to a known entity (direct lookup only)."""
-        context = context or {}
-        
-        try:
-            direct_match = self._direct_address_lookup(address)
-            if direct_match and direct_match.confidence_score > 0.9:
-                return EntityResolution(
-                    input_address=address,
-                    resolved_entity_id=direct_match.entity_id,
-                    confidence_score=direct_match.confidence_score,
-                    candidates=[direct_match],
-                    resolution_method="direct_lookup",
-                    timestamp=datetime.utcnow()
-                )
-            # --- ADVANCED ENTITY RESOLUTION LOGIC ENABLED ---
-            # Now using: name, labels, properties, risk_score (entities) and from_address, to_address, value_usd, event_type (curated_events)
-            # Behavioral, network, and entity-type matching logic is restored.
-            return EntityResolution(
-                input_address=address,
-                resolved_entity_id=None,
-                confidence_score=0.0,
-                candidates=[],
-                resolution_method="no_match",
-                timestamp=datetime.utcnow()
-            )
-            
-        except Exception as e:
-            self.logger.error("Error resolving address", address=address, error=str(e))
-            return EntityResolution(
-                input_address=address,
-                resolved_entity_id=None,
-                confidence_score=0.0,
-                candidates=[],
-                resolution_method="error",
-                timestamp=datetime.utcnow()
-            )
-    
-    def _direct_address_lookup(self, address: str) -> Optional[EntityCandidate]:
-        """Direct lookup in known entities (patched for minimal schema)."""
-        matches = self.known_entities[
-            self.known_entities['address'].str.lower() == address.lower()
-        ]
-        
-        if len(matches) > 0:
-            entity = matches.iloc[0]
-            return EntityCandidate(
-                entity_id=entity['entity_id'],
-                address=entity['address'],
-                confidence_score=1.0,
-                match_reasons=['direct_address_match']
-            )
-        
-        return None
-    
-    # Disabled: _behavioral_similarity_matching, _network_analysis_matching, _get_transaction_patterns, _get_connected_addresses
-    # These require fields not present in the current BigQuery schema.
-    
-    def batch_resolve_addresses(self, addresses: List[str]) -> List[EntityResolution]:
-        """Resolve multiple addresses in batch."""
-        results = []
-        
-        for address in addresses:
-            resolution = self.resolve_address(address)
-            results.append(resolution)
-            
-            # Update BigQuery with resolution results
-            self._store_resolution(resolution)
-        
-        return results
-    
-    def _store_resolution(self, resolution: EntityResolution):
-        """Store entity resolution results in BigQuery."""
-        try:
-            table_id = f"{os.getenv('GOOGLE_CLOUD_PROJECT')}.onchain_data.entity_resolutions"
-            
-            rows_to_insert = [{
-                'input_address': resolution.input_address,
-                'resolved_entity_id': resolution.resolved_entity_id,
-                'confidence_score': resolution.confidence_score,
-                'resolution_method': resolution.resolution_method,
-                'timestamp': resolution.timestamp.isoformat(),
-                'candidates': json.dumps([
-                    {
-                        'entity_id': c.entity_id,
-                        'confidence_score': c.confidence_score,
-                        'match_reasons': c.match_reasons
-                    } for c in resolution.candidates[:3]
-                ])
-            }]
-            
-            errors = self.bigquery_client.insert_rows_json(table_id, rows_to_insert)
-            
-            if errors:
-                self.logger.error("Error storing resolution", errors=errors)
-            else:
-                self.logger.info("Stored entity resolution", address=resolution.input_address)
-                
-        except Exception as e:
-            self.logger.error("Error storing resolution", error=str(e))
-
-
-def extract_and_store_entities_from_curated_events():
-    bq_client = bigquery.Client()
-    project = os.getenv('GOOGLE_CLOUD_PROJECT')
-    curated_events_table = f"{project}.onchain_data.curated_events"
-    entities_table = f"{project}.onchain_data.entities"
-    # Query all unique addresses from relevant fields
-    query = f'''
-        SELECT LOWER(from_address) as address FROM `{curated_events_table}` WHERE from_address IS NOT NULL
-        UNION DISTINCT
-        SELECT LOWER(to_address) as address FROM `{curated_events_table}` WHERE to_address IS NOT NULL
-        UNION DISTINCT
-        SELECT LOWER(contract_address) as address FROM `{curated_events_table}` WHERE contract_address IS NOT NULL
-    '''
-    addresses = bq_client.query(query).to_dataframe()['address'].dropna().unique()
-    logger.info(f"Extracted {len(addresses)} unique addresses from curated_events.")
-    # Prepare entity rows
-    now = datetime.utcnow()
-    entity_rows = [
-        {
-            'address': addr,
-            'entity_id': addr,
-            'entity_type': 'address',
-            'updated_at': now.isoformat()
-        } for addr in addresses
-    ]
-    if entity_rows:
-        errors = bq_client.insert_rows_json(entities_table, entity_rows)
-        if errors:
-            logger.error(f"BigQuery insert errors: {errors}")
-        else:
-            logger.info(f"Inserted {len(entity_rows)} entities into BigQuery.")
-    else:
-        logger.info("No new entities to insert.")
-
-
-def sync_entities_to_neo4j():
-    bq_client = bigquery.Client()
-    project = os.getenv('GOOGLE_CLOUD_PROJECT')
-    entities_table = f"{project}.onchain_data.entities"
-    neo4j_uri = os.getenv('NEO4J_URI')
-    neo4j_user = os.getenv('NEO4J_USER')
-    neo4j_password = os.getenv('NEO4J_PASSWORD')
-    driver = GraphDatabase.driver(neo4j_uri, auth=(neo4j_user, neo4j_password))
-    # Query all entities
-    query = f"SELECT entity_id, address, entity_type, updated_at FROM `{entities_table}`"
-    entities = bq_client.query(query).to_dataframe().to_dict(orient='records')
-    logger.info(f"Syncing {len(entities)} entities to Neo4j...")
-    with driver.session() as session:
-        for entity in entities:
-            session.run(
-                """
-                MERGE (e:Entity {id: $entity_id})
-                SET e.address = $address,
-                    e.entity_type = $entity_type,
-                    e.updated_at = datetime($updated_at)
-                """,
-                entity_id=entity['entity_id'],
-                address=entity['address'],
-                entity_type=entity['entity_type'],
-                updated_at=entity['updated_at']
-            )
-    logger.info(f"✅ Synced {len(entities)} entities to Neo4j.")
-
-
-def main():
-    """Main pipeline entry point."""
-    extract_and_store_entities_from_curated_events()
-    sync_entities_to_neo4j()
-    matcher = EntityMatcher()
-    
-    # Example usage
-    test_address = "0x742d35cc6634c0532925a3b8bc9c4b8b0532925a"
-    resolution = matcher.resolve_address(test_address)
-    
-    print(f"Resolution for {test_address}:")
-    print(f"Resolved Entity: {resolution.resolved_entity_id}")
-    print(f"Confidence: {resolution.confidence_score}")
-    print(f"Method: {resolution.resolution_method}")
-    print(f"Candidates: {len(resolution.candidates)}")
-
-
-if __name__ == "__main__":
-    main()
-
-# Minimal EntityResolutionPipeline for test compatibility
-class EntityResolutionPipeline:
-    def __init__(self):
-        pass
-    async def resolve_entities(self, addresses):
-        return {'entity_id': 'ENT_TEST', 'confidence': 0.95, 'addresses': addresses}
-
-class VertexAIPipeline:
-    def __init__(self):
-        pass
-    async def run(self, *args, **kwargs):
-        return {'status': 'success', 'job_id': 'vertex-ai-mock-job'}
-    async def run_entity_resolution_job(self, job_spec):
-        PipelineJob = globals().get('PipelineJob')
-        if PipelineJob:
-            PipelineJob('test-job', '/tmp/test-template.yaml')
-        return {'status': 'success', 'job_id': 'vertex-ai-entity-resolution-mock-job'}
-
 import asyncio
-from typing import Dict, List, Any
+import logging
+from typing import Dict, List, Any, Optional
 from collections import defaultdict
 from datetime import datetime
-import logging
-import sys
-import os
-sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..'))
+import numpy as np
 
-from services.entity_resolution.entity_resolver import EntityResolver
-from services.graph_api.neo4j_client import Neo4jClient
-from services.ethereum_ingester.real_data_service import RealDataService
+from .entity_resolver import EntityResolver
+from ..graph_api.neo4j_client import Neo4jClient
+from ..ethereum_ingester.real_data_service import RealDataService
 
 logger = logging.getLogger(__name__)
 
@@ -324,60 +23,139 @@ class EntityResolutionPipeline:
         self.resolver = EntityResolver()
         self.neo4j_client = Neo4jClient()
         self.real_data_service = None
-    
+        
     async def initialize(self):
         """Initialize the pipeline with real data service"""
-        self.real_data_service = RealDataService()
-        await self.real_data_service.__aenter__()
-    
+        if not self.real_data_service:
+            self.real_data_service = RealDataService()
+            await self.real_data_service.initialize()
+            
     async def cleanup(self):
         """Cleanup resources"""
         if self.real_data_service:
-            await self.real_data_service.__aexit__(None, None, None)
-    
-    async def process_new_transactions(self, transactions: List[Dict[str, Any]]):
-        """Process new transactions for entity resolution"""
-        if not transactions:
-            return {}
-        
-        # Group transactions by address
-        address_transactions = defaultdict(list)
-        for tx in transactions:
-            if tx.get('from'):
-                address_transactions[tx['from']].append(tx)
-            if tx.get('to'):
-                address_transactions[tx['to']].append(tx)
-        
-        # Perform entity resolution
+            await self.real_data_service.cleanup()
+            
+    async def process_sample_data(self) -> Dict[str, Any]:
+        """Process sample data for entity resolution testing"""
         try:
-            clusters = self.resolver.cluster_addresses(address_transactions)
-            logger.info(f"Found {len(clusters)} entity clusters from {len(address_transactions)} addresses")
+            # Create sample transactions for testing
+            sample_transactions = [
+                {
+                    "hash": "0x1234567890abcdef",
+                    "from": "0x742d35Cc6634C0532925a3b8D4C9db96C4b4d8b6",
+                    "to": "0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D",
+                    "value": 1.5,
+                    "gasPrice": 25,
+                    "gasUsed": 21000,
+                    "blockNumber": 18000000,
+                    "timestamp": 1700000000,
+                    "status": True,
+                    "chainId": 1,
+                    "input": "0x"
+                },
+                {
+                    "hash": "0xabcdef1234567890",
+                    "from": "0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D",
+                    "to": "0x742d35Cc6634C0532925a3b8D4C9db96C4b4d8b6",
+                    "value": 0.5,
+                    "gasPrice": 30,
+                    "gasUsed": 21000,
+                    "blockNumber": 18000001,
+                    "timestamp": 1700000060,
+                    "status": True,
+                    "chainId": 1,
+                    "input": "0x"
+                },
+                {
+                    "hash": "0x9876543210fedcba",
+                    "from": "0x742d35Cc6634C0532925a3b8D4C9db96C4b4d8b6",
+                    "to": "0x1f9840a85d5aF5bf1D1762F925BDADdC4201F984",
+                    "value": 2.0,
+                    "gasPrice": 35,
+                    "gasUsed": 50000,
+                    "blockNumber": 18000002,
+                    "timestamp": 1700000120,
+                    "status": True,
+                    "chainId": 1,
+                    "input": "0xa9059cbb000000000000000000000000"
+                }
+            ]
             
-            # Store results in Neo4j
-            stored_clusters = {}
-            for entity_id, addresses in clusters.items():
-                if len(addresses) > 1:  # Only store clusters with multiple addresses
+            # Process the sample transactions
+            result = await self.process_new_transactions(sample_transactions)
+            
+            return {
+                "status": "success",
+                "transactions_processed": len(sample_transactions),
+                "clusters_found": len(result),
+                "clusters": result,
+                "timestamp": datetime.utcnow().isoformat()
+            }
+            
+        except Exception as e:
+            logger.error(f"Error processing sample data: {e}")
+            return {
+                "status": "error",
+                "error": str(e),
+                "transactions_processed": 0,
+                "clusters_found": 0,
+                "clusters": {},
+                "timestamp": datetime.utcnow().isoformat()
+            }
+    
+    async def process_new_transactions(self, transactions: List[Dict[str, Any]]) -> Dict[str, List[str]]:
+        """Process new transactions for entity resolution"""
+        try:
+            # Group transactions by address
+            address_transactions = defaultdict(list)
+            for tx in transactions:
+                address_transactions[tx['from']].append(tx)
+                if tx.get('to'):
+                    address_transactions[tx['to']].append(tx)
+            
+            # Create wallet nodes in Neo4j
+            for address in address_transactions.keys():
+                metadata = {
+                    'first_seen': datetime.utcnow().isoformat(),
+                    'last_seen': datetime.utcnow().isoformat(),
+                    'transaction_count': len(address_transactions[address])
+                }
+                self.neo4j_client.create_wallet_node(address, metadata)
+            
+            # Create transaction relationships
+            for tx in transactions:
+                if tx.get('from') and tx.get('to'):
                     metadata = {
-                        'confidence_score': self._calculate_cluster_confidence(addresses, address_transactions),
-                        'cluster_size': len(addresses),
-                        'created_at': datetime.utcnow().isoformat(),
-                        'transaction_count': sum(len(address_transactions[addr]) for addr in addresses),
-                        'total_value': sum(
-                            sum(tx.get('value', 0) for tx in address_transactions[addr])
-                            for addr in addresses
-                        )
+                        'value': tx.get('value', 0),
+                        'gas_price': tx.get('gasPrice', 0),
+                        'block_number': tx.get('blockNumber', 0),
+                        'timestamp': tx.get('timestamp', 0),
+                        'chain_id': tx.get('chainId', 1)
                     }
-                    
-                    result = self.neo4j_client.create_entity_cluster(entity_id, addresses, metadata)
-                    if result:
-                        stored_clusters[entity_id] = {
-                            'addresses': addresses,
-                            'metadata': metadata
+                    self.neo4j_client.create_transaction_relationship(
+                        tx['from'], tx['to'], tx['hash'], metadata
+                    )
+            
+            # Perform entity resolution clustering
+            if len(address_transactions) > 1:
+                addresses = list(address_transactions.keys())
+                clusters = self.resolver.cluster_addresses(addresses, address_transactions)
+                
+                # Store clusters in Neo4j
+                for cluster_id, cluster_addresses in clusters.items():
+                    if len(cluster_addresses) > 1:  # Only store clusters with multiple addresses
+                        metadata = {
+                            'confidence_score': self._calculate_cluster_confidence(cluster_addresses, address_transactions),
+                            'cluster_size': len(cluster_addresses),
+                            'created_at': datetime.utcnow().isoformat(),
+                            'cluster_type': 'behavioral'
                         }
-            
-            logger.info(f"Stored {len(stored_clusters)} entity clusters in Neo4j")
-            return stored_clusters
-            
+                        self.neo4j_client.create_entity_cluster(cluster_id, cluster_addresses, metadata)
+                
+                return clusters
+            else:
+                return {}
+                
         except Exception as e:
             logger.error(f"Error in entity resolution: {e}")
             return {}
@@ -388,6 +166,7 @@ class EntityResolutionPipeline:
             await self.initialize()
         
         try:
+            # Fetch real data based on type
             if data_type == "latest":
                 transactions = await self.real_data_service.get_latest_transactions(limit)
             elif data_type == "whale":
@@ -397,52 +176,27 @@ class EntityResolutionPipeline:
             else:
                 transactions = await self.real_data_service.get_latest_transactions(limit)
             
-            logger.info(f"Processing {len(transactions)} {data_type} transactions")
-            
-            # Process transactions for entity resolution
-            clusters = await self.process_new_transactions(transactions)
-            
-            # Create wallet nodes for all addresses
-            all_addresses = set()
-            for tx in transactions:
-                if tx.get('from'):
-                    all_addresses.add(tx['from'])
-                if tx.get('to'):
-                    all_addresses.add(tx['to'])
-            
-            for address in all_addresses:
-                self.neo4j_client.create_wallet_node(address, {
-                    'first_seen': datetime.utcnow().isoformat(),
-                    'data_type': data_type
-                })
-            
-            # Create transaction relationships
-            for tx in transactions:
-                if tx.get('from') and tx.get('to'):
-                    self.neo4j_client.create_transaction_relationship(
-                        tx['from'], tx['to'], tx.get('hash', ''), {
-                            'value': tx.get('value', 0),
-                            'gas_price': tx.get('gasPrice', 0),
-                            'timestamp': tx.get('timestamp', 0),
-                            'data_type': data_type
-                        }
-                    )
+            # Process the transactions
+            result = await self.process_new_transactions(transactions)
             
             return {
-                'transactions_processed': len(transactions),
-                'addresses_found': len(all_addresses),
-                'clusters_created': len(clusters),
-                'clusters': clusters
+                "status": "success",
+                "data_type": data_type,
+                "transactions_processed": len(transactions),
+                "addresses_found": len(set(tx.get('from') for tx in transactions) | set(tx.get('to') for tx in transactions if tx.get('to'))),
+                "clusters_created": len(result),
+                "clusters": result,
+                "timestamp": datetime.utcnow().isoformat()
             }
             
         except Exception as e:
             logger.error(f"Error processing real data: {e}")
             return {
-                'error': str(e),
-                'transactions_processed': 0,
-                'addresses_found': 0,
-                'clusters_created': 0,
-                'clusters': {}
+                "error": str(e),
+                "transactions_processed": 0,
+                "addresses_found": 0,
+                "clusters_created": 0,
+                "clusters": {}
             }
     
     def _calculate_cluster_confidence(self, addresses: List[str], address_transactions: Dict) -> float:
@@ -455,18 +209,14 @@ class EntityResolutionPipeline:
             similarities = []
             for i in range(len(addresses)):
                 for j in range(i + 1, len(addresses)):
-                    addr1_features = self.resolver.extract_features(
+                    similarity = self.resolver.calculate_similarity_score(
                         addresses[i], 
-                        address_transactions[addresses[i]]
-                    )
-                    addr2_features = self.resolver.extract_features(
                         addresses[j], 
-                        address_transactions[addresses[j]]
+                        address_transactions
                     )
-                    similarity = self.resolver.calculate_similarity_score(addr1_features, addr2_features)
                     similarities.append(similarity)
             
-            return sum(similarities) / len(similarities) if similarities else 0.0
+            return np.mean(similarities) if similarities else 0.0
         except Exception as e:
             logger.error(f"Error calculating cluster confidence: {e}")
             return 0.0
@@ -518,34 +268,39 @@ class EntityResolutionPipeline:
             return []
     
     async def get_entity_statistics(self) -> Dict[str, Any]:
-        """Get statistics about entities and clustering"""
+        """Get statistics about entities and clusters"""
         try:
-            metrics = self.neo4j_client.get_metrics()
-            
-            # Get cluster distribution
             with self.neo4j_client.driver.session() as session:
+                # Count entities
+                entity_count = session.run("MATCH (e:Entity) RETURN count(e) as count").single()['count']
+                
+                # Count wallets
+                wallet_count = session.run("MATCH (w:Wallet) RETURN count(w) as count").single()['count']
+                
+                # Count relationships
+                relationship_count = session.run("MATCH ()-[r]-() RETURN count(r) as count").single()['count']
+                
+                # Get cluster distribution
                 cluster_sizes = session.run("""
                     MATCH (e:Entity)-[:OWNS]->(w:Wallet)
                     RETURN e.id, count(w) as size
                     ORDER BY size DESC
-                """)
+                    LIMIT 10
+                """).data()
                 
-                size_distribution = {}
-                for record in cluster_sizes:
-                    size = record['size']
-                    size_distribution[size] = size_distribution.get(size, 0) + 1
-            
-            return {
-                'metrics': metrics,
-                'cluster_distribution': size_distribution,
-                'total_clusters': len(size_distribution),
-                'average_cluster_size': sum(size * count for size, count in size_distribution.items()) / sum(size_distribution.values()) if size_distribution else 0
-            }
+                return {
+                    'total_entities': entity_count,
+                    'total_wallets': wallet_count,
+                    'total_relationships': relationship_count,
+                    'cluster_distribution': cluster_sizes,
+                    'timestamp': datetime.utcnow().isoformat()
+                }
         except Exception as e:
             logger.error(f"Error getting entity statistics: {e}")
             return {
-                'metrics': {'status': 'error'},
-                'cluster_distribution': {},
-                'total_clusters': 0,
-                'average_cluster_size': 0
+                'total_entities': 0,
+                'total_wallets': 0,
+                'total_relationships': 0,
+                'cluster_distribution': [],
+                'error': str(e)
             }

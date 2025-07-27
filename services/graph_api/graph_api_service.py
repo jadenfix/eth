@@ -38,76 +38,37 @@ class GraphAPIService:
         self.neo4j_user = os.getenv('NEO4J_USER')
         self.neo4j_password = os.getenv('NEO4J_PASSWORD')
         
-        # Try to initialize Neo4j driver, fall back to mock mode
-        try:
-            self.driver = GraphDatabase.driver(
-                self.neo4j_uri, 
-                auth=(self.neo4j_user, self.neo4j_password)
-            )
-            # Test connection
-            with self.driver.session() as session:
-                session.run("RETURN 1")
-            self.mock_mode = False
-            logger.info("✅ Neo4j connected successfully")
-        except Exception as e:
-            logger.warning(f"⚠️ Neo4j connection failed: {e}")
-            logger.info("🔄 Running in mock mode with simulated data")
-            self.driver = None
-            self.mock_mode = True
+        # Initialize Neo4j driver
+        self.driver = GraphDatabase.driver(
+            self.neo4j_uri, 
+            auth=(self.neo4j_user, self.neo4j_password)
+        )
         
         # Initialize BigQuery client
-        try:
-            self.bq_client = bigquery.Client(project=os.getenv('GOOGLE_CLOUD_PROJECT'))
-        except Exception as e:
-            logger.warning(f"⚠️ BigQuery connection failed: {e}")
-            self.bq_client = None
+        self.bq_client = bigquery.Client(project=os.getenv('GOOGLE_CLOUD_PROJECT'))
         
         # WebSocket connections
         self.connections = set()
         
-        # Mock data for demo
-        self.mock_entities = [
-            {"id": "ENT_001", "address": "0x742d35Cc6634C0532925a3b8D4C9db96C4b4d8b6", "entity_type": "WHALE", "risk_score": 0.8},
-            {"id": "ENT_002", "address": "0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D", "entity_type": "DEX", "risk_score": 0.2},
-            {"id": "ENT_003", "address": "0x7F367cC41522cE07553e823bf3be79A889DEbe1B", "entity_type": "SANCTIONED", "risk_score": 0.95},
-        ]
-        
     def query_neo4j(self, query, parameters=None):
-        """Execute Neo4j query or return mock data"""
-        if self.mock_mode:
-            logger.info(f"Mock query: {query}")
-            if "MATCH (e:Entity)" in query:
-                return self.mock_entities
-            return [{"test": 1}]
-        
-        try:
-            with self.driver.session() as session:
-                result = session.run(query, parameters or {})
-                return [record.data() for record in result]
-        except Exception as e:
-            logger.error(f"Neo4j query error: {e}")
-            return []
+        """Execute Neo4j query"""
+        with self.driver.session() as session:
+            result = session.run(query, parameters or {})
+            return [record.data() for record in result]
     
     def sync_to_neo4j(self, entity_data):
         """Sync data from BigQuery to Neo4j"""
-        if self.mock_mode:
-            logger.info(f"Mock sync: {entity_data}")
-            return
-            
-        try:
-            with self.driver.session() as session:
-                # Create or update entity
-                query = """
-                MERGE (e:Entity {id: $entity_id})
-                SET e.address = $address,
-                    e.entity_type = $entity_type,
-                    e.updated_at = datetime()
-                RETURN e
-                """
-                session.run(query, entity_data)
-                logger.info(f"✅ Synced entity {entity_data.get('entity_id')} to Neo4j")
-        except Exception as e:
-            logger.error(f"Neo4j sync error: {e}")
+        with self.driver.session() as session:
+            # Create or update entity
+            query = """
+            MERGE (e:Entity {id: $entity_id})
+            SET e.address = $address,
+                e.entity_type = $entity_type,
+                e.updated_at = datetime()
+            RETURN e
+            """
+            session.run(query, entity_data)
+            logger.info(f"✅ Synced entity {entity_data.get('entity_id')} to Neo4j")
     
     async def broadcast_update(self, data):
         """Broadcast updates to all WebSocket connections"""
@@ -125,46 +86,23 @@ graph_service = GraphAPIService()
 async def health_check():
     """Health check endpoint"""
     try:
-        # In mock mode, just return healthy status
-        if graph_service.mock_mode:
-            return {
-                "status": "healthy", 
-                "neo4j": "mock_mode", 
-                "timestamp": datetime.now().isoformat(),
-                "mock_mode": True
-            }
-        
-        # Test Neo4j connection only if not in mock mode
+        # Test Neo4j connection
         result = graph_service.query_neo4j("RETURN 1 as test")
-        return {
-            "status": "healthy", 
-            "neo4j": "connected", 
-            "timestamp": datetime.now().isoformat(),
-            "mock_mode": False
-        }
+        return {"status": "healthy", "neo4j": "connected", "timestamp": datetime.now().isoformat()}
     except Exception as e:
         return {"status": "unhealthy", "error": str(e)}
 
 @app.get("/api/graph/entities")
 async def get_entities():
-    """Get all entities from Neo4j or mock data"""
+    """Get all entities from Neo4j"""
     try:
-        if graph_service.mock_mode:
-            # Return mock entities
-            entities = graph_service.mock_entities
-        else:
-            query = """
-            MATCH (e:Entity)
-            RETURN e.id as entity_id, e.address as address, e.entity_type as type, e.updated_at as updated
-            LIMIT 100
-            """
-            entities = graph_service.query_neo4j(query)
-        
-        return {
-            "entities": entities, 
-            "count": len(entities),
-            "mock_mode": graph_service.mock_mode
-        }
+        query = """
+        MATCH (e:Entity)
+        RETURN e.id as entity_id, e.address as address, e.entity_type as type, e.updated_at as updated
+        LIMIT 100
+        """
+        entities = graph_service.query_neo4j(query)
+        return {"entities": entities, "count": len(entities)}
     except Exception as e:
         return {"error": str(e)}
 
@@ -233,118 +171,9 @@ async def sync_data():
         logger.error(f"Sync error: {e}")
         return {"error": str(e)}
 
-@app.websocket("/ws/stream")
-async def websocket_stream_endpoint(websocket: WebSocket):
-    """WebSocket endpoint for real-time data streaming (Palantir-style)"""
-    await websocket.accept()
-    graph_service.connections.add(websocket)
-    logger.info(f"🔌 Data stream connected. Total connections: {len(graph_service.connections)}")
-    
-    try:
-        # Send connection acknowledgment
-        await websocket.send_json({
-            "type": "connection_ack",
-            "message": "Connected to onchain intelligence stream",
-            "capabilities": ["entity_updates", "transaction_stream", "risk_alerts", "compliance_events"],
-            "timestamp": datetime.now().isoformat()
-        })
-        
-        while True:
-            try:
-                # Wait for incoming messages (subscriptions, etc.)
-                message = await websocket.receive_json()
-                
-                if message.get("type") == "subscribe":
-                    channel = message.get("channel")
-                    filters = message.get("filters", {})
-                    
-                    # Acknowledge subscription
-                    await websocket.send_json({
-                        "type": "subscription_ack",
-                        "channel": channel,
-                        "filters": filters,
-                        "timestamp": datetime.now().isoformat()
-                    })
-                    
-                    # Start streaming data for this channel
-                    if channel == "entity_update":
-                        # Simulate entity updates
-                        entities = graph_service.query_neo4j("""
-                            MATCH (e:Entity) 
-                            RETURN e.id, e.address, e.entity_type 
-                            ORDER BY e.updated_at DESC 
-                            LIMIT 10
-                        """)
-                        
-                        for entity in entities:
-                            await websocket.send_json({
-                                "type": "entity_update",
-                                "source": "neo4j",
-                                "timestamp": datetime.now().isoformat(),
-                                "data": {
-                                    "entity_id": entity.get("e.id"),
-                                    "address": entity.get("e.address"),
-                                    "entity_type": entity.get("e.entity_type"),
-                                    "risk_score": 0.3 + (hash(entity.get("e.id", "")) % 100) / 100 * 0.7,
-                                    "transaction_count": (hash(entity.get("e.address", "")) % 1000) + 10
-                                }
-                            })
-                            await asyncio.sleep(0.1)  # Throttle updates
-                            
-                    elif channel == "transaction":
-                        # Simulate real-time transactions
-                        import random
-                        for i in range(20):
-                            await websocket.send_json({
-                                "type": "transaction",
-                                "source": "ethereum_node",
-                                "timestamp": datetime.now().isoformat(),
-                                "data": {
-                                    "hash": f"0x{''.join(random.choices('0123456789abcdef', k=64))}",
-                                    "from": f"0x{''.join(random.choices('0123456789abcdef', k=40))}",
-                                    "to": f"0x{''.join(random.choices('0123456789abcdef', k=40))}",
-                                    "value": random.uniform(0.01, 100.0),
-                                    "gas_price": random.uniform(20, 200),
-                                    "block_number": 18500000 + random.randint(1, 1000)
-                                }
-                            })
-                            await asyncio.sleep(0.5)
-                            
-                    elif channel == "risk_alert":
-                        # Simulate risk alerts
-                        risk_events = [
-                            {"type": "high_value_transfer", "severity": "high", "amount": "$2.5M"},
-                            {"type": "suspicious_pattern", "severity": "medium", "entity_count": 15},
-                            {"type": "compliance_violation", "severity": "critical", "jurisdiction": "US"},
-                            {"type": "mixer_interaction", "severity": "high", "mixer": "Tornado Cash"}
-                        ]
-                        
-                        for event in risk_events:
-                            await websocket.send_json({
-                                "type": "risk_alert",
-                                "source": "risk_engine",
-                                "timestamp": datetime.now().isoformat(),
-                                "data": event
-                            })
-                            await asyncio.sleep(2.0)
-                            
-            except asyncio.TimeoutError:
-                # Send heartbeat
-                await websocket.send_json({
-                    "type": "heartbeat",
-                    "timestamp": datetime.now().isoformat(),
-                    "active_connections": len(graph_service.connections)
-                })
-                
-    except Exception as e:
-        logger.error(f"❌ WebSocket stream error: {e}")
-    finally:
-        graph_service.connections.discard(websocket)
-        logger.info(f"🔌 Data stream disconnected. Remaining connections: {len(graph_service.connections)}")
-
 @app.websocket("/subscriptions")
 async def websocket_endpoint(websocket: WebSocket):
-    """Legacy WebSocket endpoint for compatibility"""
+    """WebSocket endpoint for real-time updates"""
     await websocket.accept()
     graph_service.connections.add(websocket)
     logger.info(f"WebSocket connected. Total connections: {len(graph_service.connections)}")

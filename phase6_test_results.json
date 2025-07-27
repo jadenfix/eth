@@ -1,0 +1,87 @@
+{
+  "phase": "Phase 6 - Advanced Analytics & ML",
+  "timestamp": "2025-07-27T14:14:24.037944",
+  "total_tests": 13,
+  "passed_tests": 13,
+  "success_rate": 100.0,
+  "test_results": [
+    {
+      "test": "ML Models Initialization",
+      "passed": true,
+      "details": "",
+      "timestamp": "2025-07-27T14:14:17.233296"
+    },
+    {
+      "test": "Fraud Detection Model",
+      "passed": true,
+      "details": "",
+      "timestamp": "2025-07-27T14:14:17.414628"
+    },
+    {
+      "test": "Anomaly Detection Model",
+      "passed": true,
+      "details": "",
+      "timestamp": "2025-07-27T14:14:17.502364"
+    },
+    {
+      "test": "Predictive Analytics Model",
+      "passed": true,
+      "details": "",
+      "timestamp": "2025-07-27T14:14:21.154520"
+    },
+    {
+      "test": "Cross-Chain Analysis",
+      "passed": true,
+      "details": "",
+      "timestamp": "2025-07-27T14:14:21.154839"
+    },
+    {
+      "test": "Portfolio Risk Analysis",
+      "passed": true,
+      "details": "",
+      "timestamp": "2025-07-27T14:14:21.195945"
+    },
+    {
+      "test": "Regulatory Report Generation",
+      "passed": true,
+      "details": "",
+      "timestamp": "2025-07-27T14:14:21.196165"
+    },
+    {
+      "test": "Fraud Pattern Detection",
+      "passed": true,
+      "details": "",
+      "timestamp": "2025-07-27T14:14:21.275424"
+    },
+    {
+      "test": "Batch Anomaly Detection",
+      "passed": true,
+      "details": "",
+      "timestamp": "2025-07-27T14:14:21.282040"
+    },
+    {
+      "test": "Market Trend Predictions",
+      "passed": true,
+      "details": "",
+      "timestamp": "2025-07-27T14:14:21.312812"
+    },
+    {
+      "test": "Model Performance Metrics",
+      "passed": true,
+      "details": "",
+      "timestamp": "2025-07-27T14:14:21.312846"
+    },
+    {
+      "test": "ML Insights Generation",
+      "passed": true,
+      "details": "",
+      "timestamp": "2025-07-27T14:14:21.312884"
+    },
+    {
+      "test": "Model Retraining",
+      "passed": true,
+      "details": "",
+      "timestamp": "2025-07-27T14:14:24.037525"
+    }
+  ]
+}
