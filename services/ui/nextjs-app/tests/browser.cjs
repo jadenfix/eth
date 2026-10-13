@@ -3,8 +3,18 @@ const {spawn}=require('node:child_process');
 const assert=require('node:assert/strict');
 const fs=require('node:fs');
 (async()=>{
-  const port=3191,base=`http://127.0.0.1:${port}`;
-  const server=spawn(process.execPath,[require.resolve('next/dist/bin/next'),'start','--hostname','127.0.0.1','--port',String(port)],{stdio:'inherit'});
+  const port=3191,base=process.env.ETH_UI_BASE_URL||`http://127.0.0.1:${port}`;
+  let server=null;
+  if(!process.env.ETH_UI_BASE_URL){
+    const path=require('node:path'),appRoot=path.resolve(__dirname,'..');
+    const standalone=path.join(appRoot,'.next','standalone','services','ui','nextjs-app');
+    assert(fs.existsSync(path.join(standalone,'server.js')),'Run the standalone UI build before browser tests');
+    fs.cpSync(path.join(appRoot,'.next','static'),path.join(standalone,'.next','static'),{recursive:true});
+    if(fs.existsSync(path.join(appRoot,'public')))fs.cpSync(path.join(appRoot,'public'),path.join(standalone,'public'),{recursive:true});
+    server=spawn(process.execPath,[path.join(standalone,'server.js')],{
+      cwd:standalone,stdio:'inherit',env:{...process.env,PORT:String(port),HOSTNAME:'127.0.0.1'}
+    });
+  }
   let browser;
   try {
     let ready=false;
@@ -27,5 +37,5 @@ const fs=require('node:fs');
     await page.screenshot({path:'artifacts/legacy-home-mobile.png',fullPage:true});
     assert.deepEqual(errors,[],'Browser runtime errors');
     console.log('Legacy Next real browser: routes, provenance, redirect, rendered status and mobile layout pass.');
-  } finally {if(browser)await browser.close();server.kill('SIGTERM');}
+  } finally {if(browser)await browser.close();if(server)server.kill('SIGTERM');}
 })().catch(error=>{console.error(error);process.exitCode=1;});
