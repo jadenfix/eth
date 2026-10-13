@@ -154,39 +154,37 @@ class TestAPIIntegration:
         assert 'signals' in data
         assert isinstance(data['signals'], list)
     
-    def test_graphql_api_basic_queries(self):
-        """Test GraphQL API basic functionality.""" 
-        from services.graph_api.graph_api import app
+    def test_graphql_api_basic_queries(self, tmp_path):
+        """Test the actual GraphQL schema with explicit credential-free storage."""
+        from services.graph_api.graph_api import create_app
+        from services.graph_api.store import GraphStore
         from fastapi.testclient import TestClient
-        
-        client = TestClient(app)
-        
-        # Test schema introspection
-        introspection_query = """
-        query IntrospectionQuery {
-            __schema {
-                queryType { name }
-                types {
-                    name
-                    kind
+
+        store = GraphStore(uri='', path=tmp_path / 'integration-graph.sqlite')
+        try:
+            with TestClient(create_app(store=store, token='')) as client:
+                introspection_query = """
+                query IntrospectionQuery {
+                    __schema {
+                        queryType { name }
+                        types { name kind }
+                    }
                 }
-            }
-        }
-        """
-        
-        response = client.post("/graphql", json={"query": introspection_query})
-        assert response.status_code == 200
-        
-        data = response.json()
-        assert 'data' in data
-        assert '__schema' in data['data']
-        
-        # Verify core types exist
-        type_names = [t['name'] for t in data['data']['__schema']['types']]
-        expected_types = ['Entity', 'Address', 'Transaction', 'Query']
-        
-        for expected_type in expected_types:
-            assert expected_type in type_names
+                """
+                response = client.post('/graphql', json={'query': introspection_query})
+                assert response.status_code == 200
+                data = response.json()
+                assert not data.get('errors'), data
+                assert '__schema' in data['data']
+                type_names = [t['name'] for t in data['data']['__schema']['types']]
+                for expected_type in ['Entity', 'Address', 'Transaction', 'Query']:
+                    assert expected_type in type_names
+                assert data['data']['__schema']['queryType']['name'] == 'Query'
+                empty = client.post('/graphql', json={'query': '{entities{id}}'})
+                assert empty.status_code == 200
+                assert empty.json() == {'data': {'entities': []}}
+        finally:
+            store.close()
     
     @pytest.mark.asyncio
     async def test_websocket_real_time_updates(self):

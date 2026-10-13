@@ -277,48 +277,77 @@ class TestLayer2SemanticFusion:
             assert result['confidence'] > 0.9
             assert set(result['addresses']) == set(addresses)
     
-    def test_ontology_graphql_api(self):
-        """Test ontology GraphQL API."""
-        from services.graph_api.graph_api import app
-        
-        client = TestClient(app)
-        
-        # Test basic schema query
-        query = """
-        query {
-            __schema {
-                types {
-                    name
+    def test_ontology_graphql_api(self, tmp_path):
+        """Introspect the executable schema with an explicit isolated local store."""
+        from services.graph_api.graph_api import create_app
+        from services.graph_api.store import GraphStore
+
+        store = GraphStore(uri='', path=tmp_path / 'ontology.sqlite')
+        try:
+            assert store.mode == 'sqlite'
+            with TestClient(create_app(store=store, token='')) as client:
+                query = """
+                query {
+                    __schema { types { name } }
                 }
-            }
-        }
-        """
-        
-        response = client.post("/graphql", json={"query": query})
-        assert response.status_code == 200
-        
-        data = response.json()
-        type_names = [t['name'] for t in data['data']['__schema']['types']]
-        
-        # Verify core types exist
-        assert 'Entity' in type_names
-        assert 'Address' in type_names
-        assert 'Transaction' in type_names
+                """
+                response = client.post('/graphql', json={'query': query})
+                assert response.status_code == 200
+                data = response.json()
+                assert not data.get('errors'), data
+                type_names = [t['name'] for t in data['data']['__schema']['types']]
+                assert {'Entity', 'Address', 'Transaction'} <= set(type_names)
+                assert client.get('/health').json()['storage'] == 'sqlite'
+        finally:
+            store.close()
     
     @pytest.mark.asyncio
-    async def test_neo4j_relationship_creation(self, mock_entity_resolution_data):
-        """Test Neo4j relationship management."""
-        with patch('neo4j.GraphDatabase.driver') as mock_driver:
-            from services.graph_api.neo4j_client import Neo4jClient
-            
-            client = Neo4jClient()
-            
-            # Test entity creation
-            entity_data = mock_entity_resolution_data['entities'][0]
-            await client.create_entity(entity_data)
-            
-            # Verify cypher query was called
-            mock_driver.return_value.session.return_value.__enter__.return_value.run.assert_called()
+    async def test_neo4j_relationship_creation(self, mock_entity_resolution_data, tmp_path):
+        """Exercise the async graph client with actual durable local relationships.
+
+        This lane intentionally uses SQLite; the dedicated graph CI exercises
+        the same adapter against a real Neo4j server.
+        """
+        from services.graph_api.neo4j_client import Neo4jClient
+
+        path = tmp_path / 'relationships.sqlite'
+        client = Neo4jClient(uri='', path=path)
+        first, second = mock_entity_resolution_data['entities']
+        try:
+            assert client.store.mode == 'sqlite'
+            for entity in (first, second):
+                created = await client.create_entity({
+                    **entity, 'id': entity['entity_id'], 'type': entity['entity_type']
+                })
+                assert created['id'] == entity['entity_id']
+                assert created['addresses'] == entity['addresses']
+            relationship = await client.create_relationship({
+                'type': 'TRANSACTED_WITH',
+                'fromEntityId': first['entity_id'],
+                'toEntityId': second['entity_id'],
+                'weight': 0.75,
+            })
+            assert relationship['relationship_type'] == 'TRANSACTED_WITH'
+            network = client.store.get_entity_network(first['entity_id'], 1)
+            assert {node['id'] for node in network['nodes']} == {
+                first['entity_id'], second['entity_id']
+            }
+            assert [edge['id'] for edge in network['edges']] == [relationship['id']]
+        finally:
+            client.close()
+
+        restored = Neo4jClient(uri='', path=path)
+        try:
+            persisted = await restored.get_entity(first['entity_id'])
+            assert persisted['addresses'] == first['addresses']
+            assert persisted['confidence'] == first['confidence']
+            edges = restored.store.get_relationships(first['entity_id'])
+            assert len(edges) == 1
+            assert edges[0]['from_entity'] == first['entity_id']
+            assert edges[0]['to_entity'] == second['entity_id']
+            assert edges[0]['weight'] == 0.75
+        finally:
+            restored.close()
 
 
 class TestLayer3IntelligenceAgentMesh:
@@ -426,33 +455,38 @@ class TestLayer3IntelligenceAgentMesh:
 class TestLayer4APIVoiceOps:
     """Test API & VoiceOps layer."""
     
-    def test_graphql_api_endpoints(self):
-        """Test GraphQL API functionality."""
-        from services.graph_api.graph_api import app
-        
-        client = TestClient(app)
-        
-        # Test entity query
-        query = """
-        query GetEntities($limit: Int) {
-            entities(limit: $limit) {
-                id
-                type
-                addresses
-                confidence
-            }
+    def test_graphql_api_endpoints(self, tmp_path):
+        """Query persisted entity fields through HTTP, including input bounds."""
+        from services.graph_api.graph_api import create_app
+        from services.graph_api.store import GraphStore
+
+        store = GraphStore(uri='', path=tmp_path / 'api.sqlite')
+        entity = {
+            'id': 'GRAPH_E2E_WHALE', 'type': 'WHALE',
+            'addresses': ['0xabc123' + '0' * 34], 'confidence': 0.95,
         }
-        """
-        
-        response = client.post("/graphql", json={
-            "query": query,
-            "variables": {"limit": 10}
-        })
-        
-        assert response.status_code == 200
-        data = response.json()
-        assert 'data' in data
-        assert 'entities' in data['data']
+        try:
+            store.create_entity(entity)
+            with TestClient(create_app(store=store, token='')) as client:
+                query = """
+                query GetEntities($limit: Int) {
+                    entities(limit: $limit) { id type addresses confidence }
+                }
+                """
+                response = client.post('/graphql', json={
+                    'query': query, 'variables': {'limit': 10}
+                })
+                assert response.status_code == 200
+                data = response.json()
+                assert not data.get('errors'), data
+                assert data['data']['entities'] == [entity]
+                invalid = client.post('/graphql', json={
+                    'query': query, 'variables': {'limit': 0}
+                })
+                assert invalid.status_code == 200
+                assert invalid.json().get('errors')
+        finally:
+            store.close()
     
     def test_rest_api_endpoints(self):
         """Test REST API endpoints."""
