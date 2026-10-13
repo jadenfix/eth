@@ -1,6 +1,7 @@
 """Actual isolated worker failure and HTTP graph-container persistence proof."""
 
 import json
+from pathlib import Path
 import subprocess
 import time
 from urllib.error import HTTPError
@@ -49,6 +50,24 @@ def main():
         )
         assert result.returncode != 0, "Unconfigured cloud worker falsely started"
         assert "GOOGLE_CLOUD_PROJECT" in result.stderr, result.stderr
+
+    # The image contains both actual ingestion and MEV modules. Exercise their
+    # success path with an explicitly labeled local HTTP RPC fixture while the
+    # container has no external network. Mount only the read-only proof harness.
+    replay = Path(__file__).resolve().with_name("check_event_replay.py")
+    result = docker(
+        "run",
+        "--rm",
+        "--network",
+        "none",
+        "-v",
+        str(replay) + ":/proof/check_event_replay.py:ro",
+        "eth-proof-agents-mev-watch",
+        "python",
+        "/proof/check_event_replay.py",
+    )
+    assert "restart persistence" in result.stdout, result.stdout
+    print(result.stdout)
 
     suffix = uuid.uuid4().hex
     container, volume = "eth-graph-proof-" + suffix, "eth-graph-data-" + suffix
