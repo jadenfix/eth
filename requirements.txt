@@ -42,9 +42,9 @@ aiohttp==3.9.1
 elevenlabs==0.2.26
 
 # Blockchain
-web3==6.15.1
-eth-typing==4.0.0
-eth-utils==3.0.0
+web3==7.15.0
+eth-typing==6.0.0
+eth-utils==6.0.0
 
 # GraphQL
 graphene==3.3.0
