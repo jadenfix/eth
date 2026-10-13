@@ -23,13 +23,17 @@ class RedisFixture:
 class HealthTests(IsolatedAsyncioTestCase):
     async def test_real_http_status_payload_and_failures(self):
         state={'status':'healthy','code':200}
+        slow_started=asyncio.Event()
+        release_slow=asyncio.Event()
         async def health(request):
-            if state['status']=='slow':await asyncio.sleep(.1)
+            if state['status']=='slow':
+                slow_started.set()
+                await release_slow.wait()
             if state['status']=='invalid':return web.Response(text='broken',content_type='application/json')
             return web.json_response({'status':state['status']},status=state['code'])
         app=web.Application();app.router.add_get('/health',health)
         server=TestServer(app);await server.start_server()
-        async with HealthChecker(timeout_seconds=.03) as checker:
+        async with HealthChecker(timeout_seconds=2) as checker:
             url=str(server.make_url('/')).rstrip('/')
             self.assertEqual((await checker.check_http_service('local',url)).status,HealthStatus.HEALTHY)
             state['status']='degraded'
@@ -39,7 +43,14 @@ class HealthTests(IsolatedAsyncioTestCase):
             state['status']='invalid'
             self.assertEqual((await checker.check_http_service('local',url)).status,HealthStatus.CRITICAL)
             state['status']='slow'
-            self.assertEqual((await checker.check_http_service('local',url)).status,HealthStatus.UNHEALTHY)
+            # The negative request is deliberately blocked by the server, rather
+            # than treating cold startup/scheduler latency as a provider failure.
+            try:
+                async with HealthChecker(timeout_seconds=.5) as timeout_checker:
+                    self.assertEqual((await timeout_checker.check_http_service('local',url)).status,HealthStatus.UNHEALTHY)
+                    self.assertTrue(slow_started.is_set())
+            finally:
+                release_slow.set()
             state.update(status='healthy',code=503)
             self.assertEqual((await checker.check_http_service('local',url)).status,HealthStatus.UNHEALTHY)
             self.assertEqual((await checker.check_external_api('local',url+'/health')).status,HealthStatus.DEGRADED)
