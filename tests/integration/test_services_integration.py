@@ -399,7 +399,10 @@ class TestWorkflowIntegration:
         
         # Check job has required attributes
         assert hasattr(high_value_transfer_monitor, 'name')
-        assert hasattr(high_value_transfer_monitor, 'op_defs')
+        assert {op.name for op in high_value_transfer_monitor.graph.node_defs} == {
+            'fetch_blockchain_data', 'filter_data', 'detect_anomalies',
+            'generate_signal', 'send_alert'
+        }
     
     def test_custom_workflow_creation(self):
         """Test dynamic workflow creation."""

@@ -524,7 +524,16 @@ class TestLayer4APIVoiceOps:
             mock_recognizer = mock_stt.return_value
             mock_recognizer.recognize_google.return_value = "show system status"
             
-            text = await service.speech_to_text(b'fake_audio_input')
+            # Decode a real WAV container while provider recognition remains mocked.
+            import io
+            import wave
+            wav = io.BytesIO()
+            with wave.open(wav, 'wb') as writer:
+                writer.setnchannels(1)
+                writer.setsampwidth(2)
+                writer.setframerate(16000)
+                writer.writeframes(bytes(3200))
+            text = await service.speech_to_text(wav.getvalue())
             assert text == "show system status"
 
 

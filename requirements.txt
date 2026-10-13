@@ -68,3 +68,7 @@ cryptography>=42,<51
 
 # Legacy Google AI SDK imports pkg_resources, removed in newer setuptools.
 setuptools==75.8.0
+
+# Workflow definitions and optional file-based speech recognition.
+dagster==1.6.14
+SpeechRecognition==3.10.1
