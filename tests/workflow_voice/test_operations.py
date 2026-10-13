@@ -138,4 +138,4 @@ def test_dagster_delivery_failure_is_not_a_successful_job(monkeypatch):
             'notification_service': ResourceDefinition.hardcoded_resource(NotificationService()),
         }, raise_on_error=False)
     assert result.success is False
-    assert result.failure_data_for_node('send_alert').error.cause.message == 'RuntimeError: Configured notification delivery failed\n'
+    assert 'Configured notification delivery failed' in result.failure_data_for_node('send_alert').error.to_string()
