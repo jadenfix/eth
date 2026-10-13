@@ -31,6 +31,8 @@ resource "google_data_loss_prevention_inspect_template" "blockchain_pii" {
     min_likelihood = "LIKELY"
 
     limits {
+      max_findings_per_request = 1000
+      max_findings_per_item    = 100
       max_findings_per_info_type {
         info_type {
           name = "EMAIL_ADDRESS"

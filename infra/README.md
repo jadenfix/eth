@@ -16,6 +16,8 @@ terraform -chdir=infra/gcp init -backend=false -input=false -lockfile=readonly
 terraform -chdir=infra/gcp validate -no-color
 ```
 
+The current Workbench resource replaces the deprecated Notebooks declaration.
+An existing old Notebook would need an explicit owner-managed migration.
 These commands validate syntax, provider schema, and references. They do not
 contact a configured GCP project, create infrastructure, certify a trained model,
 or establish deployment readiness. Provider-download network access is required.

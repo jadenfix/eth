@@ -1,20 +1,20 @@
-# Vertex AI Workbench for model development
-resource "google_notebooks_instance" "ai_workbench" {
-  name         = "onchain-ai-workbench"
-  location     = var.workbench_zone
-  machine_type = "n1-standard-4"
-
-  vm_image {
-    project      = "deeplearning-platform-release"
-    image_family = "tf-ent-2-11-cu113-notebooks"
+# Current Workbench resource, replacing the deprecated Notebooks instance type.
+resource "google_workbench_instance" "ai_workbench" {
+  name     = "onchain-ai-workbench"
+  location = var.workbench_zone
+  gce_setup {
+    machine_type = "n1-standard-4"
+    vm_image {
+      project = "cloud-notebooks-managed"
+      family  = "workbench-instances"
+    }
+    service_accounts {
+      email = google_service_account.agents.email
+    }
+    metadata = {
+      terraform = "true"
+    }
   }
-
-  service_account = google_service_account.agents.email
-
-  metadata = {
-    terraform = "true"
-  }
-
   labels = {
     environment = var.environment
   }
@@ -42,7 +42,7 @@ variable "workbench_zone" {
 resource "google_vertex_ai_endpoint" "risk_scoring" {
   name         = "risk-scoring-endpoint"
   display_name = "Risk Scoring Endpoint"
-  region       = var.region
+  location     = var.region
 
   labels = {
     environment = var.environment
