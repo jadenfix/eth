@@ -289,7 +289,12 @@ class TestSecurityAndCompliance:
         """Test access control policy evaluation."""
         from services.access_control.audit_sink import PolicyEvaluator
         
-        evaluator = PolicyEvaluator()
+        evaluator = PolicyEvaluator([{
+            'resource': 'onchain_data.curated_events',
+            'rules': [{'principal': 'analyst@company.com', 'action': 'SELECT',
+                       'columns': ['transaction_hash', 'block_number'],
+                       'conditions': ['value_usd < 10000']}]
+        }])
         
         # Test analyst access to limited data
         result = evaluator.evaluate_access(
@@ -318,7 +323,7 @@ class TestSecurityAndCompliance:
         """Test comprehensive audit logging."""
         from services.access_control.audit_sink import AuditLogger
         
-        logger = AuditLogger()
+        logger = AuditLogger(path=':memory:')
         
         # Generate test audit entries
         entries = []

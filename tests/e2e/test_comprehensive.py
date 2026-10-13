@@ -103,24 +103,24 @@ class TestLayer0IdentityAccess:
     """Test Identity & Access Management layer."""
     
     def test_bigquery_column_level_acl(self):
-        """Test BigQuery column-level access control."""
-        # Mock BigQuery client
-        with patch('google.cloud.bigquery.Client') as mock_client:
-            from services.access_control.audit_sink import AuditLogger
-            
-            logger = AuditLogger()
-            
-            # Test policy enforcement
-            result = logger.check_column_access(
-                user='test_user@company.com',
-                table='onchain_data.curated_events',
-                column='sensitive_field'
-            )
-            
-            # Should deny access to sensitive columns by default
-            assert result['allowed'] == False
-            assert 'insufficient_permissions' in result['reason']
+        """Test local column policy used before provider access."""
+        # No cloud client is needed for a default-deny local policy.
+        from services.access_control.audit_sink import AuditLogger
+        
+        logger = AuditLogger(path=':memory:')
+        
+        # Test policy enforcement
+        result = logger.check_column_access(
+            user='test_user@company.com',
+            table='onchain_data.curated_events',
+            column='sensitive_field'
+        )
+        
+        # Should deny access to sensitive columns by default
+        assert result['allowed'] == False
+        assert 'insufficient_permissions' in result['reason']
     
+
     def test_dlp_data_masking(self):
         """Test Data Loss Prevention masking."""
         from services.access_control.audit_sink import DataMasker
@@ -149,7 +149,7 @@ class TestLayer0IdentityAccess:
         """Test comprehensive audit logging."""
         from services.access_control.audit_sink import AuditLogger
         
-        logger = AuditLogger()
+        logger = AuditLogger(path=':memory:')
         
         # Test audit log generation
         log_entry = logger.log_access(
@@ -387,19 +387,20 @@ class TestLayer3IntelligenceAgentMesh:
         from services.access_control.audit_sink import SanctionsChecker
         
         checker = SanctionsChecker()
-        
-        # Test clean address
-        clean_address = '0xabc123' + '0' * 34
-        result = checker.check_address(clean_address)
-        assert result['is_sanctioned'] == False
-        
-        # Test mock sanctioned address
-        sanctioned_address = '0x7F367cC41522cE07553e823bf3be79A889DEbe1B'  # Known Tornado Cash
-        with patch.object(checker, '_get_sanctions_list', return_value=[sanctioned_address]):
-            result = checker.check_address(sanctioned_address)
-            assert result['is_sanctioned'] == True
-            assert 'tornado_cash' in result['sanctions_list'][0].lower()
-    
+        address = '0xabc123' + '0' * 34
+        unavailable = checker.check_address(address)
+        assert unavailable['is_sanctioned'] is None
+        assert unavailable['blocked'] is True
+        # An explicitly dated fixture list tests matching, not legal status.
+        fixture_address = '0x' + 'a' * 40
+        checker = SanctionsChecker(
+            [{'address': fixture_address, 'label': 'fixture-only'}],
+            source='offline test fixture', as_of='2026-10-13')
+        assert checker.check_address(address)['is_sanctioned'] is False
+        match = checker.check_address(fixture_address)
+        assert match['is_sanctioned'] is True
+        assert match['sanctions_list'] == ['fixture-only']
+
     @pytest.mark.asyncio
     async def test_vertex_ai_pipeline_mock(self):
         """Test Vertex AI pipeline integration (mocked)."""
@@ -686,7 +687,7 @@ class TestSecurityCompliance:
         """Test data encryption capabilities."""
         from services.access_control.audit_sink import DataEncryption
         
-        encryptor = DataEncryption()
+        encryptor = DataEncryption(DataEncryption.generate_key())
         
         # Test data encryption/decryption
         sensitive_data = "0x1234567890abcdef" + "0" * 48
@@ -696,27 +697,32 @@ class TestSecurityCompliance:
         assert encrypted != sensitive_data
         assert decrypted == sensitive_data
     
-    def test_gdpr_compliance(self):
+    def test_gdpr_compliance(self, tmp_path):
         """Test GDPR data handling compliance."""
         from services.access_control.audit_sink import GDPRCompliance
         
-        compliance = GDPRCompliance()
+        compliance = GDPRCompliance(tmp_path / 'subjects.db')
+        compliance.store_user_data('test_user@example.com', {'preferences': {'alerts': True}})
         
         # Test data portability
         user_data = compliance.export_user_data('test_user@example.com')
         assert isinstance(user_data, dict)
         assert 'data_sources' in user_data
+        assert user_data['data'] == {'preferences': {'alerts': True}}
         
         # Test right to be forgotten
         result = compliance.delete_user_data('test_user@example.com')
         assert result['success'] == True
         assert 'deletion_timestamp' in result
+        assert result['deleted_records'] == 1
+        assert compliance.export_user_data('test_user@example.com')['data'] is None
+        compliance.close()
     
     def test_soc2_audit_trail(self):
         """Test SOC 2 Type II audit trail generation."""
         from services.access_control.audit_sink import AuditLogger
         
-        logger = AuditLogger()
+        logger = AuditLogger(path=':memory:')
         
         # Generate audit entries
         entries = [
