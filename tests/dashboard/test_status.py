@@ -1,8 +1,5 @@
 """Actual local status API lifecycle and HTTP observations, without cloud calls."""
 
-import asyncio
-import importlib
-import json
 import os
 import subprocess
 import sys
@@ -13,7 +10,6 @@ import pytest
 from fastapi.testclient import TestClient
 
 from services.dashboard.status_dashboard import (
-    ConnectionManager,
     StatusStore,
     create_app,
 )

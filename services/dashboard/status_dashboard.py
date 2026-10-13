@@ -11,7 +11,7 @@ from datetime import datetime, timezone, timedelta
 import json
 import os
 import time
-from typing import Dict, List, Optional
+from typing import List
 
 import aiohttp
 from fastapi import FastAPI, Query, WebSocket, WebSocketDisconnect
