@@ -545,12 +545,17 @@ class TestSystemHealthMonitoring:
         assert isinstance(system_metrics.network_io, tuple)
         assert len(system_metrics.network_io) == 2
         
-        # Collect service metrics
+        # Collect metrics from actual observed fixture requests.
+        collector.record_request('test_service', 50, 200)
+        collector.record_request('test_service', 100, 503)
         service_metrics = collector.collect_service_metrics('test_service')
         
         assert service_metrics.service_name == 'test_service'
         assert service_metrics.requests_per_second >= 0
         assert service_metrics.uptime_seconds >= 0
+        assert service_metrics.observed_requests == 2
+        assert service_metrics.avg_response_time_ms == 75
+        assert service_metrics.error_rate_percent == 50
     
     def test_alert_generation_and_routing(self):
         """Test alert generation from health checks."""
