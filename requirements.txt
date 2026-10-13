@@ -72,3 +72,6 @@ setuptools==75.8.0
 # Workflow definitions and optional file-based speech recognition.
 dagster==1.6.14
 SpeechRecognition==3.10.1
+
+# Real host metrics collected by the monitoring service.
+psutil==7.2.2
