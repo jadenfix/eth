@@ -1,0 +1,1 @@
+{"name":"@onchain/sdk","version":"1.0.0","type":"module","exports":"./index.js","engines":{"node":">=22.13"},"scripts":{"build":"node --check index.js","test":"node --test"}}

@@ -68,3 +68,6 @@ build/
 
 # Jupyter
 .ipynb_checkpoints
+
+# Local graph persistence
+services/api_gateway/data/

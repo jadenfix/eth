@@ -5,7 +5,8 @@
   "private": true,
   "workspaces": [
     "services/ui/nextjs-app",
-    "sdk/js"
+    "sdk/js",
+    "services/api_gateway"
   ],
   "scripts": {
     "dev": "concurrently \"npm run dev:ui\" \"npm run dev:api\"",
@@ -31,7 +32,9 @@
     "infra:destroy": "cd infra/gcp && terraform destroy",
     "build:visualization": "cd services/visualization && for dir in */; do cd \"$dir\" && npm run build && cd ..; done",
     "dev:visualization": "docker-compose -f docker-compose.yml -f docker-compose.visualization.yml up",
-    "test:visualization": "cd services/visualization && for dir in */; do cd \"$dir\" && npm test && cd ..; done"
+    "test:visualization": "cd services/visualization && for dir in */; do cd \"$dir\" && npm test && cd ..; done",
+    "dev:graph": "npm --workspace @onchain/api-gateway run dev",
+    "build:sdk": "npm --workspace @onchain/sdk run build"
   },
   "devDependencies": {
     "@types/node": "^20.11.0",
@@ -39,7 +42,7 @@
     "typescript": "^5.3.0"
   },
   "engines": {
-    "node": ">=18.0.0",
+    "node": ">=22.13.0",
     "npm": ">=9.0.0"
   },
   "packageManager": "yarn@4.9.1+sha512.f95ce356460e05be48d66401c1ae64ef84d163dd689964962c6888a9810865e39097a5e9de748876c2e0bf89b232d583c33982773e9903ae7a76257270986538"
