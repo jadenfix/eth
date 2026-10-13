@@ -15,7 +15,7 @@ from datetime import datetime
 import structlog
 from google.cloud import aiplatform
 from google.cloud import bigquery
-from google.cloud import pubsub_v1
+import google.cloud.pubsub_v1 as pubsub_v1
 import numpy as np
 import pandas as pd
 from sklearn.feature_extraction.text import TfidfVectorizer
@@ -103,7 +103,7 @@ class EntityMatcher:
             return pd.DataFrame()
 
     def resolve_address(
-        self, address: str, context: Dict[str, Any] = None
+        self, address: str, context: Optional[Dict[str, Any]] = None
     ) -> EntityResolution:
         """Resolve an address to a known entity."""
         context = context or {}
@@ -192,7 +192,7 @@ class EntityMatcher:
         self, address: str, context: Dict[str, Any]
     ) -> List[EntityCandidate]:
         """Match based on behavioral patterns."""
-        candidates = []
+        candidates: List[EntityCandidate] = []
 
         try:
             # Get transaction patterns for the address
@@ -234,7 +234,7 @@ class EntityMatcher:
         self, address: str, context: Dict[str, Any]
     ) -> List[EntityCandidate]:
         """Match based on network connections."""
-        candidates = []
+        candidates: List[EntityCandidate] = []
 
         try:
             # Get addresses that frequently interact with the input address
@@ -494,62 +494,7 @@ class ConfidenceScorer:
         return result
 
 
-class GraphUpdater:
-    def __init__(self, driver=None):
-        self.driver = driver
-
-    async def update_entity_graph(self, entity_data):
-        identity = entity_data.get("entity_id")
-        addresses = entity_data.get("addresses")
-        confidence = float(entity_data.get("confidence", 0))
-        if (
-            not identity
-            or not isinstance(addresses, list)
-            or not addresses
-            or not 0 <= confidence <= 1
-        ):
-            raise ValueError("Invalid entity graph candidate")
-        if self.driver is None:
-            self.driver = GraphDatabase.driver(
-                os.getenv("NEO4J_URI", "bolt://127.0.0.1:7687"),
-                auth=(
-                    os.getenv("NEO4J_USER", "neo4j"),
-                    os.getenv("NEO4J_PASSWORD", ""),
-                ),
-            )
-
-        def update():
-            with self.driver.session() as session:
-                return session.run(
-                    "MERGE (e:Entity {id:$id}) SET e.type=$type,e.confidence=$confidence,e.addresses=$addresses,e.resolution_method=$method,e.payload=$payload,e.labels=$labels,e.riskScore=$risk WITH e UNWIND $addresses AS address MERGE (a:Address {address:address}) MERGE (e)-[:HAS_ADDRESS]->(a) RETURN e",
-                    id=identity,
-                    type=entity_data.get("entity_type", "UNKNOWN"),
-                    confidence=confidence,
-                    method=entity_data.get("resolution_method", "behavioral_candidate"),
-                    addresses=addresses,
-                    payload=json.dumps(
-                        {
-                            "id": identity,
-                            "type": entity_data.get("entity_type", "UNKNOWN"),
-                            "addresses": addresses,
-                            "confidence": confidence,
-                            "labels": entity_data.get("labels", []),
-                            "riskScore": None,
-                            "createdAt": datetime.now(timezone.utc).isoformat(),
-                            "updatedAt": datetime.now(timezone.utc).isoformat(),
-                        },
-                        allow_nan=False,
-                    ),
-                    labels=entity_data.get("labels", []),
-                    risk=None,
-                ).consume()
-
-        await asyncio.to_thread(update)
-        return entity_data
-
-    def close(self):
-        if self.driver:
-            self.driver.close()
+from .graph_adapter import GraphUpdater
 
 
 class EntityResolutionPipeline:
@@ -573,7 +518,9 @@ class EntityResolutionPipeline:
         )
         self.data_provider = data_provider
         self.bigquery_client = bigquery_client
-        self.graph_updater = graph_updater or GraphUpdater()
+        self.graph_updater = graph_updater or GraphUpdater(
+            driver_factory=GraphDatabase.driver
+        )
         self.extractor = FeatureExtractor()
 
     def _query_observations(self, addresses):
