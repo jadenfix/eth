@@ -4,6 +4,8 @@ on:
     paths:
       - 'services/graph_api/**'
       - 'services/ontology/**'
+      - 'services/entity_resolution/graph_adapter.py'
+      - 'ci-cd/requirements.txt'
       - 'tests/graph_api/**'
       - '.github/workflows/graph-ontology-e2e.yml'
   workflow_dispatch:
@@ -39,6 +41,6 @@ jobs:
         with:
           python-version: '3.11'
       - name: Install the actual graph boundary dependencies
-        run: python -m pip install neo4j==5.15.0 graphql-core==3.2.3 fastapi==0.108.0 httpx==0.26.0 pytest==7.4.4 pytest-asyncio==0.23.2
+        run: python -m pip install neo4j==5.15.0 graphql-core==3.2.3 fastapi==0.143.0 starlette==1.7.0 pydantic==2.14.1 httpx==0.28.1 pytest==7.4.4 pytest-asyncio==0.23.2
       - name: Real HTTP GraphQL, SQLite restart and Neo4j commit/reconnect
         run: python -m pytest tests/graph_api -q
