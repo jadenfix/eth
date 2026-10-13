@@ -1,5 +1,5 @@
 terraform {
-  required_version = ">= 1.0"
+  required_version = ">= 1.15.9, < 2.0"
   required_providers {
     google = {
       source  = "hashicorp/google"
@@ -53,7 +53,7 @@ resource "google_project_service" "apis" {
     "datacatalog.googleapis.com",
     "dataplex.googleapis.com"
   ])
-  
+
   service            = each.value
   disable_on_destroy = false
 }

@@ -161,50 +161,69 @@ jobs:
         cache-from: type=gha
         cache-to: type=gha,mode=max
 
-  terraform-plan:
+  terraform-source:
     runs-on: ubuntu-latest
-    needs: [test, test-ui]
-    if: github.event_name == 'pull_request'
-    
     steps:
     - uses: actions/checkout@v4
       with:
         ref: ${{ github.event.pull_request.head.sha || github.sha }}
-    
-    - name: Set up Terraform
-      uses: hashicorp/setup-terraform@v3
+    - name: Install checksum-verified maintained Terraform
+      run: |
+        python scripts/install_terraform.py "$RUNNER_TEMP/terraform-cli"
+        echo "$RUNNER_TEMP/terraform-cli" >> "$GITHUB_PATH"
+    - name: Check all Terraform formatting
+      run: terraform fmt -check -recursive infra
+    - name: Initialize actual signed providers without a cloud backend
+      run: terraform -chdir=infra/gcp init -backend=false -input=false -lockfile=readonly
+    - name: Validate actual provider schema and module references
+      run: terraform -chdir=infra/gcp validate -no-color
+
+  terraform-cloud-configuration:
+    runs-on: ubuntu-latest
+    outputs:
+      configured: ${{ steps.configuration.outputs.configured }}
+    steps:
+    - name: Identify real cloud configuration without exposing credentials
+      id: configuration
+      env:
+        GCP_SA_KEY: ${{ secrets.GCP_SA_KEY }}
+        GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+      run: |
+        if [ -n "$GCP_SA_KEY" ] && [ -n "$GCP_PROJECT_ID" ]; then
+          echo "configured=true" >> "$GITHUB_OUTPUT"
+          echo "Cloud plan configured; actual authentication and planning must pass." >> "$GITHUB_STEP_SUMMARY"
+        else
+          echo "configured=false" >> "$GITHUB_OUTPUT"
+          echo "Cloud plan NOT EXECUTED: GCP credentials or project ID absent. Source validation is a separate check; no deployment is verified." >> "$GITHUB_STEP_SUMMARY"
+        fi
+
+  terraform-plan:
+    runs-on: ubuntu-latest
+    needs: [test, test-ui, terraform-source, terraform-cloud-configuration]
+    if: github.event_name == 'pull_request' && needs['terraform-cloud-configuration'].outputs.configured == 'true'
+    steps:
+    - uses: actions/checkout@v4
       with:
-        terraform_version: 1.6.0
-    
+        ref: ${{ github.event.pull_request.head.sha || github.sha }}
+    - name: Install checksum-verified maintained Terraform
+      run: |
+        python scripts/install_terraform.py "$RUNNER_TEMP/terraform-cli"
+        echo "$RUNNER_TEMP/terraform-cli" >> "$GITHUB_PATH"
     - name: Authenticate to Google Cloud
       uses: google-github-actions/auth@v2
       with:
         credentials_json: ${{ secrets.GCP_SA_KEY }}
-    
     - name: Set up Cloud SDK
       uses: google-github-actions/setup-gcloud@v2
-    
     - name: Terraform Init
-      run: |
-        cd infra/gcp
-        terraform init
-    
-    - name: Terraform Format
-      run: |
-        cd infra/gcp
-        terraform fmt -check
-    
-    - name: Terraform Validate
-      run: |
-        cd infra/gcp
-        terraform validate
-    
-    - name: Terraform Plan
-      run: |
-        cd infra/gcp
-        terraform plan -var="project_id=${{ env.GOOGLE_CLOUD_PROJECT }}" -no-color
+      run: terraform -chdir=infra/gcp init -input=false -lockfile=readonly
+    - name: Terraform Plan (no apply)
+      run: terraform -chdir=infra/gcp plan -input=false -no-color
       env:
-        TF_VAR_project_id: ${{ env.GOOGLE_CLOUD_PROJECT }}
+        TF_VAR_project_id: ${{ secrets.GCP_PROJECT_ID }}
+        TF_VAR_dlp_wrapped_key_base64: ${{ secrets.DLP_WRAPPED_KEY_BASE64 }}
+        TF_VAR_dev_postgres_password: ${{ secrets.DEV_POSTGRES_PASSWORD }}
+        TF_VAR_dev_postgres_allowed_cidr: ${{ vars.DEV_POSTGRES_ALLOWED_CIDR }}
 
   security-scan:
     runs-on: ubuntu-latest

@@ -67,9 +67,9 @@ resource "google_bigquery_table" "raw_events" {
       mode = "REQUIRED"
     },
     {
-      name = "ingestion_timestamp"
-      type = "TIMESTAMP"
-      mode = "REQUIRED"
+      name                     = "ingestion_timestamp"
+      type                     = "TIMESTAMP"
+      mode                     = "REQUIRED"
       default_value_expression = "CURRENT_TIMESTAMP()"
     }
   ])
@@ -94,9 +94,9 @@ resource "google_bigquery_table" "curated_events" {
       mode = "REQUIRED"
     },
     {
-      name = "entity_id"
-      type = "STRING"
-      mode = "NULLABLE"
+      name        = "entity_id"
+      type        = "STRING"
+      mode        = "NULLABLE"
       description = "Resolved entity identifier from ontology"
     },
     {
@@ -236,7 +236,7 @@ resource "google_bigquery_table" "high_value_transfers" {
   table_id   = "high_value_transfers_view"
 
   view {
-    query = <<EOF
+    query          = <<EOF
 SELECT 
   event_id,
   entity_id,
