@@ -9,7 +9,7 @@ pytest-asyncio==0.23.2
 google-cloud-bigquery==3.14.1
 google-cloud-pubsub==2.18.4
 # Dataflow uses the supported Apache Beam GCP SDK below.
-google-cloud-aiplatform==1.38.1
+google-cloud-aiplatform==1.49.0
 google-cloud-logging==3.8.0
 google-cloud-secret-manager==2.18.1
 google-cloud-dlp==3.15.0
@@ -66,11 +66,11 @@ jinja2==3.1.2
 # Authenticated encryption used by the access-control service.
 cryptography>=42,<51
 
-# Legacy Google AI SDK imports pkg_resources, removed in newer setuptools.
-setuptools==75.8.0
+# Security-fixed setuptools; Google AI SDK uses importlib metadata instead of pkg_resources.
+setuptools==83.0.0
 
 # Workflow definitions and optional file-based speech recognition.
-dagster==1.6.14
+dagster==1.13.1
 SpeechRecognition==3.10.1
 
 # Real host metrics collected by the monitoring service.
