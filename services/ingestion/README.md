@@ -68,3 +68,34 @@ The service publishes events in this canonical format:
 - Prometheus metrics on `:9090/metrics`
 - Structured JSON logs to stdout
 - Health check on `:8080/health`
+
+## Executable read-only event engine
+
+`EventNormalizer` converts actual Ethereum quantities (hex or integers) and receipts
+to the canonical chain event, including flat fields consumed by downstream agents.
+USD values stay `null` unless a price provider is explicitly supplied.
+`MessagePublisher` waits for the provider publication future; failed sends propagate
+so blocks are not falsely advanced. `MessageProcessor` commits deliveries to SQLite
+before acknowledgement and deduplicates successful replay across restarts.
+
+```bash
+PYTHONPATH=. python scripts/check_event_replay.py
+pytest tests/behavioral -q
+```
+
+The replay command launches a real loopback JSON-RPC server with explicitly labeled
+block/receipt fixtures, calls it through the real Web3 HTTP client, runs the actual
+normalizer and MEV engine, and verifies durable SQLite replay/restart behavior.
+It performs no live chain, funded, cloud or paid-provider calls. Gas and sandwich
+signals are heuristics with `verified_attack: false`, not verified MEV attacks.
+Sandwich detection requires an ordered attacker/victim/attacker sequence, distinct
+transaction hashes and the same target contract. Missing USD valuations never
+produce whale alerts.
+
+Entity resolution requires explicit observations or an authenticated BigQuery
+client. Missing observations/providers fail; behavioral grouping is an unverified
+candidate, with separately labeled supplied-model confidence. `GraphUpdater` stores
+canonical JSON payloads compatible with the ontology API. Vertex job submission
+requires an explicit pipeline template and returns SUBMITTED, never a fabricated
+completed result. Live adapters and model accuracy require their own integration
+receipts.

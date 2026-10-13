@@ -14,9 +14,6 @@ from datetime import datetime, timezone
 from enum import Enum
 
 import structlog
-from google.cloud import bigquery
-from google.cloud import logging as cloud_logging
-from google.cloud import pubsub_v1
 import yaml
 
 # Configure logging
@@ -89,7 +86,11 @@ class AuditEvent:
 class PolicyEngine:
     """Policy-based access control engine."""
     
-    def __init__(self):
+    def __init__(self, identities=None):
+        self.identities = dict(identities or {})
+        from google.cloud import bigquery
+        from google.cloud import logging as cloud_logging
+        from google.cloud import pubsub_v1
         self.bigquery_client = bigquery.Client()
         self.logging_client = cloud_logging.Client()
         self.publisher = pubsub_v1.PublisherClient()
@@ -151,86 +152,34 @@ class PolicyEngine:
         }
     
     def evaluate_access(self, request: AccessRequest) -> AccessDecision:
-        """Evaluate access request against policies."""
+        """Evaluate server-authenticated identity; required audit failure denies."""
         try:
-            # Determine user role
             user_role = self._determine_user_role(request.user_id, request.service_account)
-            
-            # Get resource classification
-            resource_classification = self._get_resource_classification(request.resource)
-            
-            # Check basic permissions
+            classification = self._get_resource_classification(request.resource)
             if not self._check_basic_permissions(user_role, request.action, request.resource):
-                return AccessDecision(
-                    granted=False,
-                    reason="Insufficient permissions",
-                    conditions=[],
-                    audit_required=True,
-                    redacted_fields=[]
-                )
-            
-            # Check conditions
-            conditions_met, failed_conditions = self._evaluate_conditions(
-                user_role, request, resource_classification
-            )
-            
-            if not conditions_met:
-                return AccessDecision(
-                    granted=False,
-                    reason=f"Failed conditions: {', '.join(failed_conditions)}",
-                    conditions=failed_conditions,
-                    audit_required=True,
-                    redacted_fields=[]
-                )
-            
-            # Determine redacted fields
-            redacted_fields = self._get_redacted_fields(user_role, request.resource)
-            
-            # Determine if audit is required
-            audit_required = self._is_audit_required(resource_classification, request.action)
-            
-            decision = AccessDecision(
-                granted=True,
-                reason="Access granted",
-                conditions=[],
-                audit_required=audit_required,
-                redacted_fields=redacted_fields
-            )
-            
-            # Log audit event if required
-            if audit_required:
+                decision = AccessDecision(False, "Insufficient permissions", [], True, [])
+            else:
+                met, failed = self._evaluate_conditions(user_role, request, classification)
+                if not met:
+                    decision = AccessDecision(False, "Failed conditions: " + ', '.join(failed), failed, True, [])
+                else:
+                    decision = AccessDecision(True, "Access granted", [],
+                        self._is_audit_required(classification, request.action),
+                        self._get_redacted_fields(user_role, request.resource))
+            if decision.audit_required:
                 self._log_audit_event(request, decision)
-            
             return decision
-            
         except Exception as e:
             self.logger.error("Error evaluating access", error=str(e))
-            return AccessDecision(
-                granted=False,
-                reason=f"Evaluation error: {str(e)}",
-                conditions=[],
-                audit_required=True,
-                redacted_fields=[]
-            )
-    
+            return AccessDecision(False, "Evaluation/audit unavailable", [], True, [])
+
     def _determine_user_role(self, user_id: str, service_account: str) -> str:
         """Determine user role based on identity."""
-        # Service account mapping
-        if service_account:
-            if 'ingestion' in service_account:
-                return 'service'
-            elif 'agents' in service_account:
-                return 'service'
-            elif 'api-gateway' in service_account:
-                return 'service'
-        
-        # User role mapping (would integrate with IAM in production)
-        admin_users = ['admin@company.com', 'devops@company.com']
-        if user_id in admin_users:
-            return 'admin'
-        
-        return 'analyst'  # Default role
-    
+        # Exact identities are provisioned server-side after authentication.
+        # Unknown accounts never inherit analyst or substring-based privileges.
+        identities = getattr(self, 'identities', {})
+        return identities.get(service_account or user_id, 'unknown')
+
     def _get_resource_classification(self, resource: str) -> AccessLevel:
         """Get classification level for a resource."""
         classifications = self.policies.get('data_classification', {})
@@ -275,6 +224,17 @@ class PolicyEngine:
                 # Check if within business hours
                 if not self._is_business_hours(request.timestamp):
                     failed_conditions.append(condition)
+            elif condition == "audit_justification_required":
+                if not request.context.get("justification"):
+                    failed_conditions.append(condition)
+            elif condition == "api_key_required":
+                if not request.context.get("api_key_verified"):
+                    failed_conditions.append(condition)
+            elif condition == "rate_limited":
+                if not request.context.get("rate_limit_verified"):
+                    failed_conditions.append(condition)
+            else:
+                failed_conditions.append(condition)
         
         return len(failed_conditions) == 0, failed_conditions
     
@@ -287,7 +247,7 @@ class PolicyEngine:
         """Check if timestamp is within business hours."""
         # Business hours: 9 AM - 6 PM UTC, Monday-Friday
         weekday = timestamp.weekday()  # 0 = Monday
-        hour = timestamp.hour
+        hour = timestamp.astimezone(timezone.utc).hour
         
         return 0 <= weekday <= 4 and 9 <= hour <= 18
     
@@ -337,7 +297,7 @@ class PolicyEngine:
                 'context': audit_event.request_context
             }).encode('utf-8')
             
-            self.publisher.publish(self.audit_topic, message_data)
+            self.publisher.publish(self.audit_topic, message_data).result()
             
             # Also log to Cloud Logging for immediate visibility
             self.logging_client.logger('audit').log_struct({
@@ -356,6 +316,7 @@ class PolicyEngine:
             
         except Exception as e:
             self.logger.error("Error logging audit event", error=str(e))
+            raise
     
     def _generate_event_id(self) -> str:
         """Generate unique event ID."""
@@ -374,6 +335,7 @@ class PolicyEngine:
             ORDER BY timestamp DESC
             """.format(project=os.getenv('GOOGLE_CLOUD_PROJECT'))
             
+            from google.cloud import bigquery
             job_config = bigquery.QueryJobConfig(
                 query_parameters=[
                     bigquery.ScalarQueryParameter("user_id", "STRING", user_id),
@@ -393,13 +355,16 @@ class PolicyEngine:
             
         except Exception as e:
             self.logger.error("Error retrieving audit trail", error=str(e))
-            return []
+            raise
 
 
 class AuditSink:
     """Processes audit events from Pub/Sub."""
     
     def __init__(self):
+        from google.cloud import bigquery
+        from google.cloud import logging as cloud_logging
+        from google.cloud import pubsub_v1
         self.bigquery_client = bigquery.Client()
         self.subscriber = pubsub_v1.SubscriberClient()
         self.logger = logger.bind(service="audit-sink")
@@ -451,9 +416,11 @@ class AuditSink:
             
             if errors:
                 self.logger.error("Error storing audit event", errors=errors)
+                raise RuntimeError("BigQuery rejected audit rows")
             
         except Exception as e:
             self.logger.error("Error storing audit event", error=str(e))
+            raise
     
     def _check_audit_anomalies(self, event_data: Dict[str, Any]):
         """Check for suspicious patterns in audit events."""
@@ -479,3 +446,6 @@ if __name__ == "__main__":
     print(f"Access granted: {decision.granted}")
     print(f"Reason: {decision.reason}")
     print(f"Redacted fields: {decision.redacted_fields}")
+
+# Public interfaces use explicit policies/storage without initializing cloud clients.
+from .security import PolicyEvaluator, AuditLogger, DataMasker, SanctionsChecker, DataEncryption, GDPRCompliance

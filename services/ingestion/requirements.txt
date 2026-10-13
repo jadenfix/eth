@@ -1,0 +1,4 @@
+web3==7.15.0
+eth-typing==6.0.0
+eth-utils==6.0.0
+google-cloud-pubsub==2.18.4

@@ -9,11 +9,30 @@ on:
 env:
   GOOGLE_CLOUD_PROJECT: ${{ secrets.GCP_PROJECT_ID }}
   GCP_SA_KEY: ${{ secrets.GCP_SA_KEY }}
-  NODE_VERSION: '18'
+  NODE_VERSION: '22'
   PYTHON_VERSION: '3.11'
 
 jobs:
+  dependency-resolution:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        ref: ${{ github.event.pull_request.head.sha || github.sha }}
+    - uses: actions/setup-python@v5
+      with:
+        python-version: ${{ env.PYTHON_VERSION }}
+    - name: Resolve the declared Python service environment
+      run: |
+        python -m pip install --upgrade pip
+        python -m pip install --dry-run --ignore-installed --report dependency-plan.json -r requirements.txt
+    - uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: python-dependency-plan
+        path: dependency-plan.json
   test:
+    needs: [dependency-resolution]
     runs-on: ubuntu-latest
     
     strategy:
@@ -22,6 +41,8 @@ jobs:
     
     steps:
     - uses: actions/checkout@v4
+      with:
+        ref: ${{ github.event.pull_request.head.sha || github.sha }}
     
     - name: Set up Python
       uses: actions/setup-python@v4
@@ -54,7 +75,7 @@ jobs:
       run: mypy services/${{ matrix.service }} --ignore-missing-imports
     
     - name: Run tests
-      run: pytest tests/ -v --cov=services/${{ matrix.service }} --cov-report=xml
+      run: python -m pytest tests/ -v --cov=services/${{ matrix.service }} --cov-report=xml
     
     - name: Upload coverage to Codecov
       uses: codecov/codecov-action@v3
@@ -67,18 +88,19 @@ jobs:
     
     steps:
     - uses: actions/checkout@v4
+      with:
+        ref: ${{ github.event.pull_request.head.sha || github.sha }}
     
     - name: Set up Node.js
       uses: actions/setup-node@v4
       with:
         node-version: ${{ env.NODE_VERSION }}
         cache: 'npm'
-        cache-dependency-path: services/ui/nextjs-app/package-lock.json
+        cache-dependency-path: package-lock.json
     
     - name: Install UI dependencies
       run: |
-        cd services/ui/nextjs-app
-        npm ci
+        npm ci --ignore-scripts
     
     - name: Lint UI code
       run: |
@@ -93,12 +115,24 @@ jobs:
     - name: Run UI tests
       run: |
         cd services/ui/nextjs-app
-        npm test -- --coverage --watchAll=false
+        npm test -- --experimental-test-coverage
     
     - name: Build UI
       run: |
         cd services/ui/nextjs-app
         npm run build
+
+    - name: Install browser for the real production UI smoke test
+      run: npx --prefix services/api_gateway playwright-core install --only-shell --with-deps chromium
+
+    - name: Run the real production UI browser workflow
+      run: npm --workspace onchain-war-room run test:browser
+
+    - uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: legacy-ui-browser-evidence
+        path: services/ui/nextjs-app/artifacts/
 
   build-docker:
     runs-on: ubuntu-latest
@@ -111,6 +145,8 @@ jobs:
     
     steps:
     - uses: actions/checkout@v4
+      with:
+        ref: ${{ github.event.pull_request.head.sha || github.sha }}
     
     - name: Set up Docker Buildx
       uses: docker/setup-buildx-action@v3
@@ -125,54 +161,77 @@ jobs:
         cache-from: type=gha
         cache-to: type=gha,mode=max
 
-  terraform-plan:
+  terraform-source:
     runs-on: ubuntu-latest
-    needs: [test, test-ui]
-    if: github.event_name == 'pull_request'
-    
     steps:
     - uses: actions/checkout@v4
-    
-    - name: Set up Terraform
-      uses: hashicorp/setup-terraform@v3
       with:
-        terraform_version: 1.6.0
-    
+        ref: ${{ github.event.pull_request.head.sha || github.sha }}
+    - name: Install checksum-verified maintained Terraform
+      run: |
+        python scripts/install_terraform.py "$RUNNER_TEMP/terraform-cli"
+        echo "$RUNNER_TEMP/terraform-cli" >> "$GITHUB_PATH"
+    - name: Check all Terraform formatting
+      run: terraform fmt -check -recursive infra
+    - name: Initialize actual signed providers without a cloud backend
+      run: terraform -chdir=infra/gcp init -backend=false -input=false -lockfile=readonly
+    - name: Validate actual provider schema and module references
+      run: terraform -chdir=infra/gcp validate -no-color
+
+  terraform-cloud-configuration:
+    runs-on: ubuntu-latest
+    outputs:
+      configured: ${{ steps.configuration.outputs.configured }}
+    steps:
+    - name: Identify real cloud configuration without exposing credentials
+      id: configuration
+      env:
+        GCP_SA_KEY: ${{ secrets.GCP_SA_KEY }}
+        GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+      run: |
+        if [ -n "$GCP_SA_KEY" ] && [ -n "$GCP_PROJECT_ID" ]; then
+          echo "configured=true" >> "$GITHUB_OUTPUT"
+          echo "Cloud plan configured; actual authentication and planning must pass." >> "$GITHUB_STEP_SUMMARY"
+        else
+          echo "configured=false" >> "$GITHUB_OUTPUT"
+          echo "Cloud plan NOT EXECUTED: GCP credentials or project ID absent. Source validation is a separate check; no deployment is verified." >> "$GITHUB_STEP_SUMMARY"
+        fi
+
+  terraform-plan:
+    runs-on: ubuntu-latest
+    needs: [test, test-ui, terraform-source, terraform-cloud-configuration]
+    if: github.event_name == 'pull_request' && needs['terraform-cloud-configuration'].outputs.configured == 'true'
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        ref: ${{ github.event.pull_request.head.sha || github.sha }}
+    - name: Install checksum-verified maintained Terraform
+      run: |
+        python scripts/install_terraform.py "$RUNNER_TEMP/terraform-cli"
+        echo "$RUNNER_TEMP/terraform-cli" >> "$GITHUB_PATH"
     - name: Authenticate to Google Cloud
       uses: google-github-actions/auth@v2
       with:
         credentials_json: ${{ secrets.GCP_SA_KEY }}
-    
     - name: Set up Cloud SDK
       uses: google-github-actions/setup-gcloud@v2
-    
     - name: Terraform Init
-      run: |
-        cd infra/gcp
-        terraform init
-    
-    - name: Terraform Format
-      run: |
-        cd infra/gcp
-        terraform fmt -check
-    
-    - name: Terraform Validate
-      run: |
-        cd infra/gcp
-        terraform validate
-    
-    - name: Terraform Plan
-      run: |
-        cd infra/gcp
-        terraform plan -var="project_id=${{ env.GOOGLE_CLOUD_PROJECT }}" -no-color
+      run: terraform -chdir=infra/gcp init -input=false -lockfile=readonly
+    - name: Terraform Plan (no apply)
+      run: terraform -chdir=infra/gcp plan -input=false -no-color
       env:
-        TF_VAR_project_id: ${{ env.GOOGLE_CLOUD_PROJECT }}
+        TF_VAR_project_id: ${{ secrets.GCP_PROJECT_ID }}
+        TF_VAR_dlp_wrapped_key_base64: ${{ secrets.DLP_WRAPPED_KEY_BASE64 }}
+        TF_VAR_dev_postgres_password: ${{ secrets.DEV_POSTGRES_PASSWORD }}
+        TF_VAR_dev_postgres_allowed_cidr: ${{ vars.DEV_POSTGRES_ALLOWED_CIDR }}
 
   security-scan:
     runs-on: ubuntu-latest
     
     steps:
     - uses: actions/checkout@v4
+      with:
+        ref: ${{ github.event.pull_request.head.sha || github.sha }}
     
     - name: Run Trivy vulnerability scanner
       uses: aquasecurity/trivy-action@master
@@ -196,6 +255,8 @@ jobs:
     
     steps:
     - uses: actions/checkout@v4
+      with:
+        ref: ${{ github.event.pull_request.head.sha || github.sha }}
     
     - name: Authenticate to Google Cloud
       uses: google-github-actions/auth@v2
@@ -223,6 +284,8 @@ jobs:
     
     steps:
     - uses: actions/checkout@v4
+      with:
+        ref: ${{ github.event.pull_request.head.sha || github.sha }}
     
     - name: Authenticate to Google Cloud
       uses: google-github-actions/auth@v2

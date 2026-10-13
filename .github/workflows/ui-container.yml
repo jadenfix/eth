@@ -1,0 +1,44 @@
+name: UI production container
+on: [push, pull_request, workflow_dispatch]
+permissions:
+  contents: read
+jobs:
+  standalone-ui-container:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Build the actual workspace UI production image
+        run: docker build -f services/ui/Dockerfile -t eth-ui:test .
+      - name: Start the standalone server in the container
+        run: |
+          docker run -d --name eth-ui -p 127.0.0.1:3191:3000 eth-ui:test
+          for attempt in $(seq 1 120); do
+            if curl -fsS http://127.0.0.1:3191/ > /tmp/eth-ui-home.html; then exit 0; fi
+            sleep 1
+          done
+          docker logs eth-ui
+          exit 1
+      - name: Install the browser test runner
+        run: |
+          npm ci --ignore-scripts
+          npx --prefix services/api_gateway playwright-core install --only-shell --with-deps chromium
+      - name: Verify real container routes, provenance, redirect and desktop/mobile rendering
+        run: npm --workspace onchain-war-room run test:browser
+        env:
+          ETH_UI_BASE_URL: http://127.0.0.1:3191
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ui-container-browser-evidence
+          path: services/ui/nextjs-app/artifacts/
+      - name: Preserve container logs and stop it
+        if: always()
+        run: |
+          docker logs eth-ui || true
+          docker rm -f eth-ui || true

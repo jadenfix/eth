@@ -154,39 +154,37 @@ class TestAPIIntegration:
         assert 'signals' in data
         assert isinstance(data['signals'], list)
     
-    def test_graphql_api_basic_queries(self):
-        """Test GraphQL API basic functionality.""" 
-        from services.graph_api.graph_api import app
+    def test_graphql_api_basic_queries(self, tmp_path):
+        """Test the actual GraphQL schema with explicit credential-free storage."""
+        from services.graph_api.graph_api import create_app
+        from services.graph_api.store import GraphStore
         from fastapi.testclient import TestClient
-        
-        client = TestClient(app)
-        
-        # Test schema introspection
-        introspection_query = """
-        query IntrospectionQuery {
-            __schema {
-                queryType { name }
-                types {
-                    name
-                    kind
+
+        store = GraphStore(uri='', path=tmp_path / 'integration-graph.sqlite')
+        try:
+            with TestClient(create_app(store=store, token='')) as client:
+                introspection_query = """
+                query IntrospectionQuery {
+                    __schema {
+                        queryType { name }
+                        types { name kind }
+                    }
                 }
-            }
-        }
-        """
-        
-        response = client.post("/graphql", json={"query": introspection_query})
-        assert response.status_code == 200
-        
-        data = response.json()
-        assert 'data' in data
-        assert '__schema' in data['data']
-        
-        # Verify core types exist
-        type_names = [t['name'] for t in data['data']['__schema']['types']]
-        expected_types = ['Entity', 'Address', 'Transaction', 'Query']
-        
-        for expected_type in expected_types:
-            assert expected_type in type_names
+                """
+                response = client.post('/graphql', json={'query': introspection_query})
+                assert response.status_code == 200
+                data = response.json()
+                assert not data.get('errors'), data
+                assert '__schema' in data['data']
+                type_names = [t['name'] for t in data['data']['__schema']['types']]
+                for expected_type in ['Entity', 'Address', 'Transaction', 'Query']:
+                    assert expected_type in type_names
+                assert data['data']['__schema']['queryType']['name'] == 'Query'
+                empty = client.post('/graphql', json={'query': '{entities{id}}'})
+                assert empty.status_code == 200
+                assert empty.json() == {'data': {'entities': []}}
+        finally:
+            store.close()
     
     @pytest.mark.asyncio
     async def test_websocket_real_time_updates(self):
@@ -245,7 +243,7 @@ class TestDatabaseIntegration:
             with patch('neo4j.GraphDatabase.driver') as mock_neo4j:
                 from services.entity_resolution.pipeline import EntityResolutionPipeline
                 
-                pipeline = EntityResolutionPipeline()
+                pipeline = EntityResolutionPipeline(bigquery_client=mock_client)
                 
                 # Test entity resolution
                 result = await pipeline.resolve_entities(['0xabc123', '0xdef456'])
@@ -275,7 +273,7 @@ class TestDatabaseIntegration:
             # Test database helper
             from services.ingestion.database_helper import BigQueryHelper
             
-            helper = BigQueryHelper()
+            helper = BigQueryHelper(client=mock_client)
             results = helper.query_recent_blocks(limit=3)
             
             assert len(results) == 3
@@ -289,7 +287,12 @@ class TestSecurityAndCompliance:
         """Test access control policy evaluation."""
         from services.access_control.audit_sink import PolicyEvaluator
         
-        evaluator = PolicyEvaluator()
+        evaluator = PolicyEvaluator([{
+            'resource': 'onchain_data.curated_events',
+            'rules': [{'principal': 'analyst@company.com', 'action': 'SELECT',
+                       'columns': ['transaction_hash', 'block_number'],
+                       'conditions': ['value_usd < 10000']}]
+        }])
         
         # Test analyst access to limited data
         result = evaluator.evaluate_access(
@@ -318,7 +321,7 @@ class TestSecurityAndCompliance:
         """Test comprehensive audit logging."""
         from services.access_control.audit_sink import AuditLogger
         
-        logger = AuditLogger()
+        logger = AuditLogger(path=':memory:')
         
         # Generate test audit entries
         entries = []
@@ -394,7 +397,10 @@ class TestWorkflowIntegration:
         
         # Check job has required attributes
         assert hasattr(high_value_transfer_monitor, 'name')
-        assert hasattr(high_value_transfer_monitor, 'op_defs')
+        assert {op.name for op in high_value_transfer_monitor.graph.node_defs} == {
+            'fetch_blockchain_data', 'filter_data', 'detect_anomalies',
+            'generate_signal', 'send_alert'
+        }
     
     def test_custom_workflow_creation(self):
         """Test dynamic workflow creation."""
@@ -537,12 +543,17 @@ class TestSystemHealthMonitoring:
         assert isinstance(system_metrics.network_io, tuple)
         assert len(system_metrics.network_io) == 2
         
-        # Collect service metrics
+        # Collect metrics from actual observed fixture requests.
+        collector.record_request('test_service', 50, 200)
+        collector.record_request('test_service', 100, 503)
         service_metrics = collector.collect_service_metrics('test_service')
         
         assert service_metrics.service_name == 'test_service'
         assert service_metrics.requests_per_second >= 0
         assert service_metrics.uptime_seconds >= 0
+        assert service_metrics.observed_requests == 2
+        assert service_metrics.avg_response_time_ms == 75
+        assert service_metrics.error_rate_percent == 50
     
     def test_alert_generation_and_routing(self):
         """Test alert generation from health checks."""

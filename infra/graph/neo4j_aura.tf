@@ -1,13 +1,6 @@
 # Neo4j Aura database configuration
-terraform {
-  required_providers {
-    neo4j = {
-      source  = "neo4j/neo4j"
-      version = "~> 0.1"
-    }
-  }
-}
-
+# This file is included in the GCP root module via its tracked symlink.
+# Aura itself is configured externally; all resources here use hashicorp/google.
 # Note: Neo4j Aura requires manual setup through their console
 # This configuration provides the connection details
 
@@ -33,14 +26,14 @@ variable "neo4j_password" {
 # Store Neo4j connection details in Secret Manager
 resource "google_secret_manager_secret_version" "neo4j_uri" {
   count = var.neo4j_uri != "" ? 1 : 0
-  
+
   secret      = google_secret_manager_secret.neo4j_uri.id
   secret_data = var.neo4j_uri
 }
 
 resource "google_secret_manager_secret" "neo4j_uri" {
   secret_id = "neo4j-uri"
-  
+
   replication {
     user_managed {
       replicas {
@@ -52,7 +45,7 @@ resource "google_secret_manager_secret" "neo4j_uri" {
 
 resource "google_secret_manager_secret_version" "neo4j_password_version" {
   count = var.neo4j_password != "" ? 1 : 0
-  
+
   secret      = google_secret_manager_secret.neo4j_password.id
   secret_data = var.neo4j_password
 }
@@ -66,17 +59,17 @@ resource "google_sql_database_instance" "graph_dev" {
 
   settings {
     tier = "db-f1-micro"
-    
+
     backup_configuration {
       enabled    = true
       start_time = "03:00"
     }
-    
+
     ip_configuration {
       ipv4_enabled = true
       authorized_networks {
-        value = "0.0.0.0/0"  # Restrict this in production
-        name  = "all"
+        value = var.dev_postgres_allowed_cidr
+        name  = "configured-client"
       }
     }
   }
@@ -94,7 +87,7 @@ resource "google_sql_user" "ontology_user" {
   count    = var.environment == "dev" ? 1 : 0
   name     = "ontology"
   instance = google_sql_database_instance.graph_dev[0].name
-  password = "change-me-in-production"
+  password = var.dev_postgres_password
 }
 
 # Output connection details
@@ -112,6 +105,25 @@ output "dev_postgres_info" {
   description = "Development PostgreSQL instance info"
   value = var.environment == "dev" ? {
     connection_name = google_sql_database_instance.graph_dev[0].connection_name
-    ip_address     = google_sql_database_instance.graph_dev[0].ip_address[0].ip_address
+    ip_address      = google_sql_database_instance.graph_dev[0].ip_address[0].ip_address
   } : null
+}
+
+variable "dev_postgres_password" {
+  description = "Explicit PostgreSQL password. Terraform state contains this sensitive value; protect the backend."
+  type        = string
+  sensitive   = true
+  validation {
+    condition     = length(var.dev_postgres_password) >= 16 && var.dev_postgres_password != "change-me-in-production"
+    error_message = "Provide a unique PostgreSQL password of at least 16 characters."
+  }
+}
+
+variable "dev_postgres_allowed_cidr" {
+  description = "Explicit client CIDR; unrestricted public access is rejected."
+  type        = string
+  validation {
+    condition     = can(cidrhost(var.dev_postgres_allowed_cidr, 0)) && !contains(["0.0.0.0/0", "::/0"], var.dev_postgres_allowed_cidr)
+    error_message = "Provide a valid restricted client CIDR."
+  }
 }

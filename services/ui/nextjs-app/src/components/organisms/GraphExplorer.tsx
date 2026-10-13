@@ -243,6 +243,9 @@ interface NodeInfoPanelProps {
 }
 
 const NodeInfoPanel: React.FC<NodeInfoPanelProps> = ({ node, onClose }) => {
+  const modeColor1 = useColorModeValue('white', 'gray.800');
+  const modeColor2 = useColorModeValue('gray.200', 'gray.600');
+
   if (!node) return null;
 
   const getNodeColor = (type: string) => {
@@ -269,9 +272,9 @@ const NodeInfoPanel: React.FC<NodeInfoPanelProps> = ({ node, onClose }) => {
       top="20px"
       right="20px"
       width="300px"
-      bg={useColorModeValue('white', 'gray.800')}
+      bg={modeColor1}
       border="1px solid"
-      borderColor={useColorModeValue('gray.200', 'gray.600')}
+      borderColor={modeColor2}
       borderRadius="lg"
       shadow="lg"
       p={4}
@@ -382,6 +385,11 @@ export const GraphExplorer: React.FC<GraphExplorerProps> = ({
   enablePan = true,
   enableSelection = true,
 }) => {
+  const modeColor1 = useColorModeValue('gray.50', 'gray.900');
+  const modeColor2 = useColorModeValue('white', 'gray.900');
+  const modeColor3 = useColorModeValue('white', 'gray.800');
+  const modeColor4 = useColorModeValue('gray.200', 'gray.600');
+
   const [selectedNode, setSelectedNode] = useState<GraphNode | null>(null);
   const [selectedNodes, setSelectedNodes] = useState<GraphNode[]>([]);
   const [selectedEdges, setSelectedEdges] = useState<GraphEdge[]>([]);
@@ -518,7 +526,7 @@ export const GraphExplorer: React.FC<GraphExplorerProps> = ({
         display="flex"
         alignItems="center"
         justifyContent="center"
-        bg={useColorModeValue('gray.50', 'gray.900')}
+        bg={modeColor1}
       >
         <VStack spacing={4}>
           <Spinner size="lg" variant="ring" />
@@ -537,7 +545,7 @@ export const GraphExplorer: React.FC<GraphExplorerProps> = ({
         ref={containerRef}
         width="100%"
         height="100%"
-        bg={useColorModeValue('white', 'gray.900')}
+        bg={modeColor2}
         position="relative"
       >
         <canvas
@@ -557,13 +565,13 @@ export const GraphExplorer: React.FC<GraphExplorerProps> = ({
           position="absolute"
           bottom="20px"
           left="20px"
-          bg={useColorModeValue('white', 'gray.800')}
+          bg={modeColor3}
           px={3}
           py={2}
           borderRadius="md"
           shadow="sm"
           border="1px solid"
-          borderColor={useColorModeValue('gray.200', 'gray.600')}
+          borderColor={modeColor4}
         >
           <HStack spacing={4}>
             <HStack spacing={1}>
@@ -610,14 +618,14 @@ export const GraphExplorer: React.FC<GraphExplorerProps> = ({
           left="0"
           width="300px"
           height="100%"
-          bg={useColorModeValue('white', 'gray.800')}
+          bg={modeColor3}
           borderRight="1px solid"
-          borderColor={useColorModeValue('gray.200', 'gray.600')}
+          borderColor={modeColor4}
           shadow="lg"
           zIndex={5}
         >
           <VStack spacing={0} height="100%">
-            <HStack justify="space-between" w="100%" p={4} borderBottom="1px solid" borderColor={useColorModeValue('gray.200', 'gray.600')}>
+            <HStack justify="space-between" w="100%" p={4} borderBottom="1px solid" borderColor={modeColor4}>
               <Text {...textStyles.h4}>Graph Controls</Text>
               <Button size="xs" variant="ghost" onClick={() => setIsControlsOpen(false)}>
                 <Icon name="close" size="xs" />

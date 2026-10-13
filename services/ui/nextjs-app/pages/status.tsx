@@ -30,6 +30,7 @@ import {
   List,
   ListItem,
   ListIcon,
+  Icon,
   Alert,
   AlertIcon,
   CircularProgress,
@@ -349,7 +350,7 @@ const StatusDashboardPage: NextPage = () => {
                             <VStack align="stretch" spacing={3}>
                               <HStack justify="space-between">
                                 <HStack spacing={2}>
-                                  <ListIcon 
+                                  <Icon 
                                     as={getStatusIcon(service.status)} 
                                     color={`${getStatusColor(service.status)}.500`} 
                                   />

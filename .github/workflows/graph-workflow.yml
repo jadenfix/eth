@@ -1,0 +1,16 @@
+name: Durable local graph workflow
+on: [push, pull_request]
+jobs:
+  http-browser-persistence:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - run: npm run build:api && npm run build:sdk && npm run test:api
+      - run: npm install --prefix services/api_gateway --workspaces=false --ignore-scripts
+      - run: npx --prefix services/api_gateway playwright-core install --only-shell --with-deps chromium
+      - run: npm --prefix services/api_gateway run test:browser

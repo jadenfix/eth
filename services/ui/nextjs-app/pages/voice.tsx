@@ -177,19 +177,19 @@ const VoiceOpsPage: React.FC = () => {
                 <List spacing={2}>
                   <ListItem>
                     <ListIcon as={CheckCircleIcon} color="green.500" />
-                    "Show MEV activity"
+                    &quot;Show MEV activity&quot;
                   </ListItem>
                   <ListItem>
                     <ListIcon as={CheckCircleIcon} color="blue.500" />
-                    "Query top gas spenders"
+                    &quot;Query top gas spenders&quot;
                   </ListItem>
                   <ListItem>
                     <ListIcon as={CheckCircleIcon} color="purple.500" />
-                    "Create new alert rule"
+                    &quot;Create new alert rule&quot;
                   </ListItem>
                   <ListItem>
                     <ListIcon as={CheckCircleIcon} color="orange.500" />
-                    "Export current view"
+                    &quot;Export current view&quot;
                   </ListItem>
                 </List>
               </VStack>
@@ -210,7 +210,7 @@ const VoiceOpsPage: React.FC = () => {
                     <VStack align="start" spacing={2}>
                       <Badge colorScheme="blue">Query</Badge>
                       <Text fontSize="sm" fontWeight="medium">
-                        "Show me the top MEV bots from today"
+                        &quot;Show me the top MEV bots from today&quot;
                       </Text>
                       <Text fontSize="xs" color="gray.500">
                         Executes query and displays results
@@ -224,7 +224,7 @@ const VoiceOpsPage: React.FC = () => {
                     <VStack align="start" spacing={2}>
                       <Badge colorScheme="green">Alert</Badge>
                       <Text fontSize="sm" fontWeight="medium">
-                        "Alert me when gas price exceeds 100 gwei"
+                        &quot;Alert me when gas price exceeds 100 gwei&quot;
                       </Text>
                       <Text fontSize="xs" color="gray.500">
                         Creates new alert rule
@@ -238,7 +238,7 @@ const VoiceOpsPage: React.FC = () => {
                     <VStack align="start" spacing={2}>
                       <Badge colorScheme="purple">Navigate</Badge>
                       <Text fontSize="sm" fontWeight="medium">
-                        "Open the compliance dashboard"
+                        &quot;Open the compliance dashboard&quot;
                       </Text>
                       <Text fontSize="xs" color="gray.500">
                         Navigation to specific pages

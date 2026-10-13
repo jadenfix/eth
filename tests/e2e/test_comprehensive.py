@@ -103,24 +103,24 @@ class TestLayer0IdentityAccess:
     """Test Identity & Access Management layer."""
     
     def test_bigquery_column_level_acl(self):
-        """Test BigQuery column-level access control."""
-        # Mock BigQuery client
-        with patch('google.cloud.bigquery.Client') as mock_client:
-            from services.access_control.audit_sink import AuditLogger
-            
-            logger = AuditLogger()
-            
-            # Test policy enforcement
-            result = logger.check_column_access(
-                user='test_user@company.com',
-                table='onchain_data.curated_events',
-                column='sensitive_field'
-            )
-            
-            # Should deny access to sensitive columns by default
-            assert result['allowed'] == False
-            assert 'insufficient_permissions' in result['reason']
+        """Test local column policy used before provider access."""
+        # No cloud client is needed for a default-deny local policy.
+        from services.access_control.audit_sink import AuditLogger
+        
+        logger = AuditLogger(path=':memory:')
+        
+        # Test policy enforcement
+        result = logger.check_column_access(
+            user='test_user@company.com',
+            table='onchain_data.curated_events',
+            column='sensitive_field'
+        )
+        
+        # Should deny access to sensitive columns by default
+        assert result['allowed'] == False
+        assert 'insufficient_permissions' in result['reason']
     
+
     def test_dlp_data_masking(self):
         """Test Data Loss Prevention masking."""
         from services.access_control.audit_sink import DataMasker
@@ -149,7 +149,7 @@ class TestLayer0IdentityAccess:
         """Test comprehensive audit logging."""
         from services.access_control.audit_sink import AuditLogger
         
-        logger = AuditLogger()
+        logger = AuditLogger(path=':memory:')
         
         # Test audit log generation
         log_entry = logger.log_access(
@@ -264,7 +264,10 @@ class TestLayer2SemanticFusion:
             
             mock_model.return_value.predict.return_value = [0.95]  # High confidence match
             
-            pipeline = EntityResolutionPipeline()
+            pipeline = EntityResolutionPipeline(
+                model=mock_model.return_value,
+                data_provider=lambda addresses: {a: {'tx_count':100,'total_volume':50.0} for a in addresses}
+            )
             
             # Test address clustering
             addresses = ['0xabc123' + '0' * 34, '0xdef456' + '0' * 34]
@@ -274,48 +277,77 @@ class TestLayer2SemanticFusion:
             assert result['confidence'] > 0.9
             assert set(result['addresses']) == set(addresses)
     
-    def test_ontology_graphql_api(self):
-        """Test ontology GraphQL API."""
-        from services.graph_api.graph_api import app
-        
-        client = TestClient(app)
-        
-        # Test basic schema query
-        query = """
-        query {
-            __schema {
-                types {
-                    name
+    def test_ontology_graphql_api(self, tmp_path):
+        """Introspect the executable schema with an explicit isolated local store."""
+        from services.graph_api.graph_api import create_app
+        from services.graph_api.store import GraphStore
+
+        store = GraphStore(uri='', path=tmp_path / 'ontology.sqlite')
+        try:
+            assert store.mode == 'sqlite'
+            with TestClient(create_app(store=store, token='')) as client:
+                query = """
+                query {
+                    __schema { types { name } }
                 }
-            }
-        }
-        """
-        
-        response = client.post("/graphql", json={"query": query})
-        assert response.status_code == 200
-        
-        data = response.json()
-        type_names = [t['name'] for t in data['data']['__schema']['types']]
-        
-        # Verify core types exist
-        assert 'Entity' in type_names
-        assert 'Address' in type_names
-        assert 'Transaction' in type_names
+                """
+                response = client.post('/graphql', json={'query': query})
+                assert response.status_code == 200
+                data = response.json()
+                assert not data.get('errors'), data
+                type_names = [t['name'] for t in data['data']['__schema']['types']]
+                assert {'Entity', 'Address', 'Transaction'} <= set(type_names)
+                assert client.get('/health').json()['storage'] == 'sqlite'
+        finally:
+            store.close()
     
     @pytest.mark.asyncio
-    async def test_neo4j_relationship_creation(self, mock_entity_resolution_data):
-        """Test Neo4j relationship management."""
-        with patch('neo4j.GraphDatabase.driver') as mock_driver:
-            from services.graph_api.neo4j_client import Neo4jClient
-            
-            client = Neo4jClient()
-            
-            # Test entity creation
-            entity_data = mock_entity_resolution_data['entities'][0]
-            await client.create_entity(entity_data)
-            
-            # Verify cypher query was called
-            mock_driver.return_value.session.return_value.__enter__.return_value.run.assert_called()
+    async def test_neo4j_relationship_creation(self, mock_entity_resolution_data, tmp_path):
+        """Exercise the async graph client with actual durable local relationships.
+
+        This lane intentionally uses SQLite; the dedicated graph CI exercises
+        the same adapter against a real Neo4j server.
+        """
+        from services.graph_api.neo4j_client import Neo4jClient
+
+        path = tmp_path / 'relationships.sqlite'
+        client = Neo4jClient(uri='', path=path)
+        first, second = mock_entity_resolution_data['entities']
+        try:
+            assert client.store.mode == 'sqlite'
+            for entity in (first, second):
+                created = await client.create_entity({
+                    **entity, 'id': entity['entity_id'], 'type': entity['entity_type']
+                })
+                assert created['id'] == entity['entity_id']
+                assert created['addresses'] == entity['addresses']
+            relationship = await client.create_relationship({
+                'type': 'TRANSACTED_WITH',
+                'fromEntityId': first['entity_id'],
+                'toEntityId': second['entity_id'],
+                'weight': 0.75,
+            })
+            assert relationship['relationship_type'] == 'TRANSACTED_WITH'
+            network = client.store.get_entity_network(first['entity_id'], 1)
+            assert {node['id'] for node in network['nodes']} == {
+                first['entity_id'], second['entity_id']
+            }
+            assert [edge['id'] for edge in network['edges']] == [relationship['id']]
+        finally:
+            client.close()
+
+        restored = Neo4jClient(uri='', path=path)
+        try:
+            persisted = await restored.get_entity(first['entity_id'])
+            assert persisted['addresses'] == first['addresses']
+            assert persisted['confidence'] == first['confidence']
+            edges = restored.store.get_relationships(first['entity_id'])
+            assert len(edges) == 1
+            assert edges[0]['from_entity'] == first['entity_id']
+            assert edges[0]['to_entity'] == second['entity_id']
+            assert edges[0]['weight'] == 0.75
+        finally:
+            restored.close()
 
 
 class TestLayer3IntelligenceAgentMesh:
@@ -333,9 +365,9 @@ class TestLayer3IntelligenceAgentMesh:
         
         # Mock recent transactions for pattern detection
         agent.recent_transactions[mock_blockchain_data['block_number']] = [
-            {'hash': '0xvictim_tx' + '0' * 44, 'gasPrice': '50000000000'},  # Victim tx
-            high_gas_tx,  # Sandwich tx 1 (front-run)
-            {'hash': '0xsandwich2' + '0' * 44, 'gasPrice': '200000000000'},  # Sandwich tx 2 (back-run)
+            high_gas_tx,  # attacker front-run
+            {**high_gas_tx, 'hash':'0xvictim_tx'+'0'*44, 'from':'0xvictim', 'gasPrice':'50000000000'},
+            {**high_gas_tx, 'hash':'0xsandwich2'+'0'*44, 'gasPrice':'30000000000'},
         ]
         
         # Mock signal publishing
@@ -387,26 +419,27 @@ class TestLayer3IntelligenceAgentMesh:
         from services.access_control.audit_sink import SanctionsChecker
         
         checker = SanctionsChecker()
-        
-        # Test clean address
-        clean_address = '0xabc123' + '0' * 34
-        result = checker.check_address(clean_address)
-        assert result['is_sanctioned'] == False
-        
-        # Test mock sanctioned address
-        sanctioned_address = '0x7F367cC41522cE07553e823bf3be79A889DEbe1B'  # Known Tornado Cash
-        with patch.object(checker, '_get_sanctions_list', return_value=[sanctioned_address]):
-            result = checker.check_address(sanctioned_address)
-            assert result['is_sanctioned'] == True
-            assert 'tornado_cash' in result['sanctions_list'][0].lower()
-    
+        address = '0xabc123' + '0' * 34
+        unavailable = checker.check_address(address)
+        assert unavailable['is_sanctioned'] is None
+        assert unavailable['blocked'] is True
+        # An explicitly dated fixture list tests matching, not legal status.
+        fixture_address = '0x' + 'a' * 40
+        checker = SanctionsChecker(
+            [{'address': fixture_address, 'label': 'fixture-only'}],
+            source='offline test fixture', as_of='2026-10-13')
+        assert checker.check_address(address)['is_sanctioned'] is False
+        match = checker.check_address(fixture_address)
+        assert match['is_sanctioned'] is True
+        assert match['sanctions_list'] == ['fixture-only']
+
     @pytest.mark.asyncio
     async def test_vertex_ai_pipeline_mock(self):
         """Test Vertex AI pipeline integration (mocked)."""
         from services.entity_resolution.pipeline import VertexAIPipeline
         
         with patch('google.cloud.aiplatform.PipelineJob') as mock_pipeline:
-            pipeline = VertexAIPipeline()
+            pipeline = VertexAIPipeline(template_path="gs://fixture-test/entity-resolution.json")
             
             # Test pipeline execution
             result = await pipeline.run_entity_resolution_job({
@@ -422,33 +455,38 @@ class TestLayer3IntelligenceAgentMesh:
 class TestLayer4APIVoiceOps:
     """Test API & VoiceOps layer."""
     
-    def test_graphql_api_endpoints(self):
-        """Test GraphQL API functionality."""
-        from services.graph_api.graph_api import app
-        
-        client = TestClient(app)
-        
-        # Test entity query
-        query = """
-        query GetEntities($limit: Int) {
-            entities(limit: $limit) {
-                id
-                type
-                addresses
-                confidence
-            }
+    def test_graphql_api_endpoints(self, tmp_path):
+        """Query persisted entity fields through HTTP, including input bounds."""
+        from services.graph_api.graph_api import create_app
+        from services.graph_api.store import GraphStore
+
+        store = GraphStore(uri='', path=tmp_path / 'api.sqlite')
+        entity = {
+            'id': 'GRAPH_E2E_WHALE', 'type': 'WHALE',
+            'addresses': ['0xabc123' + '0' * 34], 'confidence': 0.95,
         }
-        """
-        
-        response = client.post("/graphql", json={
-            "query": query,
-            "variables": {"limit": 10}
-        })
-        
-        assert response.status_code == 200
-        data = response.json()
-        assert 'data' in data
-        assert 'entities' in data['data']
+        try:
+            store.create_entity(entity)
+            with TestClient(create_app(store=store, token='')) as client:
+                query = """
+                query GetEntities($limit: Int) {
+                    entities(limit: $limit) { id type addresses confidence }
+                }
+                """
+                response = client.post('/graphql', json={
+                    'query': query, 'variables': {'limit': 10}
+                })
+                assert response.status_code == 200
+                data = response.json()
+                assert not data.get('errors'), data
+                assert data['data']['entities'] == [entity]
+                invalid = client.post('/graphql', json={
+                    'query': query, 'variables': {'limit': 0}
+                })
+                assert invalid.status_code == 200
+                assert invalid.json().get('errors')
+        finally:
+            store.close()
     
     def test_rest_api_endpoints(self):
         """Test REST API endpoints."""
@@ -520,7 +558,16 @@ class TestLayer4APIVoiceOps:
             mock_recognizer = mock_stt.return_value
             mock_recognizer.recognize_google.return_value = "show system status"
             
-            text = await service.speech_to_text(b'fake_audio_input')
+            # Decode a real WAV container while provider recognition remains mocked.
+            import io
+            import wave
+            wav = io.BytesIO()
+            with wave.open(wav, 'wb') as writer:
+                writer.setnchannels(1)
+                writer.setsampwidth(2)
+                writer.setframerate(16000)
+                writer.writeframes(bytes(3200))
+            text = await service.speech_to_text(wav.getvalue())
             assert text == "show system status"
 
 
@@ -686,7 +733,7 @@ class TestSecurityCompliance:
         """Test data encryption capabilities."""
         from services.access_control.audit_sink import DataEncryption
         
-        encryptor = DataEncryption()
+        encryptor = DataEncryption(DataEncryption.generate_key())
         
         # Test data encryption/decryption
         sensitive_data = "0x1234567890abcdef" + "0" * 48
@@ -696,27 +743,32 @@ class TestSecurityCompliance:
         assert encrypted != sensitive_data
         assert decrypted == sensitive_data
     
-    def test_gdpr_compliance(self):
+    def test_gdpr_compliance(self, tmp_path):
         """Test GDPR data handling compliance."""
         from services.access_control.audit_sink import GDPRCompliance
         
-        compliance = GDPRCompliance()
+        compliance = GDPRCompliance(tmp_path / 'subjects.db')
+        compliance.store_user_data('test_user@example.com', {'preferences': {'alerts': True}})
         
         # Test data portability
         user_data = compliance.export_user_data('test_user@example.com')
         assert isinstance(user_data, dict)
         assert 'data_sources' in user_data
+        assert user_data['data'] == {'preferences': {'alerts': True}}
         
         # Test right to be forgotten
         result = compliance.delete_user_data('test_user@example.com')
         assert result['success'] == True
         assert 'deletion_timestamp' in result
+        assert result['deleted_records'] == 1
+        assert compliance.export_user_data('test_user@example.com')['data'] is None
+        compliance.close()
     
     def test_soc2_audit_trail(self):
         """Test SOC 2 Type II audit trail generation."""
         from services.access_control.audit_sink import AuditLogger
         
-        logger = AuditLogger()
+        logger = AuditLogger(path=':memory:')
         
         # Generate audit entries
         entries = [

@@ -278,7 +278,7 @@ const SignalBuilderPage: React.FC = () => {
                         <Badge colorScheme="purple" size="sm">Intermediate</Badge>
                       </HStack>
                       <Text fontSize="sm" color="gray.600">
-                        Track large holders' transaction patterns
+                        Track large holders&apos; transaction patterns
                       </Text>
                       <HStack spacing={2}>
                         <Badge size="xs">Entity ID</Badge>

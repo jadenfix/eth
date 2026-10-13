@@ -159,7 +159,7 @@ const NAV_ITEMS: NavItem[] = [
     children: [
       {
         label: 'API Gateway',
-        href: '/api/gateway',
+        href: '/api-gateway',
         icon: '🚪'
       },
       {

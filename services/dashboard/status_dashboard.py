@@ -1,544 +1,339 @@
-"""
-Status Dashboard API - Real-time system status and metrics endpoint.
+"""Status API: observed local metrics and explicitly configured service probes.
 
-Provides REST API for system health, metrics, and operational status
-for the blockchain intelligence platform dashboard.
+No chain, model, or worker telemetry is inferred. STATUS_DEMO_MODE=1 opts into
+labeled synthetic signals. STATUS_SERVICE_URLS is an admin-provided JSON mapping
+of service names to actual HTTP health endpoints; absent endpoints stay unknown.
 """
 
-from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import HTMLResponse
 import asyncio
+from contextlib import asynccontextmanager
+from datetime import datetime, timezone, timedelta
 import json
+import os
 import time
-from typing import Dict, List, Optional, Any
-from datetime import datetime, timedelta
-from dataclasses import dataclass, asdict
+from typing import List
 
+import aiohttp
+from fastapi import FastAPI, Query, WebSocket, WebSocketDisconnect
+from fastapi.responses import HTMLResponse
 import structlog
 
-# Configure logging
-structlog.configure(
-    processors=[
-        structlog.stdlib.filter_by_level,
-        structlog.stdlib.add_logger_name,
-        structlog.stdlib.add_log_level,
-        structlog.processors.TimeStamper(fmt="iso"),
-        structlog.processors.JSONRenderer()
-    ],
-    wrapper_class=structlog.stdlib.BoundLogger,
-    logger_factory=structlog.stdlib.LoggerFactory(),
-    cache_logger_on_first_use=True,
-)
+logger = structlog.get_logger(__name__)
 
-logger = structlog.get_logger()
 
-app = FastAPI(
-    title="Onchain Command Center - Status API",
-    description="Real-time system status and metrics",
-    version="1.0.0"
-)
+def timestamp():
+    return datetime.now(timezone.utc).isoformat()
 
-# CORS middleware
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
 
-# WebSocket connection manager
 class ConnectionManager:
     def __init__(self):
         self.active_connections: List[WebSocket] = []
-        self.logger = logger.bind(service="websocket-manager")
-    
+
     async def connect(self, websocket: WebSocket):
         await websocket.accept()
         self.active_connections.append(websocket)
-        self.logger.info("WebSocket connected", 
-                        active_connections=len(self.active_connections))
-    
+
     def disconnect(self, websocket: WebSocket):
         if websocket in self.active_connections:
             self.active_connections.remove(websocket)
-            self.logger.info("WebSocket disconnected",
-                           active_connections=len(self.active_connections))
-    
+
     async def broadcast(self, data: dict):
-        if self.active_connections:
-            message = json.dumps(data)
-            disconnected = []
-            
-            for connection in self.active_connections:
-                try:
-                    await connection.send_text(message)
-                except Exception:
-                    disconnected.append(connection)
-            
-            # Remove disconnected clients
-            for conn in disconnected:
-                self.disconnect(conn)
+        for connection in list(self.active_connections):
+            try:
+                await connection.send_text(json.dumps(data))
+            except Exception:
+                self.disconnect(connection)
 
-manager = ConnectionManager()
 
-# Mock data store - in production this would connect to real services
 class StatusStore:
-    def __init__(self):
+    def __init__(self, demo_mode=False, service_urls=None):
         self.start_time = time.time()
+        self.demo_mode = demo_mode
+        if service_urls is not None and not isinstance(service_urls, dict):
+            raise ValueError("STATUS_SERVICE_URLS must be a JSON object")
+        self.service_urls = dict(service_urls or {})
+        if any(
+            not isinstance(name, str)
+            or not isinstance(url, str)
+            or not url.startswith(("http://", "https://"))
+            for name, url in self.service_urls.items()
+        ):
+            raise ValueError("Service names and HTTP URLs must be strings")
+        self._sample_counter = 0
         self.signals_history = []
         self.metrics_history = []
+        self.metrics_error = None
+        self.tasks = []
+        names = {
+            "ethereum-ingester",
+            "graph-api",
+            "mev-agent",
+            "entity-resolution",
+            "bigquery",
+            "neo4j",
+        } | set(self.service_urls)
         self.service_status = {
-            "ethereum-ingester": {"status": "healthy", "last_update": time.time()},
-            "graph-api": {"status": "healthy", "last_update": time.time()},
-            "mev-agent": {"status": "healthy", "last_update": time.time()},
-            "entity-resolution": {"status": "healthy", "last_update": time.time()},
-            "bigquery": {"status": "healthy", "last_update": time.time()},
-            "neo4j": {"status": "healthy", "last_update": time.time()}
+            name: {"status": "unknown", "last_update": None, "source": "not_observed"}
+            for name in sorted(names)
         }
-        
-        # Start background data generation
-        asyncio.create_task(self.generate_mock_data())
-    
-    async def generate_mock_data(self):
-        """Generate mock real-time data."""
-        signal_id = 1
-        
-        while True:
-            try:
-                # Generate mock signal
-                signal = {
-                    "signal_id": f"SIG-{signal_id:06d}",
-                    "timestamp": datetime.now().isoformat(),
-                    "signal_type": "MEV_ATTACK" if signal_id % 3 == 0 else "HIGH_VALUE_TRANSFER",
-                    "severity": "HIGH" if signal_id % 5 == 0 else "MEDIUM",
-                    "description": f"Detected anomalous transaction pattern #{signal_id}",
-                    "confidence_score": 0.85 + (signal_id % 10) / 100,
-                    "related_addresses": [f"0x{hex(signal_id*123)[2:]:0>40}"],
-                    "metadata": {
-                        "value_usd": 100000 + (signal_id * 1000),
-                        "gas_used": 21000 + (signal_id % 1000)
-                    }
-                }
-                
-                self.signals_history.append(signal)
-                
-                # Keep only recent signals
-                cutoff = datetime.now() - timedelta(hours=1)
-                self.signals_history = [
-                    s for s in self.signals_history 
-                    if datetime.fromisoformat(s['timestamp']) > cutoff
-                ]
-                
-                # Generate mock metrics
-                metrics = {
-                    "timestamp": datetime.now().isoformat(),
-                    "ingestion_rate": 150 + (signal_id % 50),
-                    "processing_latency_ms": 250 + (signal_id % 100),
-                    "active_agents": 5,
-                    "signal_accuracy": 0.87 + (signal_id % 10) / 100,
-                    "system_cpu": 45 + (signal_id % 20),
-                    "system_memory": 60 + (signal_id % 15)
-                }
-                
-                self.metrics_history.append(metrics)
-                
-                # Keep only recent metrics
-                self.metrics_history = [
-                    m for m in self.metrics_history
-                    if datetime.fromisoformat(m['timestamp']) > cutoff
-                ]
-                
-                # Broadcast to WebSocket clients
-                await manager.broadcast({
-                    "type": "signal_update",
-                    "signal": signal
-                })
-                
-                await manager.broadcast({
-                    "type": "metrics_update", 
-                    "metrics": metrics
-                })
-                
-                signal_id += 1
-                await asyncio.sleep(5)  # New data every 5 seconds
-                
-            except Exception as e:
-                logger.error("Error generating mock data", error=str(e))
-                await asyncio.sleep(10)
 
-status_store = StatusStore()
-
-@app.get("/")
-async def root():
-    """Root endpoint with basic info."""
-    return {
-        "service": "Onchain Command Center Status API",
-        "version": "1.0.0",
-        "timestamp": datetime.now().isoformat(),
-        "uptime_seconds": int(time.time() - status_store.start_time)
-    }
-
-@app.get("/health")
-async def health_check():
-    """Health check endpoint."""
-    return {
-        "status": "healthy",
-        "timestamp": datetime.now().isoformat(),
-        "checks": {
-            "api": "healthy",
-            "websockets": "healthy",
-            "data_store": "healthy"
+    @property
+    def provenance(self):
+        return {
+            "signals": "synthetic_fixture" if self.demo_mode else "no_signal_provider",
+            "metrics": "observed_local_host",
+            "services": "configured_http_probes_only",
+            "live_chain_connected": False,
+            "model_accuracy_validated": False,
         }
-    }
 
-@app.get("/system/status")
-async def get_system_status():
-    """Get overall system status."""
-    uptime = int(time.time() - status_store.start_time)
-    
-    # Calculate service health summary
-    healthy_services = sum(1 for s in status_store.service_status.values() 
-                          if s["status"] == "healthy")
-    total_services = len(status_store.service_status)
-    
-    return {
-        "overall_status": "operational" if healthy_services == total_services else "degraded",
-        "uptime_seconds": uptime,
-        "services": {
-            "healthy": healthy_services,
-            "total": total_services,
-            "degraded": total_services - healthy_services
-        },
-        "recent_signals": len(status_store.signals_history),
-        "ingestion_active": True,
-        "processing_active": True,
-        "timestamp": datetime.now().isoformat()
-    }
+    def collect_metrics(self):
+        import psutil
 
-@app.get("/system/metrics")
-async def get_system_metrics():
-    """Get current system metrics."""
-    if not status_store.metrics_history:
-        return {"error": "No metrics available"}
-    
-    latest = status_store.metrics_history[-1]
-    
-    # Calculate averages over last hour
-    recent_metrics = status_store.metrics_history[-12:]  # Last 12 samples (1 hour)
-    
-    avg_ingestion = sum(m["ingestion_rate"] for m in recent_metrics) / len(recent_metrics)
-    avg_latency = sum(m["processing_latency_ms"] for m in recent_metrics) / len(recent_metrics)
-    avg_accuracy = sum(m["signal_accuracy"] for m in recent_metrics) / len(recent_metrics)
-    
-    return {
-        "current": latest,
-        "averages": {
-            "ingestion_rate": round(avg_ingestion, 1),
-            "processing_latency_ms": round(avg_latency, 1),
-            "signal_accuracy": round(avg_accuracy, 3)
-        },
-        "timestamp": datetime.now().isoformat()
-    }
+        return {
+            "timestamp": timestamp(),
+            "source": "observed_local_host",
+            "system_cpu": psutil.cpu_percent(),
+            "system_memory": psutil.virtual_memory().percent,
+            "ingestion_rate": None,
+            "processing_latency_ms": None,
+            "active_agents": None,
+            "signal_accuracy": None,
+        }
 
-@app.get("/system/services")
-async def get_service_status():
-    """Get individual service statuses."""
-    services = []
-    
-    for name, info in status_store.service_status.items():
-        services.append({
-            "name": name,
-            "status": info["status"],
-            "last_update": datetime.fromtimestamp(info["last_update"]).isoformat(),
-            "uptime_seconds": int(time.time() - info.get("start_time", status_store.start_time))
-        })
-    
-    return {
-        "services": services,
-        "timestamp": datetime.now().isoformat()
-    }
-
-@app.get("/signals/recent")
-async def get_recent_signals(limit: int = 20):
-    """Get recent AI signals."""
-    signals = sorted(
-        status_store.signals_history,
-        key=lambda x: x["timestamp"],
-        reverse=True
-    )[:limit]
-    
-    return {
-        "signals": signals,
-        "total_count": len(status_store.signals_history),
-        "timestamp": datetime.now().isoformat()
-    }
-
-@app.get("/signals/stats")
-async def get_signal_stats():
-    """Get signal statistics."""
-    if not status_store.signals_history:
-        return {"error": "No signals available"}
-    
-    # Count by type
-    type_counts = {}
-    severity_counts = {}
-    
-    for signal in status_store.signals_history:
-        signal_type = signal["signal_type"]
-        severity = signal["severity"]
-        
-        type_counts[signal_type] = type_counts.get(signal_type, 0) + 1
-        severity_counts[severity] = severity_counts.get(severity, 0) + 1
-    
-    # Calculate average confidence
-    avg_confidence = sum(s["confidence_score"] for s in status_store.signals_history) / len(status_store.signals_history)
-    
-    return {
-        "total_signals": len(status_store.signals_history),
-        "by_type": type_counts,
-        "by_severity": severity_counts,
-        "average_confidence": round(avg_confidence, 3),
-        "timestamp": datetime.now().isoformat()
-    }
-
-@app.get("/metrics/timeseries")
-async def get_metrics_timeseries(hours: int = 1):
-    """Get metrics time series data."""
-    cutoff = datetime.now() - timedelta(hours=hours)
-    
-    metrics = [
-        m for m in status_store.metrics_history
-        if datetime.fromisoformat(m["timestamp"]) > cutoff
-    ]
-    
-    return {
-        "metrics": metrics,
-        "count": len(metrics),
-        "hours": hours,
-        "timestamp": datetime.now().isoformat()
-    }
-
-@app.websocket("/ws")
-async def websocket_endpoint(websocket: WebSocket):
-    """WebSocket endpoint for real-time updates."""
-    await manager.connect(websocket)
-    
-    try:
-        # Send initial data
-        await websocket.send_text(json.dumps({
-            "type": "connected",
-            "message": "Connected to Onchain Command Center",
-            "timestamp": datetime.now().isoformat()
-        }))
-        
-        # Send current status
-        system_status = await get_system_status()
-        await websocket.send_text(json.dumps({
-            "type": "system_status",
-            "data": system_status
-        }))
-        
-        # Send recent signals
-        recent_signals = await get_recent_signals(5)
-        await websocket.send_text(json.dumps({
-            "type": "recent_signals",
-            "data": recent_signals
-        }))
-        
-        # Keep connection alive
-        while True:
-            await websocket.receive_text()  # Wait for client messages
-            
-    except WebSocketDisconnect:
-        manager.disconnect(websocket)
-    except Exception as e:
-        logger.error("WebSocket error", error=str(e))
-        manager.disconnect(websocket)
-
-@app.get("/dashboard")
-async def dashboard():
-    """Simple HTML dashboard for testing."""
-    html = """
-    <!DOCTYPE html>
-    <html>
-    <head>
-        <title>Onchain Command Center Status</title>
-        <style>
-            body { font-family: Arial, sans-serif; margin: 20px; background: #1a1a1a; color: #fff; }
-            .container { max-width: 1200px; margin: 0 auto; }
-            .status-card { 
-                background: #2d2d2d; 
-                border: 1px solid #444; 
-                border-radius: 8px; 
-                padding: 20px; 
-                margin: 10px 0; 
-            }
-            .status-healthy { border-left: 4px solid #00ff00; }
-            .status-degraded { border-left: 4px solid #ffff00; }
-            .status-critical { border-left: 4px solid #ff0000; }
-            .metrics { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; }
-            .metric { background: #333; padding: 15px; border-radius: 6px; text-align: center; }
-            .signal { 
-                background: #2a2a2a; 
-                border-left: 3px solid #0088ff; 
-                padding: 10px; 
-                margin: 5px 0; 
-                border-radius: 4px; 
-            }
-            .signal-high { border-left-color: #ff4444; }
-            .signal-medium { border-left-color: #ffaa00; }
-            h1, h2 { color: #00aaff; }
-            .timestamp { color: #888; font-size: 0.9em; }
-        </style>
-    </head>
-    <body>
-        <div class="container">
-            <h1>🔗 Onchain Command Center</h1>
-            <div id="status" class="status-card">
-                <h2>System Status</h2>
-                <p>Loading...</p>
-            </div>
-            
-            <div class="status-card">
-                <h2>📊 Live Metrics</h2>
-                <div id="metrics" class="metrics">Loading...</div>
-            </div>
-            
-            <div class="status-card">
-                <h2>🚨 Recent Signals</h2>
-                <div id="signals">Loading...</div>
-            </div>
-        </div>
-
-        <script>
-            // WebSocket connection
-            const ws = new WebSocket('ws://localhost:8004/ws');
-            
-            ws.onmessage = function(event) {
-                const data = JSON.parse(event.data);
-                
-                if (data.type === 'system_status') {
-                    updateSystemStatus(data.data);
-                } else if (data.type === 'metrics_update') {
-                    updateMetrics(data.metrics);
-                } else if (data.type === 'signal_update') {
-                    addSignal(data.signal);
-                }
-            };
-            
-            function updateSystemStatus(status) {
-                const statusDiv = document.getElementById('status');
-                const statusClass = status.overall_status === 'operational' ? 'status-healthy' : 'status-degraded';
-                
-                statusDiv.className = `status-card ${statusClass}`;
-                statusDiv.innerHTML = `
-                    <h2>System Status: ${status.overall_status.toUpperCase()}</h2>
-                    <p>Uptime: ${Math.floor(status.uptime_seconds / 3600)}h ${Math.floor((status.uptime_seconds % 3600) / 60)}m</p>
-                    <p>Services: ${status.services.healthy}/${status.services.total} healthy</p>
-                    <p>Recent Signals: ${status.recent_signals}</p>
-                    <p class="timestamp">Last updated: ${new Date().toLocaleTimeString()}</p>
-                `;
-            }
-            
-            function updateMetrics(metrics) {
-                const metricsDiv = document.getElementById('metrics');
-                metricsDiv.innerHTML = `
-                    <div class="metric">
-                        <h3>${metrics.ingestion_rate}</h3>
-                        <p>Events/sec</p>
-                    </div>
-                    <div class="metric">
-                        <h3>${metrics.processing_latency_ms}ms</h3>
-                        <p>Latency</p>
-                    </div>
-                    <div class="metric">
-                        <h3>${metrics.active_agents}</h3>
-                        <p>Active Agents</p>
-                    </div>
-                    <div class="metric">
-                        <h3>${(metrics.signal_accuracy * 100).toFixed(1)}%</h3>
-                        <p>Accuracy</p>
-                    </div>
-                    <div class="metric">
-                        <h3>${metrics.system_cpu}%</h3>
-                        <p>CPU Usage</p>
-                    </div>
-                    <div class="metric">
-                        <h3>${metrics.system_memory}%</h3>
-                        <p>Memory Usage</p>
-                    </div>
-                `;
-            }
-            
-            function addSignal(signal) {
-                const signalsDiv = document.getElementById('signals');
-                const severityClass = `signal-${signal.severity.toLowerCase()}`;
-                
-                const signalElement = document.createElement('div');
-                signalElement.className = `signal ${severityClass}`;
-                signalElement.innerHTML = `
-                    <strong>${signal.signal_type}</strong> - ${signal.severity}
-                    <br>${signal.description}
-                    <br><small>Confidence: ${(signal.confidence_score * 100).toFixed(1)}% | ${new Date(signal.timestamp).toLocaleTimeString()}</small>
-                `;
-                
-                signalsDiv.insertBefore(signalElement, signalsDiv.firstChild);
-                
-                // Keep only latest 10 signals
-                while (signalsDiv.children.length > 10) {
-                    signalsDiv.removeChild(signalsDiv.lastChild);
-                }
-            }
-        </script>
-    </body>
-    </html>
-    """
-    return HTMLResponse(content=html)
-
-# Background task to update service statuses
-async def update_service_statuses():
-    """Background task to simulate service status updates."""
-    while True:
+    async def sample_once(self, connections):
         try:
-            # Simulate occasional service issues
-            import random
-            
-            for service_name in status_store.service_status.keys():
-                # 95% chance service stays healthy
-                if random.random() < 0.95:
-                    status_store.service_status[service_name]["status"] = "healthy"
-                else:
-                    # 5% chance of degraded status
-                    status_store.service_status[service_name]["status"] = "degraded"
-                
-                status_store.service_status[service_name]["last_update"] = time.time()
-            
-            await asyncio.sleep(30)  # Check every 30 seconds
-            
-        except Exception as e:
-            logger.error("Error updating service statuses", error=str(e))
-            await asyncio.sleep(60)
+            metrics = await asyncio.to_thread(self.collect_metrics)
+            self.metrics_history = (self.metrics_history + [metrics])[-720:]
+            self.metrics_error = None
+            await connections.broadcast({"type": "metrics_update", "metrics": metrics})
+        except Exception as exc:
+            self.metrics_error = str(exc)
+            logger.warning("Host metric collection unavailable", error=str(exc))
+        if self.demo_mode:
+            self._sample_counter += 1
+            number = self._sample_counter
+            signal = {
+                "signal_id": f"SAMPLE-{number}",
+                "timestamp": timestamp(),
+                "signal_type": "SAMPLE_EVENT",
+                "severity": "LOW",
+                "description": "Synthetic demonstration event; no blockchain observation",
+                "confidence_score": None,
+                "source": "synthetic_fixture",
+            }
+            self.signals_history = (self.signals_history + [signal])[-720:]
+            await connections.broadcast({"type": "signal_update", "signal": signal})
 
-# Start background task
-@app.on_event("startup")
-async def startup_event():
-    """Application startup event."""
-    logger.info("Starting Onchain Command Center Status API")
-    asyncio.create_task(update_service_statuses())
+    async def probe_once(self):
+        if not self.service_urls:
+            return
+        async with aiohttp.ClientSession(
+            timeout=aiohttp.ClientTimeout(total=3)
+        ) as session:
+            for name, url in self.service_urls.items():
+                try:
+                    async with session.get(url) as response:
+                        status = (
+                            "healthy" if 200 <= response.status < 300 else "degraded"
+                        )
+                        detail = f"HTTP {response.status}"
+                except Exception as exc:
+                    status, detail = "degraded", str(exc)
+                self.service_status[name] = {
+                    "status": status,
+                    "last_update": time.time(),
+                    "source": "observed_http",
+                    "detail": detail,
+                }
 
-@app.on_event("shutdown") 
-async def shutdown_event():
-    """Application shutdown event."""
-    logger.info("Shutting down Onchain Command Center Status API")
+    async def _run(self, connections):
+        while True:
+            await self.sample_once(connections)
+            await self.probe_once()
+            await connections.broadcast(
+                {"type": "system_status", "data": self.system_status()}
+            )
+            await asyncio.sleep(5)
+
+    def system_status(self):
+        statuses = [info["status"] for info in self.service_status.values()]
+        unknown = statuses.count("unknown")
+        degraded = statuses.count("degraded")
+        return {
+            "overall_status": (
+                "degraded" if degraded else "unknown" if unknown else "operational"
+            ),
+            "uptime_seconds": int(time.time() - self.start_time),
+            "uptime_scope": "status_api",
+            "services": {
+                "healthy": statuses.count("healthy"),
+                "total": len(statuses),
+                "unknown": unknown,
+                "degraded": degraded,
+            },
+            "recent_signals": len(self.signals_history),
+            "ingestion_active": None,
+            "processing_active": None,
+            "provenance": self.provenance,
+            "timestamp": timestamp(),
+        }
+
+    async def start(self, connections):
+        if self.tasks:
+            raise RuntimeError("Status collection already running")
+        self.start_time = time.time()
+        await self.sample_once(connections)
+        await self.probe_once()
+        self.tasks.append(asyncio.create_task(self._run(connections)))
+
+    async def stop(self):
+        for task in self.tasks:
+            task.cancel()
+        await asyncio.gather(*self.tasks, return_exceptions=True)
+        self.tasks.clear()
+
+
+manager = ConnectionManager()
+status_store = StatusStore(
+    demo_mode=os.getenv("STATUS_DEMO_MODE") == "1",
+    service_urls=json.loads(os.getenv("STATUS_SERVICE_URLS", "{}")),
+)
+
+
+def create_app(store=None, connections=None):
+    store = store or status_store
+    connections = connections or manager
+
+    @asynccontextmanager
+    async def lifespan(app):
+        await store.start(connections)
+        try:
+            yield
+        finally:
+            await store.stop()
+
+    application = FastAPI(
+        title="Onchain Status API", version="1.1.0", lifespan=lifespan
+    )
+    application.state.store = store
+
+    @application.get("/")
+    async def root():
+        return {
+            "service": "Onchain Status API",
+            "version": "1.1.0",
+            "provenance": store.provenance,
+            "uptime_seconds": int(time.time() - store.start_time),
+        }
+
+    @application.get("/health")
+    async def health_check():
+        return {
+            "status": "healthy",
+            "scope": "responding_status_api_only",
+            "external_service_health": "not_inferred",
+            "timestamp": timestamp(),
+        }
+
+    @application.get("/system/status")
+    async def get_system_status():
+        return store.system_status()
+
+    @application.get("/system/metrics")
+    async def get_system_metrics():
+        latest = store.metrics_history[-1] if store.metrics_history else None
+        return {
+            "current": latest,
+            "measurement_status": "observed" if latest else "unavailable",
+            "error": store.metrics_error,
+            "provenance": store.provenance,
+            "timestamp": timestamp(),
+        }
+
+    @application.get("/system/services")
+    async def get_service_status():
+        return {
+            "services": [
+                {"name": name, **info} for name, info in store.service_status.items()
+            ],
+            "provenance": store.provenance,
+            "timestamp": timestamp(),
+        }
+
+    @application.get("/signals/recent")
+    async def get_recent_signals(limit: int = Query(20, ge=1, le=1000)):
+        return {
+            "signals": list(reversed(store.signals_history))[:limit],
+            "total_count": len(store.signals_history),
+            "provenance": store.provenance,
+        }
+
+    @application.get("/signals/stats")
+    async def get_signal_stats():
+        return {
+            "total_signals": len(store.signals_history),
+            "average_confidence": None,
+            "provenance": store.provenance,
+        }
+
+    @application.get("/metrics/timeseries")
+    async def get_metrics_timeseries(hours: int = Query(1, ge=1, le=24)):
+        cutoff = datetime.now(timezone.utc) - timedelta(hours=hours)
+        metrics = [
+            m
+            for m in store.metrics_history
+            if datetime.fromisoformat(m["timestamp"]) > cutoff
+        ]
+        return {
+            "metrics": metrics,
+            "count": len(metrics),
+            "hours": hours,
+            "provenance": store.provenance,
+        }
+
+    @application.websocket("/ws")
+    async def websocket_endpoint(websocket: WebSocket):
+        await connections.connect(websocket)
+        try:
+            await websocket.send_json(
+                {"type": "connected", "provenance": store.provenance}
+            )
+            await websocket.send_json(
+                {"type": "system_status", "data": store.system_status()}
+            )
+            await websocket.send_json(
+                {
+                    "type": "recent_signals",
+                    "data": {"signals": store.signals_history[-5:]},
+                }
+            )
+            while True:
+                await websocket.receive_text()
+        except WebSocketDisconnect:
+            pass
+        finally:
+            connections.disconnect(websocket)
+
+    @application.get("/dashboard", response_class=HTMLResponse)
+    async def dashboard():
+        return DASHBOARD_HTML
+
+    return application
+
+
+DASHBOARD_HTML = """<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Observed status</title><style>
+body{margin:0;background:#102322;color:#e4efeb;font:16px system-ui;line-height:1.6}main{max-width:900px;margin:auto;padding:36px 20px}h1{font-size:36px;line-height:1.15}.label{color:#95c5b4;letter-spacing:.1em;font-size:12px;text-transform:uppercase}.notice{border:1px solid #789184;padding:16px;border-radius:12px;background:#203c35}.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:16px;margin:22px 0}section{background:#19332e;padding:20px;border-radius:12px;min-width:0}strong{display:block;font-size:26px}pre{white-space:pre-wrap;overflow-wrap:anywhere;font:13px system-ui}li{margin:10px 0}.muted{color:#b0c4bc}</style><main><div class="label">Onchain command center / observed status</div><h1>Measured locally.<br>Unknown where unconnected.</h1><p id="provenance" class="notice">Loading telemetry provenance…</p><div class="cards"><section><div class="label">Service observations</div><strong id="status">Loading</strong><p id="coverage"></p></section><section><div class="label">Observed host CPU</div><strong id="cpu">Unavailable</strong><p class="muted">Local host usage; not blockchain throughput.</p></section><section><div class="label">Observed host memory</div><strong id="memory">Unavailable</strong><p class="muted">Local host usage; not model accuracy.</p></section></div><section><h2>Configured services</h2><ul id="services"></ul></section><section style="margin-top:16px"><h2>Signals</h2><p id="signal-status">No signal provider connected.</p><ul id="signals"></ul></section><p id="error" role="status"></p></main><script>
+const set=(id,value)=>document.getElementById(id).textContent=value;
+function renderStatus(s){set('status',s.overall_status);set('coverage',s.services.healthy+' healthy, '+s.services.unknown+' unobserved, '+s.services.degraded+' degraded');set('provenance',s.provenance.signals==='synthetic_fixture'?'SAMPLE MODE: synthetic demonstration signals. CPU/memory are measured on this host. No live chain or validated model accuracy.':'Observed local host metrics. Unconfigured services remain unknown. No chain ingestion, processing throughput, or model accuracy is inferred.');}
+function renderMetrics(m){set('cpu',m?m.system_cpu+'%':'Unavailable');set('memory',m?m.system_memory+'%':'Unavailable');}
+function renderSignals(signals){const list=document.getElementById('signals');list.replaceChildren();for(const s of signals){const li=document.createElement('li');li.textContent=s.description+' · '+s.source;list.append(li);}set('signal-status',signals.length?'Explicit synthetic fixture events; not blockchain detections.':'No signal provider connected.');}
+async function refresh(){try{const urls=['/system/status','/system/metrics','/system/services','/signals/recent'];const data=await Promise.all(urls.map(async url=>{const response=await fetch(url);if(!response.ok)throw Error('HTTP '+response.status);return response.json();}));renderStatus(data[0]);renderMetrics(data[1].current);renderSignals(data[3].signals);const list=document.getElementById('services');list.replaceChildren();for(const s of data[2].services){const li=document.createElement('li');li.textContent=s.name+': '+s.status+' · '+s.source;list.append(li);}set('error','');}catch(e){set('error','Telemetry unavailable: '+e.message);}}
+refresh();const ws=new WebSocket((location.protocol==='https:'?'wss://':'ws://')+location.host+'/ws');ws.onmessage=e=>{const d=JSON.parse(e.data);if(d.type==='system_status')renderStatus(d.data);if(d.type==='metrics_update')renderMetrics(d.metrics);if(d.type==='signal_update')refresh();};ws.onerror=()=>set('error','Live updates unavailable; showing the last HTTP observation.');</script></html>"""
+
+app = create_app()
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(
-        "status_dashboard:app",
-        host="0.0.0.0",
-        port=8004,
-        reload=True,
-        log_level="info"
-    )
+
+    uvicorn.run(app, host="127.0.0.1", port=8004)

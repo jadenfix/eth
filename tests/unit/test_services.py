@@ -278,6 +278,9 @@ class TestAccessControl:
             ]
         }
         
+        # Explicitly load the policy under test; default is deny.
+        evaluator.load_policy(policy)
+
         # Test allowed access
         result = evaluator.evaluate_access(
             user='analyst@company.com',
