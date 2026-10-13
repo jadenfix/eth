@@ -9,11 +9,28 @@ on:
 env:
   GOOGLE_CLOUD_PROJECT: ${{ secrets.GCP_PROJECT_ID }}
   GCP_SA_KEY: ${{ secrets.GCP_SA_KEY }}
-  NODE_VERSION: '18'
+  NODE_VERSION: '22'
   PYTHON_VERSION: '3.11'
 
 jobs:
+  dependency-resolution:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    - uses: actions/setup-python@v5
+      with:
+        python-version: ${{ env.PYTHON_VERSION }}
+    - name: Resolve the declared Python service environment
+      run: |
+        python -m pip install --upgrade pip
+        python -m pip install --dry-run --ignore-installed --report dependency-plan.json -r requirements.txt
+    - uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: python-dependency-plan
+        path: dependency-plan.json
   test:
+    needs: [dependency-resolution]
     runs-on: ubuntu-latest
     
     strategy:
@@ -73,12 +90,11 @@ jobs:
       with:
         node-version: ${{ env.NODE_VERSION }}
         cache: 'npm'
-        cache-dependency-path: services/ui/nextjs-app/package-lock.json
+        cache-dependency-path: package-lock.json
     
     - name: Install UI dependencies
       run: |
-        cd services/ui/nextjs-app
-        npm ci
+        npm ci --ignore-scripts
     
     - name: Lint UI code
       run: |
@@ -93,7 +109,7 @@ jobs:
     - name: Run UI tests
       run: |
         cd services/ui/nextjs-app
-        npm test -- --coverage --watchAll=false
+        npm test -- --experimental-test-coverage
     
     - name: Build UI
       run: |

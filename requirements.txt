@@ -8,7 +8,7 @@ pytest-asyncio==0.23.2
 # Google Cloud
 google-cloud-bigquery==3.14.1
 google-cloud-pubsub==2.18.4
-google-cloud-dataflow==0.8.3
+# Dataflow uses the supported Apache Beam GCP SDK below.
 google-cloud-aiplatform==1.38.1
 google-cloud-logging==3.8.0
 google-cloud-secret-manager==2.18.1
@@ -17,7 +17,7 @@ google-cloud-dlp==3.15.0
 # Data Processing
 apache-beam[gcp]==2.53.0
 pandas==2.1.4
-numpy==1.25.2
+numpy==1.24.4
 pyarrow==14.0.2
 
 # Graph Database

@@ -29,6 +29,7 @@ import {
 import { WarningIcon, CheckCircleIcon, InfoIcon } from '@chakra-ui/icons';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area } from 'recharts';
 import { io, Socket } from 'socket.io-client';
+import { requestJson, readSignals, severityColor, readHealth } from '../utils/gateway-client.mjs';
 
 interface AISignal {
   signal_id: string;
@@ -60,6 +61,7 @@ const Dashboard: React.FC = () => {
   const [signals, setSignals] = useState<AISignal[]>([]);
   const [metrics, setMetrics] = useState<MetricData[]>([]);
   const [systemHealth, setSystemHealth] = useState<SystemHealth | null>(null);
+  const [dataError, setDataError] = useState<string | null>(null);
   const [isConnected, setIsConnected] = useState(false);
   const [socket, setSocket] = useState<Socket | null>(null);
   
@@ -82,6 +84,10 @@ const Dashboard: React.FC = () => {
 
     // Listen for new AI signals
     newSocket.on('ai_signal', (signal: AISignal) => {
+      try { readSignals([signal]); } catch (error) {
+        setDataError(error instanceof Error ? error.message : 'Invalid signal received');
+        return;
+      }
       setSignals(prev => [signal, ...prev.slice(0, 49)]); // Keep last 50
       
       // Show toast for high severity signals
@@ -119,43 +125,35 @@ const Dashboard: React.FC = () => {
   const fetchInitialData = async () => {
     try {
       // Fetch recent signals
-      const signalsResponse = await fetch('/api/signals?limit=50');
-      const signalsData = await signalsResponse.json();
-      setSignals(signalsData);
+      const signalsData = await requestJson('/api/signals?limit=50');
+      setSignals(readSignals(signalsData));
 
       // Fetch system health
-      const healthResponse = await fetch('/api/health');
-      const healthData = await healthResponse.json();
-      setSystemHealth(healthData);
+      const healthData = await requestJson('/api/health');
+      setDataError(null);
+      setSystemHealth(readHealth(healthData));
 
     } catch (error) {
+      setDataError(error instanceof Error ? error.message : 'Gateway data unavailable');
       console.error('Error fetching initial data:', error);
     }
   };
 
-  const getSeverityColor = (severity: string) => {
-    switch (severity) {
-      case 'CRITICAL': return 'red';
-      case 'HIGH': return 'orange';
-      case 'MEDIUM': return 'yellow';
-      case 'LOW': return 'green';
-      default: return 'gray';
-    }
-  };
+  const getSeverityColor = severityColor;
 
   const getSeverityIcon = (severity: string) => {
     switch (severity) {
-      case 'CRITICAL': return <WarningIcon color="red.500" />;
-      case 'HIGH': return <WarningIcon color="orange.500" />;
-      case 'MEDIUM': return <InfoIcon color="yellow.500" />;
-      case 'LOW': return <CheckCircleIcon color="green.500" />;
-      default: return <InfoIcon color="gray.500" />;
+      case 'CRITICAL': return WarningIcon;
+      case 'HIGH': return WarningIcon;
+      case 'MEDIUM': return InfoIcon;
+      case 'LOW': return CheckCircleIcon;
+      default: return InfoIcon;
     }
   };
 
   const handleFeedback = async (signalId: string, rating: number) => {
     try {
-      await fetch('/api/feedback', {
+      await requestJson('/api/feedback', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ signal_id: signalId, rating })
@@ -168,6 +166,7 @@ const Dashboard: React.FC = () => {
         duration: 2000,
       });
     } catch (error) {
+      setDataError(error instanceof Error ? error.message : 'Feedback could not be saved');
       console.error('Error submitting feedback:', error);
     }
   };
@@ -175,6 +174,7 @@ const Dashboard: React.FC = () => {
   return (
     <Box bg={bgColor} minH="100vh" p={4}>
       <Container maxW="container.xl">
+        {dataError && <Alert status="error"><AlertIcon />{dataError}</Alert>}
         {/* Header */}
         <Flex justify="space-between" align="center" mb={6}>
           <VStack align="start" spacing={1}>
