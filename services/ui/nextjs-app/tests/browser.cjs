@@ -12,7 +12,7 @@ const fs=require('node:fs');
     assert(ready,'Next server did not become ready');
     browser=await chromium.launch({args:['--no-sandbox']});
     const page=await browser.newPage({viewport:{width:1280,height:900}}),errors=[];
-    page.on('pageerror',error=>errors.push(error.message));
+    page.on('pageerror',error=>errors.push({route:new URL(page.url()).pathname,message:error.message}));
     for(const route of ['/','/status','/ontology','/api-gateway']){
       const r=await page.goto(base+route);assert.equal(r.status(),200,route);
       await page.getByRole('note').waitFor();

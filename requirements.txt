@@ -65,3 +65,6 @@ jinja2==3.1.2
 
 # Authenticated encryption used by the access-control service.
 cryptography>=42,<51
+
+# Legacy Google AI SDK imports pkg_resources, removed in newer setuptools.
+setuptools==75.8.0

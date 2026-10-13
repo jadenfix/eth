@@ -83,7 +83,7 @@ const mockGraphData: GraphData = {
       target: 'contract1',
       type: 'transfer',
       value: 50.5,
-      timestamp: Date.now() - 3600000,
+      timestamp: Date.parse('2026-01-01T00:00:00Z') - 3600000,
       txHash: '0xabc123...',
       weight: 3,
       color: '#A0AEC0',
@@ -95,7 +95,7 @@ const mockGraphData: GraphData = {
       target: 'addr2',
       type: 'transfer',
       value: 25.0,
-      timestamp: Date.now() - 1800000,
+      timestamp: Date.parse('2026-01-01T00:00:00Z') - 1800000,
       txHash: '0xdef456...',
       weight: 2,
       color: '#A0AEC0',
@@ -405,7 +405,7 @@ const Home: NextPage = () => {
                     OPERATIONAL
                   </Badge>
                   <Text fontSize="sm" color="gray.500">
-                    Last updated: {new Date().toLocaleTimeString()}
+                    Sample snapshot: 2026-01-01 00:00 UTC
                   </Text>
                 </HStack>
               </HStack>
