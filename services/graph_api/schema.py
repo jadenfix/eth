@@ -1,4 +1,4 @@
-from graphql import build_schema
+from graphql import build_schema, GraphQLScalarType
 from . import resolvers
 
 schema = build_schema("""
@@ -15,13 +15,18 @@ input RelationshipInput { id: String, type: String!, fromEntityId: String!, toEn
 type Query { entity(id: String!): Entity, entities(limit: Int = 100, filter: EntityFilter): [Entity!]!, relationships(entity_id: String, limit: Int = 100): [Relationship!]!, getEntityNetwork(id: String!, depth: Int = 2): EntityNetwork! }
 type Mutation { createEntity(input: EntityInput!): Entity!, updateEntity(id: String!, input: EntityUpdateInput!): Entity!, createRelationship(input: RelationshipInput!): Relationship! }
 """)
-json_type = schema.get_type("JSON")
-json_type.serialize = lambda value: value
-json_type.parse_value = lambda value: value
 from graphql.utilities import value_from_ast_untyped
 
-json_type.parse_literal = lambda node, variables=None: value_from_ast_untyped(
-    node, variables
+json_type = schema.get_type("JSON")
+assert isinstance(json_type, GraphQLScalarType)
+assert schema.query_type is not None
+assert schema.mutation_type is not None
+setattr(json_type, "serialize", lambda value: value)
+setattr(json_type, "parse_value", lambda value: value)
+setattr(
+    json_type,
+    "parse_literal",
+    lambda node, variables=None: value_from_ast_untyped(node, variables),
 )
 schema.query_type.fields["entities"].resolve = (
     lambda root, info, **args: resolvers.get_entities(info, **args)

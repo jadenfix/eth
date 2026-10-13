@@ -137,3 +137,47 @@ def test_real_neo4j_workflow():
     assert restored.get_entity("ROOT_A")["name"] == "actual update"
     assert restored.get_relationships("ROOT_A")[0]["to_entity"] == "ROOT_B"
     restored.close()
+
+
+@pytest.mark.asyncio
+async def test_real_entity_adapter_graphql_interoperability():
+    if os.getenv("GRAPH_REQUIRE_NEO4J") != "1":
+        pytest.skip("actual Neo4j adapter interoperability is mandatory in graph CI")
+    from services.entity_resolution.graph_adapter import GraphUpdater
+
+    store = GraphStore(uri=os.environ["NEO4J_URI"])
+    updater = GraphUpdater(driver=store.driver)
+    candidate = {
+        "entity_id": "ADAPTER_REAL",
+        "entity_type": "EXCHANGE",
+        "addresses": ["0xadapter"],
+        "confidence": 0.75,
+        "labels": ["fixture"],
+    }
+    await updater.update_entity_graph(candidate)
+    first = store.get_entity("ADAPTER_REAL")
+    assert first["addresses"] == ["0xadapter"]
+    assert first["confidence"] == 0.75 and first["riskScore"] is None
+    candidate["confidence"] = 0.9
+    await updater.update_entity_graph(candidate)
+    assert store.get_entity("ADAPTER_REAL")["createdAt"] == first["createdAt"]
+    store.close()
+    reopened = GraphStore(uri=os.environ["NEO4J_URI"])
+    client = TestClient(create_app(reopened, token="graph-test-token"))
+    result = execute(
+        client, '{entity(id:"ADAPTER_REAL"){id type addresses confidence riskScore}}'
+    ).json()
+    assert not result.get("errors"), result
+    assert result["data"]["entity"] == {
+        "id": "ADAPTER_REAL",
+        "type": "EXCHANGE",
+        "addresses": ["0xadapter"],
+        "confidence": 0.9,
+        "riskScore": None,
+    }
+    client.close()
+    with reopened.driver.session() as session:
+        session.run(
+            "MATCH (e:Entity {id:$id}) DETACH DELETE e", id="ADAPTER_REAL"
+        ).consume()
+    reopened.close()

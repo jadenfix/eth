@@ -2,6 +2,7 @@
 
 import hmac
 import os
+from typing import Any
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 from graphql import graphql_sync, parse, OperationType, GraphQLError
@@ -69,7 +70,7 @@ def create_app(store=None, token=None):
             variable_values=data.get("variables"),
             operation_name=data.get("operationName"),
         )
-        body = {"data": result.data}
+        body: dict[str, Any] = {"data": result.data}
         if result.errors:
             body["errors"] = [{"message": error.message} for error in result.errors]
         return JSONResponse(body)
