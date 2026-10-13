@@ -222,6 +222,7 @@ def generate_signal(context: OpExecutionContext, anomalies: pd.DataFrame) -> dic
             "anomaly_count": len(anomalies),
             "workflow_name": context.job_name,
             "generated_by": "workflow_builder",
+            "scoring_method": "unvalidated anomaly-count heuristic; not model confidence",
         },
         "timestamp": datetime.now().isoformat(),
     }
@@ -254,6 +255,8 @@ def send_alert(context: OpExecutionContext, signal: dict, notification_service) 
                 result = notification_service.send_webhook_alert(signal)
                 if inspect.isawaitable(result):
                     asyncio.run(result)
+            else:
+                raise ValueError(f"Unsupported notification channel: {channel}")
 
         logger.info(f"Alert sent to {len(channels)} channels")
         return True
@@ -308,7 +311,9 @@ def generate_signal_op(context, anomalies: pd.DataFrame):
     config_schema={"channels": list},
 )
 def send_alert_op(context, signal: dict):
-    return send_alert(context, signal, context.resources.notification_service)
+    if not send_alert(context, signal, context.resources.notification_service):
+        raise RuntimeError("Configured notification delivery failed")
+    return True
 
 
 # Sample workflow definitions

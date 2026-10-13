@@ -117,3 +117,25 @@ async def test_no_credentials_or_invalid_audio_is_not_success(monkeypatch):
     monkeypatch.delenv("ALERT_WEBHOOK_URL", raising=False)
     with pytest.raises(ValueError, match="webhook"):
         await NotificationService().send_webhook_alert({"description": "fixture"})
+
+def test_dagster_delivery_failure_is_not_a_successful_job(monkeypatch):
+    monkeypatch.delenv('ALERT_WEBHOOK_URL', raising=False)
+    class LocalResult:
+        def to_dataframe(self):
+            return pd.DataFrame({'value_usd': [200]})
+    class LocalQueryAdapter:
+        def query(self, query, job_config=None):
+            return LocalResult()
+    config = {'name': 'failed_delivery', 'ops': {
+        'fetch_blockchain_data': {'config': {'query': 'SELECT fixture_rows', 'parameters': {}}},
+        'detect_anomalies': {'config': {'threshold': 100.0, 'comparison': 'greater_than', 'metric': 'value_usd'}},
+        'generate_signal': {'config': {'signal_type': 'FIXTURE', 'description': 'fixture anomaly', 'severity': 'LOW'}},
+        'send_alert': {'config': {'channels': ['webhook']}},
+    }}
+    result = build_custom_workflow(config).execute_in_process(
+        resources={
+            'bigquery': ResourceDefinition.hardcoded_resource(LocalQueryAdapter()),
+            'notification_service': ResourceDefinition.hardcoded_resource(NotificationService()),
+        }, raise_on_error=False)
+    assert result.success is False
+    assert result.failure_data_for_node('send_alert').error.cause.message == 'RuntimeError: Configured notification delivery failed\n'
