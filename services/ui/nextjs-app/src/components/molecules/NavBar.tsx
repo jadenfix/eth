@@ -50,6 +50,8 @@ const SearchBar: React.FC<SearchBarProps> = ({
   onSearch,
   isLoading = false,
 }) => {
+  const modeColor1 = useColorModeValue('white', 'gray.800');
+
   const [query, setQuery] = React.useState('');
   const [isFocused, setIsFocused] = React.useState(false);
 
@@ -111,7 +113,7 @@ const SearchBar: React.FC<SearchBarProps> = ({
           left={0}
           right={0}
           mt={1}
-          bg={useColorModeValue('white', 'gray.800')}
+          bg={modeColor1}
           border="1px solid"
           borderColor="gray.200"
           borderRadius="lg"

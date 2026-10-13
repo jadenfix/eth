@@ -266,6 +266,8 @@ export const QuickActionPanel: React.FC<QuickActionProps> = ({
   onRiskAssessment,
   isCollapsed = false,
 }) => {
+  const modeColor1 = useColorModeValue('gray.50', 'gray.700');
+
   const actions = [
     {
       icon: 'search' as IconType,
@@ -324,7 +326,7 @@ export const QuickActionPanel: React.FC<QuickActionProps> = ({
               onClick={action.onClick}
               leftIcon={<Icon name={action.icon} color={action.color} />}
               _hover={{
-                bg: useColorModeValue('gray.50', 'gray.700'),
+                bg: modeColor1,
                 transform: 'translateX(2px)',
               }}
             >

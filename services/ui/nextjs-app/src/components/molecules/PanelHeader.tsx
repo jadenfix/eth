@@ -197,6 +197,8 @@ export const PanelHeader: React.FC<PanelHeaderProps> = ({
   isDraggable = false,
   dragHandle = false,
 }) => {
+  const modeColor1 = useColorModeValue('gray.100', 'gray.700');
+
   const bgColor = useColorModeValue('gray.50', 'gray.800');
   const borderColor = useColorModeValue('gray.200', 'gray.600');
 
@@ -211,7 +213,7 @@ export const PanelHeader: React.FC<PanelHeaderProps> = ({
       userSelect={isDraggable && dragHandle ? 'none' : 'auto'}
       transition={transitionPresets.hover}
       _hover={isDraggable && dragHandle ? {
-        bg: useColorModeValue('gray.100', 'gray.700'),
+        bg: modeColor1,
       } : undefined}
     >
       <Flex align="center">
@@ -333,6 +335,9 @@ export const TableHeader: React.FC<TableHeaderProps> = ({
   onSearchChange,
   actions,
 }) => {
+  const modeColor1 = useColorModeValue('white', 'gray.700');
+  const modeColor2 = useColorModeValue('gray.300', 'gray.600');
+
   const getCountDisplay = () => {
     if (totalCount === undefined) return '';
     if (filteredCount !== undefined && filteredCount !== totalCount) {
@@ -360,9 +365,9 @@ export const TableHeader: React.FC<TableHeaderProps> = ({
                 py={1}
                 pr={8}
                 fontSize="sm"
-                bg={useColorModeValue('white', 'gray.700')}
+                bg={modeColor1}
                 border="1px solid"
-                borderColor={useColorModeValue('gray.300', 'gray.600')}
+                borderColor={modeColor2}
                 borderRadius="md"
                 _focus={{
                   borderColor: colors.primary[400],
@@ -438,6 +443,8 @@ export const ChartHeader: React.FC<ChartHeaderProps> = ({
   onFullscreen,
   metrics = [],
 }) => {
+  const modeColor1 = useColorModeValue('white', 'gray.700');
+
   const timeRanges = ['1h', '6h', '24h', '7d', '30d', '90d'];
 
   return (
@@ -464,7 +471,7 @@ export const ChartHeader: React.FC<ChartHeaderProps> = ({
 
           {/* Time Range Selector */}
           {onTimeRangeChange && (
-            <HStack spacing={1} bg={useColorModeValue('white', 'gray.700')} p={1} borderRadius="md">
+            <HStack spacing={1} bg={modeColor1} p={1} borderRadius="md">
               {timeRanges.map((range) => (
                 <Button
                   key={range}
