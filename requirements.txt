@@ -62,3 +62,6 @@ python-dotenv==1.0.0
 requests==2.31.0
 pyyaml==6.0.1
 jinja2==3.1.2
+
+# Authenticated encryption used by the access-control service.
+cryptography>=42,<51

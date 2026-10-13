@@ -122,6 +122,18 @@ jobs:
         cd services/ui/nextjs-app
         npm run build
 
+    - name: Install browser for the real production UI smoke test
+      run: npx --prefix services/api_gateway playwright-core install --only-shell --with-deps chromium
+
+    - name: Run the real production UI browser workflow
+      run: npm --workspace onchain-war-room run test:browser
+
+    - uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: legacy-ui-browser-evidence
+        path: services/ui/nextjs-app/artifacts/
+
   build-docker:
     runs-on: ubuntu-latest
     needs: [test, test-ui]
