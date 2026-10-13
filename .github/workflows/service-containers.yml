@@ -1,0 +1,22 @@
+name: Actual Python service containers
+on: [push, pull_request]
+permissions:
+  contents: read
+jobs:
+  worker-and-graph-container-boundaries:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Build actual scoped worker and graph images without pushing
+        run: |
+          docker build -t eth-proof-ingestion -f services/ingestion/Dockerfile .
+          docker build -t eth-proof-agents-mev-watch -f services/agents-mev-watch/Dockerfile .
+          docker build -t eth-proof-ontology -f services/ontology/Dockerfile .
+      - name: Real worker missing-config failures and HTTP graph volume persistence
+        run: python scripts/check_python_containers.py

@@ -279,6 +279,10 @@ class MessageProcessor:
 
 
 async def main():
+    if not os.getenv("ETHEREUM_RPC_URL") or not os.getenv("GOOGLE_CLOUD_PROJECT"):
+        raise RuntimeError(
+            "ETHEREUM_RPC_URL and GOOGLE_CLOUD_PROJECT are required for the live worker"
+        )
     await EthereumIngester().start_streaming()
 
 

@@ -1,32 +1,10 @@
 FROM python:3.11-slim
-
 WORKDIR /app
-
-# Install system dependencies
-RUN apt-get update && apt-get install -y \
-    gcc \
-    g++ \
-    && rm -rf /var/lib/apt/lists/*
-
-# Copy requirements and install Python dependencies
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
-
-# Copy application code
-COPY services/ingestion/ ./services/ingestion/
-COPY sdk/python/ ./sdk/python/
-
-# Set Python path
-ENV PYTHONPATH=/app
-
-# Create non-root user
-RUN useradd --create-home --shell /bin/bash app
+ENV PYTHONPATH=/app PYTHONUNBUFFERED=1 PYTHONDONTWRITEBYTECODE=1
+COPY services/ingestion/requirements.txt /tmp/requirements.txt
+RUN pip install --no-cache-dir -r /tmp/requirements.txt && useradd --uid 10001 --create-home app
+COPY services/__init__.py services/__init__.py
+COPY services/ingestion services/ingestion
 USER app
-
-# Health check
-HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
-    CMD python -c "import requests; requests.get('http://localhost:8080/health')" || exit 1
-
-EXPOSE 8080
-
-CMD ["python", "services/ingestion/ethereum_ingester.py"]
+# This is a worker, not an HTTP server. Requires explicit RPC and Pub/Sub config.
+CMD ["python", "-m", "services.ingestion.ethereum_ingester"]
