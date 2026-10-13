@@ -5,7 +5,7 @@ on:
       - 'services/graph_api/**'
       - 'services/ontology/**'
       - 'services/entity_resolution/graph_adapter.py'
-      - 'ci-cd/requirements.txt'
+      - 'requirements.txt'
       - 'tests/graph_api/**'
       - '.github/workflows/graph-ontology-e2e.yml'
   workflow_dispatch:
