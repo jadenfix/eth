@@ -1,213 +1,285 @@
-"""
-Blockchain data ingestion service.
+"""Read-only Ethereum normalization, confirmed publishing and durable consumption.
 
-Pulls real-time data from Ethereum via Alchemy/Infura, normalizes to canonical 
-chain-event format, and publishes to Pub/Sub for downstream processing.
+Cloud clients are constructed only when used. Missing prices remain unavailable;
+publication errors propagate so incomplete blocks are not treated as processed.
 """
 
 import asyncio
+import hashlib
 import json
-import logging
 import os
-from typing import Dict, List, Optional, Any
+import sqlite3
+from collections.abc import Mapping
 from dataclasses import dataclass
 from datetime import datetime, timezone
-
-import structlog
+from decimal import Decimal
+from pathlib import Path
+from typing import Optional
 from web3 import Web3
-from google.cloud import pubsub_v1
-from google.cloud import bigquery
-import aiohttp
 
-# Configure structured logging
-structlog.configure(
-    processors=[
-        structlog.stdlib.filter_by_level,
-        structlog.stdlib.add_logger_name,
-        structlog.stdlib.add_log_level,
-        structlog.processors.TimeStamper(fmt="iso"),
-        structlog.processors.JSONRenderer()
-    ],
-    wrapper_class=structlog.stdlib.BoundLogger,
-    logger_factory=structlog.stdlib.LoggerFactory(),
-    cache_logger_on_first_use=True,
-)
 
-logger = structlog.get_logger()
+def field(record, key, default=None):
+    if isinstance(record, Mapping):
+        return record.get(key, default)
+    if hasattr(record, "__dict__") and key in vars(record):
+        return vars(record)[key]
+    value = getattr(record, key, default)
+    return (
+        value
+        if value is None
+        or isinstance(
+            value, (str, bytes, int, float, dict, list, tuple, datetime, Decimal)
+        )
+        else default
+    )
+
+
+def quantity(value, default=0):
+    if value is None:
+        return default
+    if isinstance(value, str):
+        result = int(value, 16 if value.startswith("0x") else 10)
+    elif isinstance(value, int) and not isinstance(value, bool):
+        result = value
+    else:
+        raise ValueError("Ethereum quantity must be an integer or encoded integer")
+    if result < 0:
+        raise ValueError("Ethereum quantity cannot be negative")
+    return result
+
+
+def hash_text(value):
+    if isinstance(value, str):
+        return value
+    if isinstance(value, bytes):
+        return "0x" + value.hex()
+    if callable(getattr(value, "hex", None)):
+        result = value.hex()
+        if isinstance(result, str):
+            return result if result.startswith("0x") else "0x" + result
+    raise ValueError("Transaction hash is required")
 
 
 @dataclass
 class ChainEvent:
-    """Canonical blockchain event structure."""
     block_number: int
     transaction_hash: str
     log_index: Optional[int]
     contract_address: Optional[str]
     event_name: str
-    event_data: Dict[str, Any]
+    event_data: dict
     timestamp: datetime
     chain_id: int
-    
-    def to_dict(self) -> Dict[str, Any]:
+
+    def to_dict(self):
         return {
-            'block_number': self.block_number,
-            'transaction_hash': self.transaction_hash,
-            'log_index': self.log_index,
-            'contract_address': self.contract_address,
-            'event_name': self.event_name,
-            'event_data': self.event_data,
-            'timestamp': self.timestamp.isoformat(),
-            'chain_id': self.chain_id,
-            'ingestion_timestamp': datetime.now(timezone.utc).isoformat()
+            **vars(self),
+            "timestamp": self.timestamp.isoformat(),
+            "ingestion_timestamp": datetime.now(timezone.utc).isoformat(),
         }
 
 
-class EthereumIngester:
-    """Ethereum blockchain data ingester."""
-    
-    def __init__(self):
-        self.web3 = Web3(Web3.HTTPProvider(
-            f"https://eth-mainnet.alchemyapi.io/v2/{os.getenv('ALCHEMY_API_KEY')}"
-        ))
-        self.publisher = pubsub_v1.PublisherClient()
-        self.topic_path = self.publisher.topic_path(
-            os.getenv('GOOGLE_CLOUD_PROJECT'),
-            'raw-chain-events'
+class ValueCalculator:
+    def __init__(self, price_provider=None):
+        self.price_provider = price_provider
+
+    def get_eth_price_usd(self):
+        if self.price_provider is None:
+            raise RuntimeError("No verified ETH/USD price source configured")
+        price = Decimal(str(self.price_provider()))
+        if not price.is_finite() or price <= 0:
+            raise ValueError("Invalid ETH/USD price")
+        return price
+
+    def calculate_usd_value(self, value_eth):
+        value = Decimal(str(value_eth))
+        if not value.is_finite() or value < 0:
+            raise ValueError("Invalid ETH amount")
+        price = Decimal(str(self.get_eth_price_usd()))
+        if not price.is_finite() or price <= 0:
+            raise ValueError("Invalid ETH/USD price")
+        return float(value * price)
+
+
+class EventNormalizer:
+    def __init__(self, chain_id=1, price_provider=None):
+        self.chain_id = quantity(chain_id)
+        self.calculator = ValueCalculator(price_provider) if price_provider else None
+
+    def normalize_transaction(
+        self, transaction, block_number, timestamp=None, receipt=None
+    ):
+        value = Decimal(quantity(field(transaction, "value", 0))) / Decimal(10**18)
+        gas = quantity(
+            field(transaction, "gasPrice", field(transaction, "effectiveGasPrice", 0))
         )
-        self.logger = logger.bind(service="ethereum-ingester")
-        
+        source, target = field(transaction, "from"), field(transaction, "to")
+        used = quantity(
+            field(receipt or {}, "gasUsed", field(transaction, "gasUsed", 0))
+        )
+        now = (
+            datetime.fromtimestamp(timestamp, timezone.utc)
+            if isinstance(timestamp, (int, float))
+            else datetime.now(timezone.utc)
+        )
+        return {
+            "event_name": "TRANSACTION",
+            "chain_id": self.chain_id,
+            "block_number": quantity(block_number),
+            "transaction_hash": hash_text(field(transaction, "hash")),
+            "from_address": source,
+            "to_address": target,
+            "value_eth": float(value),
+            "value_wei": str(quantity(field(transaction, "value", 0))),
+            "gas_price_gwei": float(Decimal(gas) / Decimal(10**9)),
+            "value_usd": (
+                self.calculator.calculate_usd_value(value) if self.calculator else None
+            ),
+            "timestamp": now.isoformat(),
+            "contract_address": target,
+            "event_data": {
+                "from": source,
+                "to": target,
+                "value": str(quantity(field(transaction, "value", 0))),
+                "gas_price": str(gas),
+                "gas_used": used,
+                "status": quantity(field(receipt or {}, "status", 1)),
+            },
+        }
+
+
+class MessagePublisher:
+    def __init__(self, client=None, project=None):
+        self.client = client
+        self.project = project or os.getenv("GOOGLE_CLOUD_PROJECT")
+
+    async def publish_event(self, topic, event):
+        if not self.project:
+            raise RuntimeError("GOOGLE_CLOUD_PROJECT is required for publication")
+        if self.client is None:
+            from google.cloud import pubsub_v1
+
+            self.client = pubsub_v1.PublisherClient()
+        payload = event.to_dict() if isinstance(event, ChainEvent) else event
+        future = self.client.publish(
+            self.client.topic_path(self.project, topic),
+            json.dumps(payload, allow_nan=False).encode(),
+        )
+        return await asyncio.to_thread(future.result, timeout=30)
+
+
+class EthereumIngester:
+    def __init__(self, web3=None, publisher=None, rpc_url=None):
+        rpc = rpc_url or os.getenv("ETHEREUM_RPC_URL") or "http://127.0.0.1:8545"
+        self.web3 = web3 if web3 is not None else Web3(Web3.HTTPProvider(rpc))
+        self.publisher = publisher or MessagePublisher()
+        self.normalizer = EventNormalizer()
+
+    async def _process_block(self, block_number):
+        block = await asyncio.to_thread(
+            self.web3.eth.get_block, block_number, full_transactions=True
+        )
+        for transaction in field(block, "transactions", []):
+            tx_hash = field(transaction, "hash")
+            receipt = await asyncio.to_thread(
+                self.web3.eth.get_transaction_receipt, tx_hash
+            )
+            await self._publish_event(
+                self.normalizer.normalize_transaction(
+                    transaction,
+                    field(block, "number", block_number),
+                    field(block, "timestamp"),
+                    receipt,
+                )
+            )
+            for i, log in enumerate(field(receipt, "logs", [])):
+                await self._publish_event(
+                    ChainEvent(
+                        block_number,
+                        hash_text(tx_hash),
+                        i,
+                        field(log, "address"),
+                        "CONTRACT_EVENT",
+                        {
+                            "topics": [hash_text(x) for x in field(log, "topics", [])],
+                            "data": field(log, "data"),
+                            "removed": field(log, "removed", False),
+                        },
+                        datetime.fromtimestamp(field(block, "timestamp"), timezone.utc),
+                        1,
+                    )
+                )
+
+    async def _publish_event(self, event):
+        return await self.publisher.publish_event("raw-chain-events", event)
+
     async def start_streaming(self):
-        """Start streaming blockchain events."""
-        self.logger.info("Starting Ethereum event streaming")
-        
-        # Subscribe to new blocks
-        latest_block = self.web3.eth.block_number
-        self.logger.info("Starting from block", block_number=latest_block)
-        
+        cursor = await asyncio.to_thread(lambda: self.web3.eth.block_number)
         while True:
+            current = await asyncio.to_thread(lambda: self.web3.eth.block_number)
+            for number in range(cursor + 1, current + 1):
+                await self._process_block(number)
+                cursor = number
+            await asyncio.sleep(1)
+
+
+class MessageProcessor:
+    """Persist validated deliveries atomically before acknowledgement."""
+
+    def __init__(self, database_path=None, handler=None):
+        path = database_path or os.getenv("EVENT_DB_PATH", "./data/chain_events.sqlite")
+        if path != ":memory:":
+            Path(path).parent.mkdir(parents=True, exist_ok=True)
+        self.db = sqlite3.connect(path)
+        self.db.execute(
+            "CREATE TABLE IF NOT EXISTS events(id TEXT PRIMARY KEY,payload TEXT NOT NULL)"
+        )
+        self.handler = handler
+        self.lock = asyncio.Lock()
+
+    async def process_message(self, message):
+        async with self.lock:
             try:
-                current_block = self.web3.eth.block_number
-                
-                # Process any new blocks
-                if current_block > latest_block:
-                    for block_num in range(latest_block + 1, current_block + 1):
-                        await self._process_block(block_num)
-                    latest_block = current_block
-                    
-                await asyncio.sleep(1)  # Check for new blocks every second
-                
-            except Exception as e:
-                self.logger.error("Error in streaming loop", error=str(e))
-                await asyncio.sleep(5)  # Backoff on error
-                
-    async def _process_block(self, block_number: int):
-        """Process a single block and extract events."""
-        try:
-            block = self.web3.eth.get_block(block_number, full_transactions=True)
-            self.logger.info("Processing block", block_number=block_number, 
-                           tx_count=len(block.transactions))
-            
-            # Process each transaction
-            for tx in block.transactions:
-                await self._process_transaction(tx, block)
-                
-        except Exception as e:
-            self.logger.error("Error processing block", 
-                            block_number=block_number, error=str(e))
-    
-    async def _process_transaction(self, tx, block):
-        """Process a transaction and extract events."""
-        try:
-            # Get transaction receipt for events
-            receipt = self.web3.eth.get_transaction_receipt(tx.hash)
-            
-            # Create base transaction event
-            tx_event = ChainEvent(
-                block_number=block.number,
-                transaction_hash=tx.hash.hex(),
-                log_index=None,
-                contract_address=tx.to,
-                event_name="TRANSACTION",
-                event_data={
-                    'from': tx['from'],
-                    'to': tx.to,
-                    'value': str(tx.value),
-                    'gas_used': receipt.gasUsed,
-                    'gas_price': str(tx.gasPrice),
-                    'status': receipt.status
-                },
-                timestamp=datetime.fromtimestamp(block.timestamp, tz=timezone.utc),
-                chain_id=1  # Ethereum mainnet
-            )
-            
-            await self._publish_event(tx_event)
-            
-            # Process contract logs (events)
-            for log_index, log in enumerate(receipt.logs):
-                await self._process_log(log, log_index, block, tx.hash.hex())
-                
-        except Exception as e:
-            self.logger.error("Error processing transaction", 
-                            tx_hash=tx.hash.hex(), error=str(e))
-    
-    async def _process_log(self, log, log_index: int, block, tx_hash: str):
-        """Process a contract event log."""
-        try:
-            # Basic event parsing - can be enhanced with ABI decoding
-            event = ChainEvent(
-                block_number=block.number,
-                transaction_hash=tx_hash,
-                log_index=log_index,
-                contract_address=log.address,
-                event_name="CONTRACT_EVENT",
-                event_data={
-                    'topics': [topic.hex() for topic in log.topics],
-                    'data': log.data,
-                    'removed': log.removed
-                },
-                timestamp=datetime.fromtimestamp(block.timestamp, tz=timezone.utc),
-                chain_id=1
-            )
-            
-            await self._publish_event(event)
-            
-        except Exception as e:
-            self.logger.error("Error processing log", 
-                            log_index=log_index, error=str(e))
-    
-    async def _publish_event(self, event: ChainEvent):
-        """Publish event to Pub/Sub."""
-        try:
-            message_data = json.dumps(event.to_dict()).encode('utf-8')
-            
-            # Add attributes for filtering
-            attributes = {
-                'event_name': event.event_name,
-                'chain_id': str(event.chain_id),
-                'block_number': str(event.block_number)
-            }
-            
-            if event.contract_address:
-                attributes['contract_address'] = event.contract_address
-            
-            future = self.publisher.publish(
-                self.topic_path, 
-                message_data, 
-                **attributes
-            )
-            
-            # Don't wait for publish to complete - fire and forget for performance
-            self.logger.debug("Published event", event_name=event.event_name,
-                            block_number=event.block_number)
-            
-        except Exception as e:
-            self.logger.error("Error publishing event", error=str(e))
+                event = json.loads(message.data)
+                if (
+                    not isinstance(event, dict)
+                    or not event.get("event_name")
+                    or not isinstance(event.get("block_number"), int)
+                ):
+                    raise ValueError("Invalid chain event")
+                encoded = json.dumps(event, sort_keys=True, allow_nan=False)
+                identity = (
+                    str(
+                        event.get("transaction_hash")
+                        or hashlib.sha256(encoded.encode()).hexdigest()
+                    )
+                    + ":"
+                    + str(event.get("log_index", "transaction"))
+                )
+                if self.db.execute(
+                    "SELECT 1 FROM events WHERE id=?", (identity,)
+                ).fetchone():
+                    message.ack()
+                    return True
+                if self.handler:
+                    await self.handler(event)
+                with self.db:
+                    self.db.execute(
+                        "INSERT INTO events VALUES(?,?) ON CONFLICT(id) DO NOTHING",
+                        (identity, encoded),
+                    )
+                message.ack()
+                return True
+            except Exception:
+                message.nack()
+                return False
+
+    def close(self):
+        self.db.close()
 
 
 async def main():
-    """Main ingestion loop."""
-    ingester = EthereumIngester()
-    await ingester.start_streaming()
+    await EthereumIngester().start_streaming()
 
 
 if __name__ == "__main__":

@@ -264,7 +264,10 @@ class TestLayer2SemanticFusion:
             
             mock_model.return_value.predict.return_value = [0.95]  # High confidence match
             
-            pipeline = EntityResolutionPipeline()
+            pipeline = EntityResolutionPipeline(
+                model=mock_model.return_value,
+                data_provider=lambda addresses: {a: {'tx_count':100,'total_volume':50.0} for a in addresses}
+            )
             
             # Test address clustering
             addresses = ['0xabc123' + '0' * 34, '0xdef456' + '0' * 34]
@@ -333,9 +336,9 @@ class TestLayer3IntelligenceAgentMesh:
         
         # Mock recent transactions for pattern detection
         agent.recent_transactions[mock_blockchain_data['block_number']] = [
-            {'hash': '0xvictim_tx' + '0' * 44, 'gasPrice': '50000000000'},  # Victim tx
-            high_gas_tx,  # Sandwich tx 1 (front-run)
-            {'hash': '0xsandwich2' + '0' * 44, 'gasPrice': '200000000000'},  # Sandwich tx 2 (back-run)
+            high_gas_tx,  # attacker front-run
+            {**high_gas_tx, 'hash':'0xvictim_tx'+'0'*44, 'from':'0xvictim', 'gasPrice':'50000000000'},
+            {**high_gas_tx, 'hash':'0xsandwich2'+'0'*44, 'gasPrice':'30000000000'},
         ]
         
         # Mock signal publishing
@@ -407,7 +410,7 @@ class TestLayer3IntelligenceAgentMesh:
         from services.entity_resolution.pipeline import VertexAIPipeline
         
         with patch('google.cloud.aiplatform.PipelineJob') as mock_pipeline:
-            pipeline = VertexAIPipeline()
+            pipeline = VertexAIPipeline(template_path="gs://fixture-test/entity-resolution.json")
             
             # Test pipeline execution
             result = await pipeline.run_entity_resolution_job({

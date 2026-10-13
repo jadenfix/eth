@@ -245,7 +245,7 @@ class TestDatabaseIntegration:
             with patch('neo4j.GraphDatabase.driver') as mock_neo4j:
                 from services.entity_resolution.pipeline import EntityResolutionPipeline
                 
-                pipeline = EntityResolutionPipeline()
+                pipeline = EntityResolutionPipeline(bigquery_client=mock_client)
                 
                 # Test entity resolution
                 result = await pipeline.resolve_entities(['0xabc123', '0xdef456'])
@@ -275,7 +275,7 @@ class TestDatabaseIntegration:
             # Test database helper
             from services.ingestion.database_helper import BigQueryHelper
             
-            helper = BigQueryHelper()
+            helper = BigQueryHelper(client=mock_client)
             results = helper.query_recent_blocks(limit=3)
             
             assert len(results) == 3

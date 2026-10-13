@@ -1,0 +1,38 @@
+name: Read-only event and behavior engine
+on: [push, pull_request]
+jobs:
+  normalization-replay-failures:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: >-
+          pip install setuptools==75.8.0 web3==6.15.1 eth-utils==3.0.0
+          eth-typing==4.0.0 neo4j==5.15.0 google-cloud-bigquery==3.14.1
+          google-cloud-pubsub==2.18.4 google-cloud-aiplatform==1.38.1
+          numpy==1.24.4 pandas==2.1.4 scikit-learn==1.3.2
+          fastapi==0.108.0 httpx==0.25.2 structlog==23.2.0
+          pytest==7.4.4 pytest-asyncio==0.23.2
+      - run: python scripts/check_event_replay.py
+        env:
+          PYTHONPATH: .
+      - run: >-
+          python -m pytest tests/behavioral
+          tests/unit/test_services.py::TestEthereumIngester
+          tests/unit/test_services.py::TestMEVAgent
+          tests/unit/test_services.py::TestEntityResolution
+          tests/integration/test_services_integration.py::TestIngestionToProcessing
+          tests/integration/test_services_integration.py::TestDatabaseIntegration
+          tests/e2e/test_comprehensive.py::TestLayer1Ingestion
+          tests/e2e/test_comprehensive.py::TestLayer2SemanticFusion::test_entity_resolution_pipeline
+          tests/e2e/test_comprehensive.py::TestLayer3IntelligenceAgentMesh::test_mev_detection_accuracy
+          tests/e2e/test_comprehensive.py::TestLayer3IntelligenceAgentMesh::test_high_value_transfer_detection
+          tests/e2e/test_comprehensive.py::TestLayer3IntelligenceAgentMesh::test_vertex_ai_pipeline_mock
+          tests/e2e/test_pipeline.py::TestE2EPipeline::test_ingestion_to_signal_pipeline
+          tests/e2e/test_pipeline.py::TestE2EPipeline::test_mev_detection_accuracy -q
+        env:
+          PYTHONPATH: .
